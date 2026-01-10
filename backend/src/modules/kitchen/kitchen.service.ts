@@ -5,6 +5,7 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { KitchenRepository } from './kitchen.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { KitchenGateway } from './kitchen.gateway';
 import { CreateKitchenStationDto, UpdateKitchenStationDto } from './dto';
 import {
     TicketCreatedEvent,
@@ -20,6 +21,7 @@ export class KitchenService {
     constructor(
         private readonly repo: KitchenRepository,
         @Inject('IEventBus') private readonly eventBus: IEventBus,
+        private readonly websocketGateway: KitchenGateway,
     ) { }
 
     // ==================== TICKET ROUTING ====================
@@ -69,6 +71,9 @@ export class KitchenService {
                     status: 'NEW',
                 });
             }
+
+            // Emit to KDS screens via WebSocket
+            this.websocketGateway.emitToStation(stationId, 'newTicket', ticket);
 
             await this.eventBus.publish(
                 'TicketCreated',
@@ -136,6 +141,13 @@ export class KitchenService {
             startedAt: new Date(),
         });
 
+        // Emit to KDS screens via WebSocket
+        this.websocketGateway.emitToStation(
+            ticket.stationId,
+            'ticketStarted',
+            updatedTicket,
+        );
+
         await this.eventBus.publish(
             'TicketStarted',
             new TicketStartedEvent(ticketId, ticket.orderId),
@@ -165,6 +177,13 @@ export class KitchenService {
             status: 'COMPLETED',
             completedAt: new Date(),
         });
+
+        // Emit to KDS screens via WebSocket
+        this.websocketGateway.emitToStation(
+            ticket.stationId,
+            'ticketCompleted',
+            updatedTicket,
+        );
 
         await this.eventBus.publish(
             'TicketCompleted',
