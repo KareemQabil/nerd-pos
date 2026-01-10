@@ -18,6 +18,14 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { KitchenModule } from './modules/kitchen/kitchen.module';
+import { TablesModule } from './modules/tables/tables.module';
+import { DiscountsModule } from './modules/discounts/discounts.module';
+import { UsersModule } from './modules/users/users.module';
+import { DeliveryModule } from './modules/delivery/delivery.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -34,6 +42,14 @@ import { KitchenModule } from './modules/kitchen/kitchen.module';
     SessionsModule,
     CustomersModule,
     KitchenModule,
+    TablesModule,
+    DiscountsModule,
+    UsersModule,
+    DeliveryModule,
+    ComplianceModule,
+    ReportsModule,
+    AuditModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -45,3 +61,4 @@ import { KitchenModule } from './modules/kitchen/kitchen.module';
   ],
 })
 export class AppModule { }
+
