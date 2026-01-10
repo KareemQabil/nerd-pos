@@ -15,6 +15,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { SessionsModule } from './modules/sessions/sessions.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     InventoryModule,
     SalesModule,
     PaymentsModule,
+    SessionsModule,
   ],
   controllers: [AppController],
   providers: [
