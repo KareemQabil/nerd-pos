@@ -274,7 +274,7 @@ export class InventoryService {
         }
 
         // Divide by yield to get cost per unit
-        const costPerUnit = totalCost.dividedBy(recipe.yield || 1);
+        const costPerUnit = totalCost.dividedBy(recipe.yieldQuantity || 1);
         return costPerUnit;
     }
 }
