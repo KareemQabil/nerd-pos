@@ -1,5 +1,6 @@
 // Products Controller
 // Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
+// Aligned with: prisma/schema.prisma
 
 import {
     Controller,
@@ -17,11 +18,11 @@ import {
     UpdateProductDto,
     CreateCategoryDto,
     UpdateCategoryDto,
-    CreateModifierDto,
-    UpdateModifierDto,
+    CreateModifierGroupDto,
+    UpdateModifierGroupDto,
     CreateModifierOptionDto,
     UpdateModifierOptionDto,
-    AssignModifierDto,
+    AssignModifierGroupDto,
 } from './dto';
 
 @Controller('products')
@@ -65,44 +66,35 @@ export class ProductsController {
         return this.service.deactivateProduct(id);
     }
 
-    @Put(':id/availability')
-    async setAvailability(
-        @Param('id') id: string,
-        @Body() body: { isAvailable: boolean },
-    ) {
-        await this.service.setAvailability(id, body.isAvailable);
-        return { message: 'Availability updated' };
-    }
-
     @Delete(':id')
     async deleteProduct(@Param('id') id: string) {
         await this.service.deleteProduct(id);
         return { message: 'Product deleted' };
     }
 
-    // ==================== PRODUCT MODIFIERS ====================
+    // ==================== PRODUCT MODIFIER GROUPS ====================
 
-    @Get(':id/modifiers')
-    async getProductModifiers(@Param('id') id: string) {
-        return this.service.getProductModifiers(id);
+    @Get(':id/modifier-groups')
+    async getProductModifierGroups(@Param('id') id: string) {
+        return this.service.getProductModifierGroups(id);
     }
 
-    @Post(':id/modifiers')
-    async assignModifier(
+    @Post(':id/modifier-groups')
+    async assignModifierGroup(
         @Param('id') productId: string,
-        @Body() body: { modifierId: string },
+        @Body() body: { groupId: string },
     ) {
-        await this.service.assignModifier({ productId, modifierId: body.modifierId });
-        return { message: 'Modifier assigned' };
+        await this.service.assignModifierGroup({ productId, groupId: body.groupId });
+        return { message: 'Modifier group assigned' };
     }
 
-    @Delete(':productId/modifiers/:modifierId')
-    async removeModifier(
+    @Delete(':productId/modifier-groups/:groupId')
+    async removeModifierGroup(
         @Param('productId') productId: string,
-        @Param('modifierId') modifierId: string,
+        @Param('groupId') groupId: string,
     ) {
-        await this.service.removeModifier(productId, modifierId);
-        return { message: 'Modifier removed' };
+        await this.service.removeModifierGroup(productId, groupId);
+        return { message: 'Modifier group removed' };
     }
 }
 
@@ -149,46 +141,46 @@ export class CategoriesController {
     }
 }
 
-// ==================== MODIFIERS CONTROLLER ====================
+// ==================== MODIFIER GROUPS CONTROLLER ====================
 
-@Controller('modifiers')
-export class ModifiersController {
+@Controller('modifier-groups')
+export class ModifierGroupsController {
     constructor(private readonly service: ProductsService) { }
 
     @Post()
-    async createModifier(@Body() dto: CreateModifierDto) {
-        return this.service.createModifier(dto);
+    async createModifierGroup(@Body() dto: CreateModifierGroupDto) {
+        return this.service.createModifierGroup(dto);
     }
 
     @Get()
-    async findAllModifiers() {
-        return this.service.findAllModifiers();
+    async findAllModifierGroups() {
+        return this.service.findAllModifierGroups();
     }
 
     @Get(':id')
-    async findModifierById(@Param('id') id: string) {
-        return this.service.findModifierById(id);
+    async findModifierGroupById(@Param('id') id: string) {
+        return this.service.findModifierGroupById(id);
     }
 
     @Put(':id')
-    async updateModifier(@Param('id') id: string, @Body() dto: UpdateModifierDto) {
-        return this.service.updateModifier(id, dto);
+    async updateModifierGroup(@Param('id') id: string, @Body() dto: UpdateModifierGroupDto) {
+        return this.service.updateModifierGroup(id, dto);
     }
 
     @Delete(':id')
-    async deleteModifier(@Param('id') id: string) {
-        await this.service.deleteModifier(id);
-        return { message: 'Modifier deleted' };
+    async deleteModifierGroup(@Param('id') id: string) {
+        await this.service.deleteModifierGroup(id);
+        return { message: 'Modifier group deleted' };
     }
 
     // ==================== MODIFIER OPTIONS ====================
 
     @Post(':id/options')
     async createModifierOption(
-        @Param('id') modifierId: string,
-        @Body() dto: Omit<CreateModifierOptionDto, 'modifierId'>,
+        @Param('id') groupId: string,
+        @Body() dto: Omit<CreateModifierOptionDto, 'groupId'>,
     ) {
-        return this.service.createModifierOption({ ...dto, modifierId });
+        return this.service.createModifierOption({ ...dto, groupId });
     }
 
     @Put('options/:id')

@@ -5,7 +5,7 @@ import { Module } from '@nestjs/common';
 import {
     ProductsController,
     CategoriesController,
-    ModifiersController,
+    ModifierGroupsController,
 } from './products.controller';
 import { ProductsService } from './products.service';
 import { ProductsRepository } from './products.repository';
@@ -14,7 +14,7 @@ import { ProductsRepository } from './products.repository';
     controllers: [
         ProductsController,
         CategoriesController,
-        ModifiersController,
+        ModifierGroupsController,
     ],
     providers: [ProductsService, ProductsRepository],
     exports: [ProductsService],

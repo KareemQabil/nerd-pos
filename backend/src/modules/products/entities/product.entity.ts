@@ -1,5 +1,6 @@
 // Product, Category, and Modifier Entities
 // Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
+// Aligned with: prisma/schema.prisma
 
 // ==================== PRODUCT ====================
 
@@ -7,88 +8,83 @@ export interface Product {
     id: string;
     sku: string;
     barcode?: string | null;
-    name: string;
-    nameAr: string;
-    description?: string | null;
-    descriptionAr?: string | null;
+    nameAr: string;                      // Matches schema
+    nameEn: string;                      // Matches schema
+    descriptionAr?: string | null;       // Matches schema
+    descriptionEn?: string | null;       // Matches schema
     categoryId: string;
-    price: number; // Stored as Decimal in DB
-    cost?: number | null;
-    taxable: boolean;
-    taxCategory: string; // STANDARD | ZERO_RATED | EXEMPT
-    trackStock: boolean;
-    currentStock: number;
-    minStock: number;
-    unitOfMeasure: string;
+    price: number;                       // Decimal in DB
+    cost: number;                        // Decimal in DB, default 0
+    taxCategory: string;                 // STANDARD | ZERO_RATED | EXEMPT
+    unitOfMeasure: string;               // PIECE, KG, etc.
+    trackInventory: boolean;             // Matches schema (not trackStock)
+    allowNegativeStock: boolean;         // Matches schema
     hasModifiers: boolean;
-    replenishmentMethod: string; // BUY | MAKE_TO_ORDER | MAKE_TO_STOCK
+    replenishmentMethod: string;         // BUY | MAKE_TO_ORDER | MAKE_TO_STOCK
     kitchenStationId?: string | null;
+    incomeAccountId?: string | null;
+    expenseAccountId?: string | null;
     preparationTimeMinutes?: number | null;
     imageUrl?: string | null;
     colorCode?: string | null;
     isActive: boolean;
-    isAvailable: boolean;
     customFields?: any;
     createdAt: Date;
     updatedAt: Date;
-    createdBy?: string | null;
 }
 
 // ==================== CATEGORY ====================
 
 export interface Category {
     id: string;
-    name: string;
-    nameAr: string;
-    description?: string | null;
     parentId?: string | null;
-    displayOrder: number;
-    color?: string | null;
-    icon?: string | null;
+    nameAr: string;                      // Matches schema
+    nameEn: string;                      // Matches schema
     imageUrl?: string | null;
+    sortOrder: number;                   // Matches schema (not displayOrder)
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
 
-// ==================== MODIFIER ====================
+// ==================== MODIFIER GROUP ====================
 
-export interface Modifier {
+export interface ModifierGroup {
     id: string;
-    name: string;
-    nameAr: string;
-    required: boolean;
-    multiSelect: boolean;
-    minSelection: number;
-    maxSelection?: number | null;
+    nameAr: string;                      // Matches schema
+    nameEn: string;                      // Matches schema
+    selectionType: string;               // SINGLE, MULTI
+    isRequired: boolean;
+    minSelections: number;
+    maxSelections?: number | null;
+    sortOrder: number;
     isActive: boolean;
-    createdAt: Date;
-    updatedAt: Date;
 }
 
 export interface ModifierOption {
     id: string;
-    modifierId: string;
-    name: string;
-    nameAr: string;
-    price: number; // Decimal
-    displayOrder: number;
+    groupId: string;                     // Matches schema
+    nameAr: string;                      // Matches schema
+    nameEn: string;                      // Matches schema
+    price: number;                       // Decimal
+    sortOrder: number;
     isActive: boolean;
 }
 
-export interface ProductModifier {
+export interface ProductModifierGroup {
     productId: string;
-    modifierId: string;
+    groupId: string;
 }
 
 // ==================== RESPONSE TYPES ====================
 
 export interface ProductWithRelations extends Product {
     category?: Category;
-    modifiers?: ModifierWithOptions[];
+    modifierGroups?: ModifierGroupWithOptions[];
+    inventoryItems?: any[];
 }
 
-export interface ModifierWithOptions extends Modifier {
+export interface ModifierGroupWithOptions extends ModifierGroup {
     options: ModifierOption[];
 }
 

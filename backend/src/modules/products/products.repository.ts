@@ -1,5 +1,6 @@
 // Products Repository
 // Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
+// Aligned with: prisma/schema.prisma
 
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../core/repository/base.repository';
@@ -7,11 +8,11 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import {
     Product,
     Category,
-    Modifier,
+    ModifierGroup,
     ModifierOption,
     ProductWithRelations,
     CategoryWithProducts,
-    ModifierWithOptions,
+    ModifierGroupWithOptions,
 } from './entities/product.entity';
 
 @Injectable()
@@ -31,9 +32,9 @@ export class ProductsRepository extends BaseRepository<Product> {
             where: { id },
             include: {
                 category: true,
-                modifiers: {
+                modifierGroups: {
                     include: {
-                        modifier: {
+                        modifierGroup: {
                             include: { options: true },
                         },
                     },
@@ -47,9 +48,9 @@ export class ProductsRepository extends BaseRepository<Product> {
             where: { sku },
             include: {
                 category: true,
-                modifiers: {
+                modifierGroups: {
                     include: {
-                        modifier: {
+                        modifierGroup: {
                             include: { options: true },
                         },
                     },
@@ -63,15 +64,15 @@ export class ProductsRepository extends BaseRepository<Product> {
             where: { categoryId, isActive: true },
             include: {
                 category: true,
-                modifiers: {
+                modifierGroups: {
                     include: {
-                        modifier: {
+                        modifierGroup: {
                             include: { options: true },
                         },
                     },
                 },
             },
-            orderBy: { name: 'asc' },
+            orderBy: { nameEn: 'asc' },
         });
     }
 
@@ -79,7 +80,7 @@ export class ProductsRepository extends BaseRepository<Product> {
         return (this.prisma as any).product.findMany({
             where: { isActive: true },
             include: { category: true },
-            orderBy: { name: 'asc' },
+            orderBy: { nameEn: 'asc' },
         });
     }
 
@@ -87,7 +88,7 @@ export class ProductsRepository extends BaseRepository<Product> {
         return (this.prisma as any).product.findMany({
             where: {
                 OR: [
-                    { name: { contains: query, mode: 'insensitive' } },
+                    { nameEn: { contains: query, mode: 'insensitive' } },
                     { nameAr: { contains: query, mode: 'insensitive' } },
                     { sku: { contains: query, mode: 'insensitive' } },
                 ],
@@ -98,26 +99,15 @@ export class ProductsRepository extends BaseRepository<Product> {
         });
     }
 
-    async updateStock(productId: string, quantity: number): Promise<void> {
-        await (this.prisma as any).product.update({
-            where: { id: productId },
-            data: { currentStock: { increment: quantity } },
-        });
-    }
-
-    async setAvailability(productId: string, isAvailable: boolean): Promise<void> {
-        await (this.prisma as any).product.update({
-            where: { id: productId },
-            data: { isAvailable },
-        });
-    }
+    // Note: Stock is tracked in InventoryItem, not in Product
+    // Removed updateStock and setAvailability that used non-existent fields
 
     // ==================== CATEGORY ====================
 
     async findAllCategories(): Promise<Category[]> {
         return (this.prisma as any).category.findMany({
             where: { isActive: true },
-            orderBy: { displayOrder: 'asc' },
+            orderBy: { sortOrder: 'asc' },
         });
     }
 
@@ -136,7 +126,7 @@ export class ProductsRepository extends BaseRepository<Product> {
         return (this.prisma as any).category.findMany({
             where: { parentId: null, isActive: true },
             include: { children: true },
-            orderBy: { displayOrder: 'asc' },
+            orderBy: { sortOrder: 'asc' },
         });
     }
 
@@ -158,34 +148,35 @@ export class ProductsRepository extends BaseRepository<Product> {
         });
     }
 
-    // ==================== MODIFIER ====================
+    // ==================== MODIFIER GROUP ====================
 
-    async findAllModifiers(): Promise<ModifierWithOptions[]> {
+    async findAllModifierGroups(): Promise<ModifierGroupWithOptions[]> {
         return (this.prisma as any).modifierGroup.findMany({
             where: { isActive: true },
             include: { options: { where: { isActive: true } } },
+            orderBy: { sortOrder: 'asc' },
         });
     }
 
-    async findModifierById(id: string): Promise<ModifierWithOptions | null> {
+    async findModifierGroupById(id: string): Promise<ModifierGroupWithOptions | null> {
         return (this.prisma as any).modifierGroup.findUnique({
             where: { id },
             include: { options: true },
         });
     }
 
-    async createModifier(data: Partial<Modifier>): Promise<Modifier> {
+    async createModifierGroup(data: Partial<ModifierGroup>): Promise<ModifierGroup> {
         return (this.prisma as any).modifierGroup.create({ data });
     }
 
-    async updateModifier(id: string, data: Partial<Modifier>): Promise<Modifier> {
+    async updateModifierGroup(id: string, data: Partial<ModifierGroup>): Promise<ModifierGroup> {
         return (this.prisma as any).modifierGroup.update({
             where: { id },
             data,
         });
     }
 
-    async deleteModifier(id: string): Promise<void> {
+    async deleteModifierGroup(id: string): Promise<void> {
         await (this.prisma as any).modifierGroup.update({
             where: { id },
             data: { isActive: false },
@@ -212,23 +203,23 @@ export class ProductsRepository extends BaseRepository<Product> {
         });
     }
 
-    // ==================== PRODUCT-MODIFIER ASSIGNMENT ====================
+    // ==================== PRODUCT-MODIFIER GROUP ASSIGNMENT ====================
 
-    async assignModifierToProduct(productId: string, modifierId: string): Promise<void> {
+    async assignModifierGroupToProduct(productId: string, groupId: string): Promise<void> {
         await (this.prisma as any).productModifierGroup.create({
-            data: { productId, modifierGroupId: modifierId },
+            data: { productId, groupId },
         });
     }
 
-    async removeModifierFromProduct(productId: string, modifierId: string): Promise<void> {
+    async removeModifierGroupFromProduct(productId: string, groupId: string): Promise<void> {
         await (this.prisma as any).productModifierGroup.delete({
             where: {
-                productId_modifierGroupId: { productId, modifierGroupId: modifierId },
+                productId_groupId: { productId, groupId },
             },
         });
     }
 
-    async getProductModifiers(productId: string): Promise<ModifierWithOptions[]> {
+    async getProductModifierGroups(productId: string): Promise<ModifierGroupWithOptions[]> {
         const links = await (this.prisma as any).productModifierGroup.findMany({
             where: { productId },
             include: {

@@ -1,6 +1,8 @@
 // Product DTOs
 // Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
+// Aligned with: prisma/schema.prisma
 import { IsString, IsNumber, IsBoolean, IsOptional, IsUUID, IsEnum, IsArray } from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
 
 // ==================== PRODUCT DTOs ====================
 
@@ -8,49 +10,49 @@ export class CreateProductDto {
     @IsString()
     sku: string;
 
-    @IsString()
-    name: string;
-
-    @IsString()
-    nameAr: string;
-
     @IsOptional()
     @IsString()
-    description?: string;
+    barcode?: string;
+
+    @IsString()
+    nameAr: string;             // Matches schema
+
+    @IsString()
+    nameEn: string;             // Matches schema
 
     @IsOptional()
     @IsString()
     descriptionAr?: string;
+
+    @IsOptional()
+    @IsString()
+    descriptionEn?: string;
+
+    @IsUUID()
+    categoryId: string;
 
     @IsNumber()
     price: number;
 
     @IsOptional()
     @IsNumber()
-    cost?: number;
-
-    @IsOptional()
-    @IsBoolean()
-    taxable?: boolean = true;
+    cost?: number = 0;
 
     @IsOptional()
     @IsEnum(['STANDARD', 'ZERO_RATED', 'EXEMPT'])
     taxCategory?: string = 'STANDARD';
 
     @IsOptional()
-    @IsBoolean()
-    trackStock?: boolean = true;
-
-    @IsOptional()
-    @IsNumber()
-    minStock?: number = 0;
-
-    @IsUUID()
-    categoryId: string;
-
-    @IsOptional()
     @IsString()
     unitOfMeasure?: string = 'PIECE';
+
+    @IsOptional()
+    @IsBoolean()
+    trackInventory?: boolean = true;
+
+    @IsOptional()
+    @IsBoolean()
+    allowNegativeStock?: boolean = false;
 
     @IsOptional()
     @IsBoolean()
@@ -63,6 +65,14 @@ export class CreateProductDto {
     @IsOptional()
     @IsUUID()
     kitchenStationId?: string;
+
+    @IsOptional()
+    @IsUUID()
+    incomeAccountId?: string;
+
+    @IsOptional()
+    @IsUUID()
+    expenseAccountId?: string;
 
     @IsOptional()
     @IsNumber()
@@ -81,90 +91,90 @@ export class CreateProductDto {
     isActive?: boolean = true;
 
     @IsOptional()
+    customFields?: any;
+
+    @IsOptional()
     @IsArray()
     @IsUUID('4', { each: true })
-    modifierIds?: string[];
+    modifierGroupIds?: string[];
 }
-
-// ==================== UPDATE DTOs ====================
-
-import { PartialType } from '@nestjs/mapped-types';
 
 export class UpdateProductDto extends PartialType(CreateProductDto) { }
 
 // ==================== CATEGORY DTOs ====================
 
 export class CreateCategoryDto {
-    @IsString()
-    name: string;
-
-    @IsString()
-    nameAr: string;
-
-    @IsOptional()
-    @IsString()
-    description?: string;
-
     @IsOptional()
     @IsUUID()
     parentId?: string;
 
-    @IsOptional()
-    @IsNumber()
-    displayOrder?: number = 0;
-
-    @IsOptional()
     @IsString()
-    color?: string;
+    nameAr: string;             // Matches schema
 
-    @IsOptional()
     @IsString()
-    icon?: string;
+    nameEn: string;             // Matches schema
 
     @IsOptional()
     @IsString()
     imageUrl?: string;
+
+    @IsOptional()
+    @IsNumber()
+    sortOrder?: number = 0;
+
+    @IsOptional()
+    @IsBoolean()
+    isActive?: boolean = true;
 }
 
 export class UpdateCategoryDto extends PartialType(CreateCategoryDto) { }
 
-// ==================== MODIFIER DTOs ====================
+// ==================== MODIFIER GROUP DTOs ====================
 
-export class CreateModifierDto {
+export class CreateModifierGroupDto {
     @IsString()
-    name: string;
+    nameAr: string;             // Matches schema
 
     @IsString()
-    nameAr: string;
+    nameEn: string;             // Matches schema
+
+    @IsString()
+    selectionType: string;      // SINGLE, MULTI
 
     @IsOptional()
     @IsBoolean()
-    required?: boolean = false;
+    isRequired?: boolean = false;
+
+    @IsOptional()
+    @IsNumber()
+    minSelections?: number = 0;
+
+    @IsOptional()
+    @IsNumber()
+    maxSelections?: number;
+
+    @IsOptional()
+    @IsNumber()
+    sortOrder?: number = 0;
 
     @IsOptional()
     @IsBoolean()
-    multiSelect?: boolean = false;
-
-    @IsOptional()
-    @IsNumber()
-    minSelection?: number = 0;
-
-    @IsOptional()
-    @IsNumber()
-    maxSelection?: number;
+    isActive?: boolean = true;
 }
 
-export class UpdateModifierDto extends PartialType(CreateModifierDto) { }
+export class UpdateModifierGroupDto extends PartialType(CreateModifierGroupDto) { }
+
+// ==================== MODIFIER OPTION DTOs ====================
 
 export class CreateModifierOptionDto {
     @IsUUID()
-    modifierId: string;
+    groupId: string;            // Matches schema
 
     @IsString()
-    name: string;
+    nameAr: string;             // Matches schema
 
     @IsString()
-    nameAr: string;
+    nameEn: string;             // Matches schema
 
     @IsOptional()
     @IsNumber()
@@ -172,17 +182,21 @@ export class CreateModifierOptionDto {
 
     @IsOptional()
     @IsNumber()
-    displayOrder?: number = 0;
+    sortOrder?: number = 0;
+
+    @IsOptional()
+    @IsBoolean()
+    isActive?: boolean = true;
 }
 
 export class UpdateModifierOptionDto extends PartialType(CreateModifierOptionDto) { }
 
 // ==================== ASSIGNMENT DTOs ====================
 
-export class AssignModifierDto {
+export class AssignModifierGroupDto {
     @IsUUID()
     productId: string;
 
     @IsUUID()
-    modifierId: string;
+    groupId: string;
 }

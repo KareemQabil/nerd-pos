@@ -1,5 +1,6 @@
 // Products Service
 // Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
+// Aligned with: prisma/schema.prisma
 
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { ProductsRepository } from './products.repository';
@@ -9,11 +10,11 @@ import {
     UpdateProductDto,
     CreateCategoryDto,
     UpdateCategoryDto,
-    CreateModifierDto,
-    UpdateModifierDto,
+    CreateModifierGroupDto,
+    UpdateModifierGroupDto,
     CreateModifierOptionDto,
     UpdateModifierOptionDto,
-    AssignModifierDto,
+    AssignModifierGroupDto,
 } from './dto';
 import {
     ProductCreatedEvent,
@@ -21,16 +22,14 @@ import {
     ProductDeletedEvent,
     CategoryCreatedEvent,
     CategoryUpdatedEvent,
-    ProductStockChangedEvent,
-    ProductAvailabilityChangedEvent,
 } from './events/product-created.event';
 import {
     Product,
     Category,
-    Modifier,
+    ModifierGroup,
     ModifierOption,
     ProductWithRelations,
-    ModifierWithOptions,
+    ModifierGroupWithOptions,
 } from './entities/product.entity';
 import Decimal from 'decimal.js';
 
@@ -47,20 +46,20 @@ export class ProductsService {
         const data = {
             ...dto,
             price: new Decimal(dto.price).toNumber(),
-            cost: dto.cost ? new Decimal(dto.cost).toNumber() : null,
+            cost: dto.cost !== undefined ? new Decimal(dto.cost).toNumber() : 0,
         };
 
         const product = await this.repo.create(data);
 
         await this.eventBus.publish(
             'ProductCreated',
-            new ProductCreatedEvent(product.id, product.name, product.sku),
+            new ProductCreatedEvent(product.id, product.nameEn, product.sku),
         );
 
-        // Assign modifiers if provided
-        if (dto.modifierIds && dto.modifierIds.length > 0) {
-            for (const modifierId of dto.modifierIds) {
-                await this.repo.assignModifierToProduct(product.id, modifierId);
+        // Assign modifier groups if provided
+        if (dto.modifierGroupIds && dto.modifierGroupIds.length > 0) {
+            for (const groupId of dto.modifierGroupIds) {
+                await this.repo.assignModifierGroupToProduct(product.id, groupId);
             }
         }
 
@@ -82,7 +81,7 @@ export class ProductsService {
 
         await this.eventBus.publish(
             'ProductUpdated',
-            new ProductUpdatedEvent(product.id, product.name),
+            new ProductUpdatedEvent(product.id, product.nameEn),
         );
 
         return product;
@@ -130,27 +129,6 @@ export class ProductsService {
         return this.updateProduct(id, { isActive: false });
     }
 
-    async updateStock(productId: string, quantityChange: number): Promise<void> {
-        const product = await this.findProductById(productId);
-        const previousStock = product.currentStock;
-        await this.repo.updateStock(productId, quantityChange);
-        const newStock = previousStock + quantityChange;
-
-        await this.eventBus.publish(
-            'ProductStockChanged',
-            new ProductStockChangedEvent(productId, previousStock, newStock),
-        );
-    }
-
-    async setAvailability(productId: string, isAvailable: boolean): Promise<void> {
-        await this.repo.setAvailability(productId, isAvailable);
-
-        await this.eventBus.publish(
-            'ProductAvailabilityChanged',
-            new ProductAvailabilityChangedEvent(productId, isAvailable),
-        );
-    }
-
     // ==================== CATEGORY ====================
 
     async createCategory(dto: CreateCategoryDto): Promise<Category> {
@@ -158,7 +136,7 @@ export class ProductsService {
 
         await this.eventBus.publish(
             'CategoryCreated',
-            new CategoryCreatedEvent(category.id, category.name),
+            new CategoryCreatedEvent(category.id, category.nameEn),
         );
 
         return category;
@@ -169,7 +147,7 @@ export class ProductsService {
 
         await this.eventBus.publish(
             'CategoryUpdated',
-            new CategoryUpdatedEvent(category.id, category.name),
+            new CategoryUpdatedEvent(category.id, category.nameEn),
         );
 
         return category;
@@ -195,30 +173,30 @@ export class ProductsService {
         await this.repo.deleteCategory(id);
     }
 
-    // ==================== MODIFIER ====================
+    // ==================== MODIFIER GROUP ====================
 
-    async createModifier(dto: CreateModifierDto): Promise<Modifier> {
-        return this.repo.createModifier(dto);
+    async createModifierGroup(dto: CreateModifierGroupDto): Promise<ModifierGroup> {
+        return this.repo.createModifierGroup(dto);
     }
 
-    async updateModifier(id: string, dto: UpdateModifierDto): Promise<Modifier> {
-        return this.repo.updateModifier(id, dto);
+    async updateModifierGroup(id: string, dto: UpdateModifierGroupDto): Promise<ModifierGroup> {
+        return this.repo.updateModifierGroup(id, dto);
     }
 
-    async findAllModifiers(): Promise<ModifierWithOptions[]> {
-        return this.repo.findAllModifiers();
+    async findAllModifierGroups(): Promise<ModifierGroupWithOptions[]> {
+        return this.repo.findAllModifierGroups();
     }
 
-    async findModifierById(id: string): Promise<ModifierWithOptions> {
-        const modifier = await this.repo.findModifierById(id);
-        if (!modifier) {
-            throw new NotFoundException(`Modifier ${id} not found`);
+    async findModifierGroupById(id: string): Promise<ModifierGroupWithOptions> {
+        const group = await this.repo.findModifierGroupById(id);
+        if (!group) {
+            throw new NotFoundException(`Modifier group ${id} not found`);
         }
-        return modifier;
+        return group;
     }
 
-    async deleteModifier(id: string): Promise<void> {
-        await this.repo.deleteModifier(id);
+    async deleteModifierGroup(id: string): Promise<void> {
+        await this.repo.deleteModifierGroup(id);
     }
 
     // ==================== MODIFIER OPTIONS ====================
@@ -243,17 +221,17 @@ export class ProductsService {
         await this.repo.deleteModifierOption(id);
     }
 
-    // ==================== PRODUCT-MODIFIER ASSIGNMENT ====================
+    // ==================== PRODUCT-MODIFIER GROUP ASSIGNMENT ====================
 
-    async assignModifier(dto: AssignModifierDto): Promise<void> {
-        await this.repo.assignModifierToProduct(dto.productId, dto.modifierId);
+    async assignModifierGroup(dto: AssignModifierGroupDto): Promise<void> {
+        await this.repo.assignModifierGroupToProduct(dto.productId, dto.groupId);
     }
 
-    async removeModifier(productId: string, modifierId: string): Promise<void> {
-        await this.repo.removeModifierFromProduct(productId, modifierId);
+    async removeModifierGroup(productId: string, groupId: string): Promise<void> {
+        await this.repo.removeModifierGroupFromProduct(productId, groupId);
     }
 
-    async getProductModifiers(productId: string): Promise<ModifierWithOptions[]> {
-        return this.repo.getProductModifiers(productId);
+    async getProductModifierGroups(productId: string): Promise<ModifierGroupWithOptions[]> {
+        return this.repo.getProductModifierGroups(productId);
     }
 }
