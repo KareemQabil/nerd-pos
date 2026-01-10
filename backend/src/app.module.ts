@@ -12,6 +12,7 @@ import { DecimalTransformInterceptor } from './common/interceptors/decimal-trans
 
 // Feature Modules
 import { ProductsModule } from './modules/products/products.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ProductsModule } from './modules/products/products.module';
     EventBusModule,
     // Feature Modules
     ProductsModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [
