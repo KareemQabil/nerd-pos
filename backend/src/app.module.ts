@@ -17,6 +17,7 @@ import { SalesModule } from './modules/sales/sales.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { KitchenModule } from './modules/kitchen/kitchen.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { CustomersModule } from './modules/customers/customers.module';
     PaymentsModule,
     SessionsModule,
     CustomersModule,
+    KitchenModule,
   ],
   controllers: [AppController],
   providers: [
