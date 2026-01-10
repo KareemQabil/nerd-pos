@@ -14,6 +14,7 @@ import { DecimalTransformInterceptor } from './common/interceptors/decimal-trans
 import { ProductsModule } from './modules/products/products.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { SalesModule } from './modules/sales/sales.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SalesModule } from './modules/sales/sales.module';
     ProductsModule,
     InventoryModule,
     SalesModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [
