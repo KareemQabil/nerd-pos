@@ -447,19 +447,444 @@ model User {
   id           String   @id @default(uuid())
   username     String   @unique @db.VarChar(50)
   password     String   @db.VarChar(255)
+  pin          String?  @db.VarChar(10)
   nameAr       String   @map("name_ar") @db.VarChar(255)
   nameEn       String   @map("name_en") @db.VarChar(255)
   email        String?  @unique @db.VarChar(255)
   phone        String?  @db.VarChar(20)
+  roleId       String?  @map("role_id")
   role         String   @db.VarChar(20)
   isActive     Boolean  @default(true) @map("is_active")
   lastLogin    DateTime? @map("last_login")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  userRole     Role?    @relation(fields: [roleId], references: [id])
+  authLogs     AuthenticationLog[]
+
   @@index([username])
   @@index([role])
   @@map("users")
 }
 
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(50)
+  nameAr      String   @map("name_ar") @db.VarChar(100)
+  description String?  @db.Text
+  level       Int      @default(5)
+  isSystem    Boolean  @default(false) @map("is_system")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
+  users       User[]
+  permissions RolePermission[]
+
+  @@index([level])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique @db.VarChar(100)
+  name        String   @db.VarChar(100)
+  nameAr      String   @map("name_ar") @db.VarChar(100)
+  description String?  @db.Text
+  module      String   @db.VarChar(50)
+  section     String?  @db.VarChar(50)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles       RolePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String   @map("role_id")
+  permissionId String   @map("permission_id")
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+  assignedBy   String?  @map("assigned_by")
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model AuthenticationLog {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  method        String   @db.VarChar(20)
+  success       Boolean
+  failureReason String?  @map("failure_reason") @db.VarChar(255)
+  ipAddress     String?  @map("ip_address") @db.VarChar(50)
+  userAgent     String?  @map("user_agent") @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("authentication_logs")
+}
+
+// ============================================================================
+// MODULE 06: KITCHEN
+// ============================================================================
+
+model KitchenStation {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(100)
+  nameAr       String   @map("name_ar") @db.VarChar(100)
+  color        String   @default("#3B82F6") @db.VarChar(7)
+  displayOrder Int      @default(0) @map("display_order")
+  categoryIds  String[] @map("category_ids")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tickets KitchenTicket[]
+
+  @@index([displayOrder])
+  @@map("kitchen_stations")
+}
+
+model KitchenTicket {
+  id           String    @id @default(uuid())
+  ticketNumber String    @unique @map("ticket_number") @db.VarChar(30)
+  orderId      String    @map("order_id")
+  stationId    String    @map("station_id")
+  priority     Int       @default(0)
+  status       String    @default("NEW") @db.VarChar(20)
+  receivedAt   DateTime  @default(now()) @map("received_at")
+  startedAt    DateTime? @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  station KitchenStation      @relation(fields: [stationId], references: [id])
+  items   KitchenTicketItem[]
+
+  @@index([stationId])
+  @@index([status])
+  @@index([orderId])
+  @@map("kitchen_tickets")
+}
+
+model KitchenTicketItem {
+  id            String   @id @default(uuid())
+  ticketId      String   @map("ticket_id")
+  productId     String   @map("product_id")
+  productName   String   @map("product_name") @db.VarChar(255)
+  productNameAr String   @map("product_name_ar") @db.VarChar(255)
+  quantity      Int
+  notes         String?  @db.Text
+  modifiers     Json?
+  status        String   @default("NEW") @db.VarChar(20)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  ticket KitchenTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@map("kitchen_ticket_items")
+}
+
+// ============================================================================
+// MODULE 12: TABLES
+// ============================================================================
+
+model Floor {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(100)
+  nameAr       String   @map("name_ar") @db.VarChar(100)
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tables Table[]
+
+  @@index([displayOrder])
+  @@map("floors")
+}
+
+model Table {
+  id             String   @id @default(uuid())
+  number         String   @db.VarChar(20)
+  floorId        String   @map("floor_id")
+  capacity       Int      @default(4)
+  section        String   @default("INDOOR") @db.VarChar(20)
+  shape          String   @default("SQUARE") @db.VarChar(20)
+  positionX      Int?     @map("position_x")
+  positionY      Int?     @map("position_y")
+  status         String   @default("AVAILABLE") @db.VarChar(20)
+  currentOrderId String?  @map("current_order_id")
+  waiterId       String?  @map("waiter_id")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  floor        Floor              @relation(fields: [floorId], references: [id])
+  reservations TableReservation[]
+
+  @@unique([floorId, number])
+  @@index([floorId])
+  @@index([status])
+  @@map("tables")
+}
+
+model TableReservation {
+  id              String    @id @default(uuid())
+  tableId         String    @map("table_id")
+  customerId      String?   @map("customer_id")
+  customerName    String    @map("customer_name") @db.VarChar(255)
+  customerPhone   String    @map("customer_phone") @db.VarChar(20)
+  reservedFor     DateTime  @map("reserved_for")
+  partySize       Int       @map("party_size")
+  duration        Int       @default(120)
+  specialRequests String?   @map("special_requests") @db.Text
+  status          String    @default("PENDING") @db.VarChar(20)
+  createdBy       String    @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  table Table @relation(fields: [tableId], references: [id])
+
+  @@index([tableId])
+  @@index([reservedFor])
+  @@index([status])
+  @@map("table_reservations")
+}
+
+// ============================================================================
+// MODULE 13: DISCOUNTS
+// ============================================================================
+
+model Discount {
+  id                  String    @id @default(uuid())
+  code                String    @unique @db.VarChar(50)
+  name                String    @db.VarChar(100)
+  nameAr              String    @map("name_ar") @db.VarChar(100)
+  description         String?   @db.Text
+  type                String    @db.VarChar(20)
+  value               Decimal   @db.Decimal(12, 3)
+  minOrderAmount      Decimal?  @map("min_order_amount") @db.Decimal(12, 3)
+  maxDiscount         Decimal?  @map("max_discount") @db.Decimal(12, 3)
+  applicableOn        String    @default("ORDER") @map("applicable_on") @db.VarChar(20)
+  categoryIds         String[]  @map("category_ids")
+  productIds          String[]  @map("product_ids")
+  startDate           DateTime? @map("start_date")
+  endDate             DateTime? @map("end_date")
+  startTime           String?   @map("start_time") @db.VarChar(5)
+  endTime             String?   @map("end_time") @db.VarChar(5)
+  daysOfWeek          Int[]     @map("days_of_week")
+  isCorporate         Boolean   @default(false) @map("is_corporate")
+  corporateIds        String[]  @map("corporate_ids")
+  requiresApproval    Boolean   @default(false) @map("requires_approval")
+  approvalThreshold   Decimal?  @map("approval_threshold") @db.Decimal(12, 3)
+  maxUses             Int?      @map("max_uses")
+  usedCount           Int       @default(0) @map("used_count")
+  maxUsesPerCustomer  Int?      @map("max_uses_per_customer")
+  isActive            Boolean   @default(true) @map("is_active")
+  createdBy           String    @map("created_by")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  usages DiscountUsage[]
+
+  @@index([code])
+  @@index([isActive])
+  @@map("discounts")
+}
+
+model DiscountUsage {
+  id             String    @id @default(uuid())
+  discountId     String    @map("discount_id")
+  orderId        String    @map("order_id")
+  customerId     String?   @map("customer_id")
+  discountAmount Decimal   @map("discount_amount") @db.Decimal(12, 3)
+  orderTotal     Decimal   @map("order_total") @db.Decimal(12, 3)
+  approvedBy     String?   @map("approved_by")
+  approvedAt     DateTime? @map("approved_at")
+  appliedBy      String    @map("applied_by")
+  appliedAt      DateTime  @default(now()) @map("applied_at")
+
+  discount Discount @relation(fields: [discountId], references: [id])
+
+  @@index([discountId])
+  @@index([orderId])
+  @@map("discount_usages")
+}
+
+// ============================================================================
+// MODULE 15: DELIVERY
+// ============================================================================
+
+model DeliveryZone {
+  id                    String   @id @default(uuid())
+  name                  String   @db.VarChar(100)
+  nameAr                String   @map("name_ar") @db.VarChar(100)
+  districts             String[]
+  deliveryFee           Decimal  @map("delivery_fee") @db.Decimal(12, 3)
+  minOrderAmount        Decimal? @map("min_order_amount") @db.Decimal(12, 3)
+  freeDeliveryThreshold Decimal? @map("free_delivery_threshold") @db.Decimal(12, 3)
+  estimatedTime         Int      @map("estimated_time")
+  coordinates           Json?
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  deliveries Delivery[]
+
+  @@map("delivery_zones")
+}
+
+model Driver {
+  id                 String    @id @default(uuid())
+  userId             String    @unique @map("user_id")
+  licenseNumber      String    @unique @map("license_number") @db.VarChar(50)
+  vehicleType        String    @map("vehicle_type") @db.VarChar(20)
+  vehiclePlate       String    @map("vehicle_plate") @db.VarChar(20)
+  phone              String    @db.VarChar(20)
+  status             String    @default("OFFLINE") @db.VarChar(20)
+  latitude           Decimal?  @db.Decimal(10, 8)
+  longitude          Decimal?  @db.Decimal(11, 8)
+  lastLocationUpdate DateTime? @map("last_location_update")
+  totalDeliveries    Int       @default(0) @map("total_deliveries")
+  rating             Decimal?  @db.Decimal(3, 2)
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  deliveries Delivery[]
+
+  @@index([status])
+  @@map("drivers")
+}
+
+model Delivery {
+  id               String    @id @default(uuid())
+  orderId          String    @unique @map("order_id")
+  addressId        String    @map("address_id")
+  zoneId           String?   @map("zone_id")
+  driverId         String?   @map("driver_id")
+  deliveryFee      Decimal   @map("delivery_fee") @db.Decimal(12, 3)
+  scheduledFor     DateTime? @map("scheduled_for")
+  pickedUpAt       DateTime? @map("picked_up_at")
+  deliveredAt      DateTime? @map("delivered_at")
+  status           String    @default("PENDING") @db.VarChar(20)
+  estimatedTime    Int?      @map("estimated_time")
+  trackingNotes    String?   @map("tracking_notes") @db.Text
+  customerRating   Int?      @map("customer_rating")
+  customerFeedback String?   @map("customer_feedback") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  zone   DeliveryZone? @relation(fields: [zoneId], references: [id])
+  driver Driver?       @relation(fields: [driverId], references: [id])
+
+  @@index([status])
+  @@index([driverId])
+  @@map("deliveries")
+}
+
+// ============================================================================
+// MODULE 10: COMPLIANCE
+// ============================================================================
+
+model ComplianceInvoice {
+  id              String   @id @default(uuid())
+  orderId         String   @unique @map("order_id")
+  invoiceNumber   String   @unique @map("invoice_number") @db.VarChar(50)
+  invoiceHash     String   @map("invoice_hash") @db.VarChar(255)
+  previousHash    String?  @map("previous_hash") @db.VarChar(255)
+  qrCode          String   @map("qr_code") @db.Text
+  signedXml       String?  @map("signed_xml") @db.Text
+  submissionStatus String  @default("PENDING") @map("submission_status") @db.VarChar(20)
+  submittedAt     DateTime? @map("submitted_at")
+  responseCode    String?  @map("response_code") @db.VarChar(20)
+  responseMessage String?  @map("response_message") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([orderId])
+  @@index([submissionStatus])
+  @@map("compliance_invoices")
+}
+
+// ============================================================================
+// MODULE 17: AUDIT
+// ============================================================================
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String   @db.VarChar(50)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address") @db.VarChar(50)
+  userAgent  String?  @map("user_agent") @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// EXTENDED SETTINGS
+// ============================================================================
+
+model TaxSetting {
+  id               String   @id @default(uuid())
+  name             String   @db.VarChar(100)
+  nameAr           String   @map("name_ar") @db.VarChar(100)
+  rate             Decimal  @db.Decimal(5, 2)
+  isDefault        Boolean  @default(false) @map("is_default")
+  applyToProducts  Boolean  @default(true) @map("apply_to_products")
+  applyToServices  Boolean  @default(true) @map("apply_to_services")
+  exemptCategories String[] @map("exempt_categories")
+  isActive         Boolean  @default(true) @map("is_active")
+  displayOrder     Int      @default(0) @map("display_order")
+
+  @@index([isDefault])
+  @@map("tax_settings")
+}
+
+model POSTerminal {
+  id               String    @id @default(uuid())
+  name             String    @db.VarChar(100)
+  nameAr           String    @map("name_ar") @db.VarChar(100)
+  code             String    @unique @db.VarChar(20)
+  ipAddress        String?   @map("ip_address") @db.VarChar(50)
+  macAddress       String?   @map("mac_address") @db.VarChar(50)
+  receiptPrinter   Json?     @map("receipt_printer")
+  kitchenPrinter   Json?     @map("kitchen_printer")
+  labelPrinter     Json?     @map("label_printer")
+  cashDrawerPort   String?   @map("cash_drawer_port") @db.VarChar(20)
+  customerDisplay  Json?     @map("customer_display")
+  autoOpenDrawer   Boolean   @default(true) @map("auto_open_drawer")
+  printReceipt     Boolean   @default(true) @map("print_receipt")
+  printKitchen     Boolean   @default(true) @map("print_kitchen")
+  currentSessionId String?   @map("current_session_id")
+  isActive         Boolean   @default(true) @map("is_active")
+  lastSeenAt       DateTime? @map("last_seen_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([code])
+  @@map("pos_terminals")
+}
+
+model ModuleSetting {
+  id        String   @id @default(uuid())
+  module    String   @unique @db.VarChar(50)
+  config    Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("module_settings")
+}
