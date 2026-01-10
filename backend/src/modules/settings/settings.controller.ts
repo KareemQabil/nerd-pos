@@ -1,46 +1,100 @@
 // Settings Controller
+// Source: FINAL/BACKEND/11-MODULE-SETTINGS.md
+
 import { Controller, Get, Post, Put, Body, Param } from '@nestjs/common';
 import { SettingsService } from './settings.service';
-import { UpdateStoreSettingsDto, CreateTaxSettingDto, UpdateTaxSettingDto, CreatePOSTerminalDto, UpdateModuleSettingDto } from './dto';
+import {
+    UpdateStoreSettingsDto,
+    CreateTaxSettingDto,
+    UpdateTaxSettingDto,
+    CreatePOSTerminalDto,
+    UpdateModuleSettingDto,
+} from './dto';
 
 @Controller('settings')
 export class SettingsController {
     constructor(private readonly service: SettingsService) { }
 
-    // Store
+    // ==================== STORE SETTINGS ====================
+
     @Get('store')
-    async getStore() { return this.service.getStoreSettings(); }
+    async getStoreSettings() {
+        return this.service.getStoreSettings();
+    }
 
     @Put('store')
-    async updateStore(@Body() dto: UpdateStoreSettingsDto) { return this.service.updateStoreSettings(dto); }
+    async updateStoreSettings(@Body() dto: UpdateStoreSettingsDto) {
+        return this.service.updateStoreSettings(dto);
+    }
 
-    // Tax
-    @Get('tax')
-    async getTax() { return this.service.getTaxSettings(); }
+    // ==================== TAX SETTINGS ====================
 
-    @Get('tax/default')
-    async getDefaultTax() { return this.service.getDefaultTax(); }
+    @Get('taxes')
+    async getTaxSettings() {
+        return this.service.getTaxSettings();
+    }
 
-    @Post('tax')
-    async createTax(@Body() dto: CreateTaxSettingDto) { return this.service.createTaxSetting(dto); }
+    @Get('taxes/default')
+    async getDefaultTax() {
+        return this.service.getDefaultTax();
+    }
 
-    @Put('tax/:id')
-    async updateTax(@Param('id') id: string, @Body() dto: UpdateTaxSettingDto) { return this.service.updateTaxSetting(id, dto); }
+    @Post('taxes')
+    async createTaxSetting(@Body() dto: CreateTaxSettingDto) {
+        return this.service.createTaxSetting(dto);
+    }
 
-    // Terminals
+    @Put('taxes/:id')
+    async updateTaxSetting(
+        @Param('id') id: string,
+        @Body() dto: UpdateTaxSettingDto,
+    ) {
+        return this.service.updateTaxSetting(id, dto);
+    }
+
+    // ==================== POS TERMINALS ====================
+
     @Get('terminals')
-    async getTerminals() { return this.service.getAllTerminals(); }
+    async getAllTerminals() {
+        return this.service.getAllTerminals();
+    }
 
     @Get('terminals/:code')
-    async getTerminal(@Param('code') code: string) { return this.service.getTerminalByCode(code); }
+    async getTerminalByCode(@Param('code') code: string) {
+        return this.service.getTerminalByCode(code);
+    }
 
     @Post('terminals')
-    async createTerminal(@Body() dto: CreatePOSTerminalDto) { return this.service.createTerminal(dto); }
+    async registerTerminal(@Body() dto: CreatePOSTerminalDto) {
+        return this.service.registerTerminal(dto);
+    }
 
-    // Module Settings
-    @Get('module/:module')
-    async getModuleSetting(@Param('module') module: string) { return this.service.getModuleSetting(module); }
+    @Put('terminals/:id')
+    async updateTerminal(
+        @Param('id') id: string,
+        @Body() dto: Partial<CreatePOSTerminalDto>,
+    ) {
+        return this.service.updateTerminal(id, dto);
+    }
 
-    @Put('module')
-    async updateModuleSetting(@Body() dto: UpdateModuleSettingDto) { return this.service.updateModuleSetting(dto); }
+    @Post('terminals/:code/heartbeat')
+    async heartbeat(@Param('code') code: string) {
+        await this.service.heartbeat(code);
+        return { success: true };
+    }
+
+    // ==================== MODULE SETTINGS ====================
+
+    @Get('modules/:module')
+    async getModuleSettings(@Param('module') module: string) {
+        return this.service.getModuleSettings(module);
+    }
+
+    @Put('modules/:module')
+    async updateModuleSettings(
+        @Param('module') module: string,
+        @Body() config: any,
+    ) {
+        return this.service.updateModuleSettings(module, config);
+    }
 }

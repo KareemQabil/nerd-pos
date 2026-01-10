@@ -1,85 +1,260 @@
 // Settings Service
+// Source: FINAL/BACKEND/11-MODULE-SETTINGS.md
+// Refactored to use Repository pattern (like all other modules)
+
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
-import { PrismaService } from '../../core/prisma/prisma.service';
+import { SettingsRepository } from './settings.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
-import { UpdateStoreSettingsDto, CreateTaxSettingDto, UpdateTaxSettingDto, CreatePOSTerminalDto, UpdateModuleSettingDto } from './dto';
-import { StoreSettingsUpdatedEvent, TaxSettingCreatedEvent, TerminalRegisteredEvent } from './events/settings.events';
+import {
+    UpdateStoreSettingsDto,
+    CreateTaxSettingDto,
+    UpdateTaxSettingDto,
+    CreatePOSTerminalDto,
+    UpdateModuleSettingDto,
+} from './dto';
+import {
+    StoreSettingsUpdatedEvent,
+    TaxSettingCreatedEvent,
+    TerminalRegisteredEvent,
+} from './events/settings.events';
 import { StoreSetting, TaxSetting, POSTerminal, ModuleSetting } from './entities/settings.entity';
+import Decimal from 'decimal.js';
 
 @Injectable()
 export class SettingsService {
     constructor(
-        private readonly prisma: PrismaService,
+        private readonly repo: SettingsRepository,
         @Inject('IEventBus') private readonly eventBus: IEventBus,
     ) { }
 
-    // Store Settings
+    // ==================== STORE SETTINGS ====================
+
     async getStoreSettings(): Promise<StoreSetting> {
-        const settings = await (this.prisma as any).storeSetting.findFirst();
+        const settings = await this.repo.getStoreSetting();
         if (!settings) throw new NotFoundException('Store settings not found');
         return settings;
     }
 
     async updateStoreSettings(dto: UpdateStoreSettingsDto): Promise<StoreSetting> {
-        const current = await (this.prisma as any).storeSetting.findFirst();
+        const current = await this.repo.getStoreSetting();
         if (!current) throw new NotFoundException('Store settings not found');
-        const updated = await (this.prisma as any).storeSetting.update({ where: { id: current.id }, data: dto });
-        await this.eventBus.publish('StoreSettingsUpdated', new StoreSettingsUpdatedEvent(updated.id));
+
+        const updated = await this.repo.updateStoreSetting(current.id, dto);
+
+        await this.eventBus.publish(
+            'StoreSettingsUpdated',
+            new StoreSettingsUpdatedEvent(updated.id),
+        );
+
         return updated;
     }
 
-    // Tax Settings
+    // ==================== TAX SETTINGS ====================
+
     async getTaxSettings(): Promise<TaxSetting[]> {
-        return (this.prisma as any).taxSetting.findMany({ where: { isActive: true }, orderBy: { displayOrder: 'asc' } });
+        return this.repo.findAllTaxes();
     }
 
     async getDefaultTax(): Promise<TaxSetting> {
-        const tax = await (this.prisma as any).taxSetting.findFirst({ where: { isDefault: true, isActive: true } });
+        const tax = await this.repo.findDefaultTax();
         if (!tax) throw new NotFoundException('Default tax not configured');
         return tax;
     }
 
     async createTaxSetting(dto: CreateTaxSettingDto): Promise<TaxSetting> {
-        const tax = await (this.prisma as any).taxSetting.create({ data: { ...dto, isActive: true } });
-        await this.eventBus.publish('TaxSettingCreated', new TaxSettingCreatedEvent(tax.id, tax.rate));
+        const tax = await this.repo.createTax({
+            name: dto.name,
+            nameAr: dto.nameAr,
+            rate: new Decimal(dto.rate).toNumber(),
+            isDefault: dto.isDefault || false,
+            applyToProducts: dto.applyToProducts !== false,
+            applyToServices: dto.applyToServices !== false,
+            exemptCategories: dto.exemptCategories || [],
+            displayOrder: dto.displayOrder || 0,
+        });
+
+        // If set as default, remove default from others
+        if (dto.isDefault) {
+            await this.repo.clearOtherDefaultTaxes(tax.id);
+        }
+
+        await this.eventBus.publish(
+            'TaxSettingCreated',
+            new TaxSettingCreatedEvent(tax.id, tax.rate),
+        );
+
         return tax;
     }
 
     async updateTaxSetting(id: string, dto: UpdateTaxSettingDto): Promise<TaxSetting> {
-        return (this.prisma as any).taxSetting.update({ where: { id }, data: dto });
+        const updateData: any = { ...dto };
+        if (dto.rate !== undefined) {
+            updateData.rate = new Decimal(dto.rate).toNumber();
+        }
+
+        const tax = await this.repo.updateTax(id, updateData);
+
+        // If set as default, remove default from others
+        if (dto.isDefault) {
+            await this.repo.clearOtherDefaultTaxes(id);
+        }
+
+        return tax;
     }
 
-    // POS Terminals
+    // ==================== POS TERMINALS ====================
+
     async getAllTerminals(): Promise<POSTerminal[]> {
-        return (this.prisma as any).posTerminal.findMany({ where: { isActive: true } });
+        return this.repo.findAllTerminals();
     }
 
-    async getTerminalByCode(code: string): Promise<POSTerminal | null> {
-        return (this.prisma as any).posTerminal.findUnique({ where: { code } });
-    }
-
-    async createTerminal(dto: CreatePOSTerminalDto): Promise<POSTerminal> {
-        const terminal = await (this.prisma as any).posTerminal.create({
-            data: { ...dto, autoOpenDrawer: dto.autoOpenDrawer ?? true, printReceipt: dto.printReceipt ?? true, printKitchen: dto.printKitchen ?? true, isActive: true },
-        });
-        await this.eventBus.publish('TerminalRegistered', new TerminalRegisteredEvent(terminal.id, terminal.code));
+    async getTerminalByCode(code: string): Promise<POSTerminal> {
+        const terminal = await this.repo.findTerminalByCode(code);
+        if (!terminal) {
+            throw new NotFoundException(`Terminal ${code} not found`);
+        }
         return terminal;
     }
 
-    async updateTerminalStatus(id: string, sessionId: string | null): Promise<POSTerminal> {
-        return (this.prisma as any).posTerminal.update({ where: { id }, data: { currentSessionId: sessionId, lastSeenAt: new Date() } });
-    }
+    async registerTerminal(dto: CreatePOSTerminalDto): Promise<POSTerminal> {
+        // Auto-generate code if not provided
+        let code = dto.code;
+        if (!code) {
+            code = await this.generateTerminalCode();
+        }
 
-    // Module Settings
-    async getModuleSetting(module: string): Promise<ModuleSetting | null> {
-        return (this.prisma as any).moduleSetting.findUnique({ where: { module } });
-    }
-
-    async updateModuleSetting(dto: UpdateModuleSettingDto): Promise<ModuleSetting> {
-        return (this.prisma as any).moduleSetting.upsert({
-            where: { module: dto.module },
-            update: { config: dto.config },
-            create: { module: dto.module, config: dto.config },
+        const terminal = await this.repo.createTerminal({
+            name: dto.name,
+            nameAr: dto.nameAr,
+            code,
+            ipAddress: dto.ipAddress,
+            receiptPrinter: dto.receiptPrinter,
+            kitchenPrinter: dto.kitchenPrinter,
+            autoOpenDrawer: dto.autoOpenDrawer !== false,
+            printReceipt: dto.printReceipt !== false,
+            printKitchen: dto.printKitchen !== false,
         });
+
+        await this.eventBus.publish(
+            'TerminalRegistered',
+            new TerminalRegisteredEvent(terminal.id, terminal.code),
+        );
+
+        return terminal;
+    }
+
+    async updateTerminal(id: string, dto: Partial<CreatePOSTerminalDto>): Promise<POSTerminal> {
+        return this.repo.updateTerminal(id, dto);
+    }
+
+    async updateTerminalSession(id: string, sessionId: string | null): Promise<POSTerminal> {
+        return this.repo.updateTerminal(id, {
+            currentSessionId: sessionId,
+            lastSeenAt: new Date(),
+        });
+    }
+
+    async heartbeat(terminalCode: string): Promise<void> {
+        await this.repo.updateTerminalHeartbeat(terminalCode);
+    }
+
+    private async generateTerminalCode(): Promise<string> {
+        const count = await this.repo.countTerminals();
+        return `TERM${(count + 1).toString().padStart(3, '0')}`;
+    }
+
+    // ==================== MODULE SETTINGS ====================
+
+    async getModuleSettings(module: string): Promise<any> {
+        const settings = await this.repo.findModuleSetting(module);
+        if (!settings) {
+            return this.getDefaultModuleSettings(module);
+        }
+        return settings.config;
+    }
+
+    async updateModuleSettings(module: string, config: any): Promise<any> {
+        await this.repo.upsertModuleSetting(module, config);
+        return config;
+    }
+
+    private getDefaultModuleSettings(module: string): any {
+        const defaults: Record<string, any> = {
+            // Existing documented defaults
+            inventory: {
+                lowStockThreshold: 10,
+                enableFIFO: true,
+                autoReorder: false,
+            },
+            kitchen: {
+                autoRoutingEnabled: true,
+                defaultPrepTime: 15,
+                notificationSound: true,
+            },
+            loyalty: {
+                pointsPerSAR: 1,
+                pointsToSAR: 0.01,
+                minRedemption: 100,
+            },
+            sales: {
+                allowNegativeInventory: false,
+                requireCustomer: false,
+                autoApplyDiscounts: true,
+            },
+            // Additional module defaults
+            products: {
+                defaultSKUPrefix: 'PRD',
+                autoGenerateSKU: true,
+                allowDuplicateNames: false,
+            },
+            payments: {
+                defaultMethod: 'CASH',
+                enableTips: true,
+                enableRounding: true,
+                roundingPrecision: 0.05,
+            },
+            sessions: {
+                autoCloseTime: null,
+                varianceThreshold: 10,
+                requireBlindCount: false,
+            },
+            customers: {
+                requirePhone: true,
+                enableLoyalty: true,
+                defaultTier: 'REGULAR',
+            },
+            tables: {
+                defaultReservationDuration: 120,
+                autoReleaseAfterPayment: true,
+                enableWaiterAssignment: true,
+            },
+            discounts: {
+                maxDiscountWithoutApproval: 20,
+                autoApplyPromotions: true,
+                stackDiscounts: false,
+            },
+            delivery: {
+                defaultPrepTime: 30,
+                enableZonePricing: true,
+                trackDriverLocation: true,
+            },
+            compliance: {
+                zatcaEnabled: false,
+                etaEnabled: false,
+                autoSubmit: false,
+            },
+            reports: {
+                defaultDateRange: 7,
+                enableExport: true,
+                scheduledReports: false,
+            },
+            audit: {
+                retentionDays: 365,
+                logAllActions: true,
+                sensitiveFieldsMask: true,
+            },
+        };
+
+        return defaults[module] || {};
     }
 }
