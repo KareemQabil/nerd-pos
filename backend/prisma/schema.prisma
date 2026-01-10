@@ -1,14 +1,465 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// This is your Prisma schema file
+// Source: FINAL/REFERENCE/nerderpjsdon.md
+// Complete schema for NerdPOS - 19 modules
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
+
+
+// ============================================================================
+// MODULE 01: PRODUCTS
+// =============================================================================
+
+model Category {
+  id        String   @id @default(uuid())
+  parentId  String?  @map("parent_id")
+  nameAr    String   @map("name_ar") @db.VarChar(255)
+  nameEn    String   @map("name_en") @db.VarChar(255)
+  imageUrl  String?  @map("image_url") @db.VarChar(500)
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  products Product[]
+
+  @@index([parentId])
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+model Product {
+  id                      String         @id @default(uuid())
+  sku                     String         @unique @db.VarChar(50)
+  barcode                 String?        @db.VarChar(50)
+  nameAr                  String         @map("name_ar") @db.VarChar(255)
+  nameEn                  String         @map("name_en") @db.VarChar(255)
+  descriptionAr           String?        @map("description_ar") @db.Text
+  descriptionEn           String?        @map("description_en") @db.Text
+  categoryId              String         @map("category_id")
+  price                   Decimal        @db.Decimal(12, 3)
+  cost                    Decimal        @default(0) @db.Decimal(12, 3)
+  taxCategory             String         @default("STANDARD") @map("tax_category") @db.VarChar(20)
+  unitOfMeasure           String         @default("PIECE") @map("unit_of_measure") @db.VarChar(20)
+  trackInventory          Boolean        @default(true) @map("track_inventory")
+  allowNegativeStock      Boolean        @default(false) @map("allow_negative_stock")
+  hasModifiers            Boolean        @default(false) @map("has_modifiers")
+  replenishmentMethod     String         @default("BUY") @map("replenishment_method") @db.VarChar(20)
+  kitchenStationId        String?        @map("kitchen_station_id")
+  incomeAccountId         String?        @map("income_account_id")
+  expenseAccountId        String?        @map("expense_account_id")
+  preparationTimeMinutes  Int?           @map("preparation_time_minutes")
+  imageUrl                String?        @map("image_url") @db.VarChar(500)
+  colorCode               String?        @map("color_code") @db.VarChar(7)
+  isActive                Boolean        @default(true) @map("is_active")
+  customFields            Json?          @map("custom_fields")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+
+  category          Category                @relation(fields: [categoryId], references: [id])
+  modifierGroups    ProductModifierGroup[]
+  inventoryItems    InventoryItem[]
+  recipe            Recipe?
+  recipeIngredients RecipeIngredient[]
+
+  @@index([categoryId])
+  @@index([barcode])
+  @@index([isActive])
+  @@map("products")
+}
+
+model ModifierGroup {
+  id            String   @id @default(uuid())
+  nameAr        String   @map("name_ar") @db.VarChar(255)
+  nameEn         String   @map("name_en") @db.VarChar(255)
+  selectionType String   @map("selection_type") @db.VarChar(20)
+  isRequired    Boolean  @default(false) @map("is_required")
+  minSelections Int      @default(0) @map("min_selections")
+  maxSelections Int?     @map("max_selections")
+  sortOrder     Int      @default(0) @map("sort_order")
+  isActive      Boolean  @default(true) @map("is_active")
+
+  options  ModifierOption[]
+  products ProductModifierGroup[]
+
+  @@map("modifier_groups")
+}
+
+model ModifierOption {
+  id        String  @id @default(uuid())
+  groupId   String  @map("group_id")
+  nameAr    String  @map("name_ar") @db.VarChar(255)
+  nameEn    String  @map("name_en") @db.VarChar(255)
+  price     Decimal @default(0) @db.Decimal(12, 3)
+  isDefault Boolean @default(false) @map("is_default")
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  group ModifierGroup @relation(fields: [groupId], references: [id])
+
+  @@index([groupId])
+  @@map("modifier_options")
+}
+
+model ProductModifierGroup {
+  productId       String @map("product_id")
+  modifierGroupId String @map("modifier_group_id")
+
+  product       Product       @relation(fields: [productId], references: [id])
+  modifierGroup ModifierGroup @relation(fields: [modifierGroupId], references: [id])
+
+  @@id([productId, modifierGroupId])
+  @@map("product_modifier_groups")
+}
+
+// ============================================================================
+// MODULE 02: INVENTORY
+// ============================================================================
+
+model Warehouse {
+  id        String  @id @default(uuid())
+  code      String  @unique @db.VarChar(20)
+  nameAr    String  @map("name_ar") @db.VarChar(255)
+  nameEn    String  @map("name_en") @db.VarChar(255)
+  isDefault Boolean @default(false) @map("is_default")
+  isActive  Boolean @default(true) @map("is_active")
+
+  inventoryItems InventoryItem[]
+
+  @@map("warehouses")
+}
+
+model InventoryItem {
+  id                String  @id @default(uuid())
+  productId         String  @map("product_id")
+  warehouseId       String  @map("warehouse_id")
+  quantityOnHand    Decimal @default(0) @map("quantity_on_hand") @db.Decimal(12, 3)
+  quantityReserved  Decimal @default(0) @map("quantity_reserved") @db.Decimal(12, 3)
+  minimumLevel      Decimal @default(0) @map("minimum_level") @db.Decimal(12, 3)
+  maximumLevel      Decimal? @map("maximum_level") @db.Decimal(12, 3)
+  reorderPoint      Decimal @default(0) @map("reorder_point") @db.Decimal(12, 3)
+  averageCost       Decimal @default(0) @map("average_cost") @db.Decimal(12, 3)
+
+  product   Product            @relation(fields: [productId], references: [id])
+  warehouse Warehouse          @relation(fields: [warehouseId], references: [id])
+  batches   InventoryBatch[]
+
+  @@unique([productId, warehouseId])
+  @@index([productId])
+  @@index([warehouseId])
+  @@map("inventory_items")
+}
+
+model InventoryBatch {
+  id                String   @id @default(uuid())
+  inventoryItemId   String   @map("inventory_item_id")
+  batchNumber       String?  @map("batch_number") @db.VarChar(50)
+  receivedDate      DateTime @map("received_date")
+  expiryDate        DateTime? @map("expiry_date") @db.Date
+  quantityReceived  Decimal  @map("quantity_received") @db.Decimal(12, 3)
+  quantityRemaining Decimal  @map("quantity_remaining") @db.Decimal(12, 3)
+  costPerUnit       Decimal  @map("cost_per_unit") @db.Decimal(12, 3)
+  isVirtualNegative Boolean  @default(false) @map("is_virtual_negative")
+
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id])
+
+  @@index([inventoryItemId])
+  @@index([receivedDate])
+  @@index([expiryDate])
+  @@map("inventory_batches")
+}
+
+model Recipe {
+  id           String  @id @default(uuid())
+  productId    String  @unique @map("product_id")
+  yieldQuantity Decimal @default(1) @map("yield_quantity") @db.Decimal(12, 3)
+  yieldUnit    String  @default("PIECE") @map("yield_unit") @db.VarChar(20)
+  isActive     Boolean @default(true) @map("is_active")
+
+  product     Product            @relation(fields: [productId], references: [id])
+  ingredients RecipeIngredient[]
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id                  String  @id @default(uuid())
+  recipeId            String  @map("recipe_id")
+  ingredientProductId String  @map("ingredient_product_id")
+  quantityRequired    Decimal @map("quantity_required") @db.Decimal(12, 3)
+  unit                String  @db.VarChar(20)
+  isPrepared          Boolean @default(false) @map("is_prepared")
+
+  recipe    Recipe  @relation(fields: [recipeId], references: [id])
+  ingredient Product @relation(fields: [ingredientProductId], references: [id])
+
+  @@index([recipeId])
+  @@index([ingredientProductId])
+  @@map("recipe_ingredients")
+}
+
+// ============================================================================
+// MODULE 03: SALES
+// ============================================================================
+
+model SalesOrder {
+  id                  String   @id @default(uuid())
+  orderNumber         String   @unique @map("order_number") @db.VarChar(30)
+  orderType           String   @map("order_type") @db.VarChar(30)
+  orderDate           DateTime @default(now()) @map("order_date")
+  businessDate        DateTime @map("business_date") @db.Date
+  itemSubtotal        Decimal  @default(0) @map("item_subtotal") @db.Decimal(12, 3)
+  serviceChargeRate   Decimal  @default(0) @map("service_charge_rate") @db.Decimal(5, 4)
+  serviceChargeAmount Decimal  @default(0) @map("service_charge_amount") @db.Decimal(12, 3)
+  deliveryCharge      Decimal  @default(0) @map("delivery_charge") @db.Decimal(12, 3)
+  subtotalBeforeTax   Decimal  @default(0) @map("subtotal_before_tax") @db.Decimal(12, 3)
+  taxRate             Decimal  @map("tax_rate") @db.Decimal(5, 4)
+  taxAmount           Decimal  @default(0) @map("tax_amount") @db.Decimal(12, 3)
+  discountAmount      Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 3)
+  grandTotal          Decimal  @default(0) @map("grand_total") @db.Decimal(12, 3)
+  tipAmount           Decimal  @default(0) @map("tip_amount") @db.Decimal(12, 3)
+  totalWithTip        Decimal  @default(0) @map("total_with_tip") @db.Decimal(12, 3)
+  status              String   @default("DRAFT") @db.VarChar(20)
+  paymentStatus       String   @default("PENDING") @map("payment_status") @db.VarChar(20)
+  notes               String?  @db.Text
+  zatcaUuid           String?  @unique @map("zatca_uuid") @db.VarChar(50)
+  zatcaHash           String?  @map("zatca_hash") @db.VarChar(100)
+  zatcaPreviousHash   String?  @map("zatca_previous_hash") @db.VarChar(100)
+  qrCode              String?  @map("qr_code") @db.Text
+  etaUuid             String?  @unique @map("eta_uuid") @db.VarChar(50)
+  metadata            Json?
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  items OrderItem[]
+
+  @@index([orderNumber])
+  @@index([orderType])
+  @@index([status])
+  @@index([businessDate])
+  @@index([orderDate])
+  @@map("sales_orders")
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String   @map("order_id")
+  productId       String   @map("product_id")
+  productNameAr   String?  @map("product_name_ar") @db.VarChar(255)
+  productNameEn   String?  @map("product_name_en") @db.VarChar(255)
+  quantity        Decimal  @db.Decimal(12, 3)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(12, 3)
+  modifiersAmount Decimal  @default(0) @map("modifiers_amount") @db.Decimal(12, 3)
+  lineTotal       Decimal  @map("line_total") @db.Decimal(12, 3)
+  costPerUnit     Decimal  @default(0) @map("cost_per_unit") @db.Decimal(12, 3)
+  totalCost       Decimal  @default(0) @map("total_cost") @db.Decimal(12, 3)
+  notes           String?  @db.Text
+  status          String   @default("NEW") @db.VarChar(20)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  order SalesOrder @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([status])
+  @@map("order_items")
+}
+
+// ============================================================================
+// MODULE 04: PAYMENTS
+// ============================================================================
+
+model PaymentMethodConfig {
+  id                   String  @id @default(uuid())
+  code                 String  @unique @db.VarChar(30)
+  nameAr               String  @map("name_ar") @db.VarChar(100)
+  nameEn               String  @map("name_en") @db.VarChar(100)
+  type                 String  @db.VarChar(20)
+  requiresTerminal     Boolean @default(false) @map("requires_terminal")
+  requiresReference    Boolean @default(false) @map("requires_reference")
+  isActive             Boolean @default(true) @map("is_active")
+  sortOrder            Int     @default(0) @map("sort_order")
+  receivableAccountId  String? @map("receivable_account_id")
+  clearingAccountId    String? @map("clearing_account_id")
+  feeAccountId         String? @map("fee_account_id")
+
+  @@index([code])
+  @@index([isActive])
+  @@map("payment_method_configs")
+}
+
+model Payment {
+  id                  String   @id @default(uuid())
+  orderId             String   @map("order_id")
+  orderItemId         String?  @map("order_item_id")
+  paymentMethod       String   @map("payment_method") @db.VarChar(30)
+  amount              Decimal  @db.Decimal(12, 3)
+  amountReceived      Decimal? @map("amount_received") @db.Decimal(12, 3)
+  changeGiven         Decimal? @map("change_given") @db.Decimal(12, 3)
+  foreignCurrencyCode String?  @map("foreign_currency_code") @db.VarChar(3)
+  foreignAmount       Decimal? @map("foreign_amount") @db.Decimal(12, 3)
+  exchangeRate        Decimal? @map("exchange_rate") @db.Decimal(12, 6)
+  referenceNumber     String?  @map("reference_number") @db.VarChar(100)
+  terminalId          String?  @map("terminal_id") @db.VarChar(50)
+  approvalCode        String?  @map("approval_code") @db.VarChar(50)
+  status              String   @default("PENDING") @db.VarChar(20)
+  paymentDate         DateTime @default(now()) @map("payment_date")
+  sessionId           String   @map("session_id")
+  processedBy         String   @map("processed_by")
+  metadata            Json?
+
+  @@index([orderId])
+  @@index([paymentMethod])
+  @@index([status])
+  @@index([sessionId])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+// ============================================================================
+// MODULE 05: SESSIONS
+// ============================================================================
+
+model RegisterSession {
+  id                    String   @id @default(uuid())
+  terminalId            String   @map("terminal_id") @db.VarChar(50)
+  userId                String   @map("user_id")
+  businessDate          DateTime @map("business_date") @db.Date
+  openingBalance        Decimal  @map("opening_balance") @db.Decimal(12, 3)
+  expectedCash          Decimal  @default(0) @map("expected_cash") @db.Decimal(12, 3)
+  actualClosingBalance  Decimal? @map("actual_closing_balance") @db.Decimal(12, 3)
+  discrepancy           Decimal? @db.Decimal(12, 3)
+  openedAt              DateTime @default(now()) @map("opened_at")
+  closedAt              DateTime? @map("closed_at")
+  status                String   @default("OPEN") @db.VarChar(20)
+  totalCashSales        Decimal  @default(0) @map("total_cash_sales") @db.Decimal(12, 3)
+  totalCardSales        Decimal  @default(0) @map("total_card_sales") @db.Decimal(12, 3)
+  totalOtherSales       Decimal  @default(0) @map("total_other_sales") @db.Decimal(12, 3)
+  totalDrops            Decimal  @default(0) @map("total_drops") @db.Decimal(12, 3)
+  totalPettyCash        Decimal  @default(0) @map("total_petty_cash") @db.Decimal(12, 3)
+  totalRefunds          Decimal  @default(0) @map("total_refunds") @db.Decimal(12, 3)
+  ordersCount           Int      @default(0) @map("orders_count")
+  managerApprovalId     String?  @map("manager_approval_id")
+  closingNotes          String?  @map("closing_notes") @db.Text
+
+  cashMovements       CashMovement[]
+  denominationCounts  DenominationCount[]
+
+  @@index([terminalId])
+  @@index([userId])
+  @@index([businessDate])
+  @@index([status])
+  @@map("register_sessions")
+}
+
+model CashMovement {
+  id           String   @id @default(uuid())
+  sessionId    String   @map("session_id")
+  movementType String   @map("movement_type") @db.VarChar(20)
+  amount       Decimal  @db.Decimal(12, 3)
+  reason       String   @db.VarChar(255)
+  approvedBy   String?  @map("approved_by")
+  movementTime DateTime @default(now()) @map("movement_time")
+
+  session RegisterSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
+  @@index([movementType])
+  @@map("cash_movements")
+}
+
+model DenominationCount {
+  id           String  @id @default(uuid())
+  sessionId    String  @map("session_id")
+  denomination Decimal @db.Decimal(10, 2)
+  count        Int
+  total        Decimal @db.Decimal(12, 3)
+
+  session RegisterSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
+  @@map("denomination_counts")
+}
+
+// ============================================================================
+// MODULE 09: CUSTOMERS
+// ============================================================================
+
+model Customer {
+  id              String   @id @default(uuid())
+  code            String   @unique @db.VarChar(30)
+  nameAr          String   @map("name_ar") @db.VarChar(255)
+  nameEn          String   @map("name_en") @db.VarChar(255)
+  phone           String?  @db.VarChar(20)
+  email           String?  @db.VarChar(255)
+  loyaltyPoints   Int      @default(0) @map("loyalty_points")
+  loyaltyTier     String   @default("BRONZE") @map("loyalty_tier") @db.VarChar(20)
+  totalSpent      Decimal  @default(0) @map("total_spent") @db.Decimal(12, 3)
+  visitsCount     Int      @default(0) @map("visits_count")
+  lastVisit       DateTime? @map("last_visit")
+  isActive        Boolean  @default(true) @map("is_active")
+  customFields    Json?    @map("custom_fields")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([phone])
+  @@index([email])
+  @@index([loyaltyTier])
+  @@map("customers")
+}
+
+// ============================================================================
+// MODULE 11: SETTINGS
+// ============================================================================
+
+model StoreSettings {
+  id              String   @id @default(uuid())
+  nameAr          String   @map("name_ar") @db.VarChar(255)
+  nameEn          String   @map("name_en") @db.VarChar(255)
+  taxNumber       String   @map("tax_number") @db.VarChar(50)
+  taxRate         Decimal  @map("tax_rate") @db.Decimal(5, 4)
+  serviceCharge   Decimal  @default(0) @map("service_charge") @db.Decimal(5, 4)
+  currency        String   @default("SAR") @db.VarChar(3)
+  timezone        String   @default("Asia/Riyadh") @db.VarChar(50)
+  locale          String   @default("ar-SA") @db.VarChar(10)
+  address         String?  @db.Text
+  phone           String?  @db.VarChar(20)
+  email           String?  @db.VarChar(255)
+  logo            String?  @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("store_settings")
+}
+
+// ============================================================================
+// USERS & AUTHENTICATION
+// ============================================================================
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique @db.VarChar(50)
+  password     String   @db.VarChar(255)
+  nameAr       String   @map("name_ar") @db.VarChar(255)
+  nameEn       String   @map("name_en") @db.VarChar(255)
+  email        String?  @unique @db.VarChar(255)
+  phone        String?  @db.VarChar(20)
+  role         String   @db.VarChar(20)
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([username])
+  @@index([role])
+  @@map("users")
+}
+
+
