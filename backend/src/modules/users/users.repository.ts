@@ -30,18 +30,18 @@ export class UsersRepository extends BaseRepository<User> {
         });
     }
 
-    async findWithRole(id: string): Promise<(User & { role: Role }) | null> {
+    async findWithRole(id: string): Promise<(User & { userRole: Role | null }) | null> {
         return (this.prisma as any).user.findUnique({
             where: { id },
-            include: { role: true },
+            include: { userRole: true },
         });
     }
 
     async findActive(): Promise<User[]> {
         return (this.prisma as any).user.findMany({
             where: { isActive: true },
-            include: { role: true },
-            orderBy: { firstName: 'asc' },
+            include: { userRole: true },
+            orderBy: { nameEn: 'asc' },
         });
     }
 

@@ -51,21 +51,21 @@ export class CreateUserDto {
     pin?: string;
 
     @IsString()
-    firstName: string;
+    nameAr: string;
 
     @IsString()
-    lastName: string;
+    nameEn: string;
 
     @IsOptional()
     @IsString()
     phone?: string;
 
-    @IsUUID()
-    roleId: string;
-
     @IsOptional()
+    @IsUUID()
+    roleId?: string;
+
     @IsString()
-    createdBy?: string;
+    role: string;
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) { }

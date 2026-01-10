@@ -19,6 +19,7 @@ import {
 } from './events/users.events';
 import { User, UserProfile, Role, Permission, AuthResult } from './entities/users.entity';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
@@ -37,7 +38,7 @@ export class UsersService {
             throw new UnauthorizedException('Invalid credentials');
         }
 
-        const isValid = this.verifyPassword(password, user.passwordHash);
+        const isValid = await this.verifyPassword(password, user.password);
 
         if (!isValid) {
             await this.logAuthAttempt(user.id, 'PASSWORD', false, 'Invalid password');
@@ -45,10 +46,10 @@ export class UsersService {
         }
 
         await this.logAuthAttempt(user.id, 'PASSWORD', true);
-        await this.repo.update(user.id, { lastLoginAt: new Date() });
+        await this.repo.update(user.id, { lastLogin: new Date() });
 
         // Generate simple token (in production, use JWT)
-        const token = this.generateToken(user.id, user.username, user.roleId);
+        const token = this.generateToken(user.id, user.username, user.roleId || user.role);
 
         await this.eventBus.publish(
             'UserLoggedIn',
@@ -63,11 +64,12 @@ export class UsersService {
                 id: user.id,
                 username: user.username,
                 email: user.email,
-                firstName: user.firstName,
-                lastName: user.lastName,
+                nameAr: user.nameAr,
+                nameEn: user.nameEn,
                 phone: user.phone,
                 roleId: user.roleId,
-                roleName: userWithRole?.role.name || 'Unknown',
+                role: user.role,
+                roleName: userWithRole?.userRole?.name || user.role,
                 isActive: user.isActive,
             },
         };
@@ -101,14 +103,13 @@ export class UsersService {
         return { valid: false };
     }
 
-    private verifyPassword(password: string, hash: string): boolean {
-        // Simple hash verification (in production, use bcrypt)
-        const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
-        return passwordHash === hash;
+    private async verifyPassword(password: string, hash: string): Promise<boolean> {
+        // Use bcrypt for password verification
+        return bcrypt.compare(password, hash);
     }
 
-    private hashPassword(password: string): string {
-        return crypto.createHash('sha256').update(password).digest('hex');
+    private async hashPassword(password: string): Promise<string> {
+        return bcrypt.hash(password, 10);
     }
 
     private generateToken(userId: string, username: string, roleId: string): string {
@@ -142,24 +143,24 @@ export class UsersService {
             throw new BadRequestException(`Username ${dto.username} already exists`);
         }
 
-        const passwordHash = this.hashPassword(dto.password);
+        const hashedPassword = await this.hashPassword(dto.password);
 
         const user = await this.repo.create({
             username: dto.username,
             email: dto.email,
-            passwordHash,
+            password: hashedPassword,
             pin: dto.pin,
-            firstName: dto.firstName,
-            lastName: dto.lastName,
+            nameAr: dto.nameAr,
+            nameEn: dto.nameEn,
             phone: dto.phone,
             roleId: dto.roleId,
+            role: dto.role,
             isActive: true,
-            createdBy: dto.createdBy,
         });
 
         await this.eventBus.publish(
             'UserCreated',
-            new UserCreatedEvent(user.id, user.username, user.roleId),
+            new UserCreatedEvent(user.id, user.username, user.roleId || user.role),
         );
 
         return user;
@@ -175,11 +176,12 @@ export class UsersService {
             id: user.id,
             username: user.username,
             email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
+            nameAr: user.nameAr,
+            nameEn: user.nameEn,
             phone: user.phone,
             roleId: user.roleId,
-            roleName: user.role.name,
+            role: user.role,
+            roleName: user.userRole?.name || user.role,
             isActive: user.isActive,
         };
     }
@@ -207,13 +209,13 @@ export class UsersService {
             throw new NotFoundException(`User ${userId} not found`);
         }
 
-        const isValid = this.verifyPassword(currentPassword, user.passwordHash);
+        const isValid = await this.verifyPassword(currentPassword, user.password);
         if (!isValid) {
             throw new BadRequestException('Current password is incorrect');
         }
 
-        const newHash = this.hashPassword(newPassword);
-        await this.repo.update(userId, { passwordHash: newHash });
+        const newHash = await this.hashPassword(newPassword);
+        await this.repo.update(userId, { password: newHash });
 
         await this.eventBus.publish(
             'UserPasswordChanged',
@@ -225,7 +227,7 @@ export class UsersService {
 
     async hasPermission(userId: string, permissionCode: string): Promise<boolean> {
         const user = await this.repo.findWithRole(userId);
-        if (!user || !user.role) return false;
+        if (!user || !user.roleId) return false;
 
         const permissions = await this.repo.getPermissions(user.roleId);
         return permissions.some(p => p.code === permissionCode);

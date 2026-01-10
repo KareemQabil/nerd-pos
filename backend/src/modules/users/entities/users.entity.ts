@@ -8,40 +8,38 @@ export interface User {
     username: string;
     email?: string | null;
 
-    // Authentication (not sent to client)
-    passwordHash: string;
-    pin?: string | null; // 4-6 digit PIN for quick auth
+    // Authentication (matches schema)
+    password: string;           // Hashed password
+    pin?: string | null;        // 4-6 digit PIN for quick auth
 
-    // Profile
-    firstName: string;
-    lastName: string;
+    // Profile (bilingual - matches schema)
+    nameAr: string;
+    nameEn: string;
     phone?: string | null;
 
     // Role
-    roleId: string;
-
-    // Session tracking
-    currentSessionId?: string | null;
+    roleId?: string | null;
+    role: string;
 
     // Status
     isActive: boolean;
-    lastLoginAt?: Date | null;
+    lastLogin?: Date | null;
 
     // Audit
     createdAt: Date;
     updatedAt: Date;
-    createdBy?: string | null;
 }
 
 export interface UserProfile {
     id: string;
     username: string;
     email?: string | null;
-    firstName: string;
-    lastName: string;
+    nameAr: string;
+    nameEn: string;
     phone?: string | null;
-    roleId: string;
-    roleName: string;
+    roleId?: string | null;
+    role: string;
+    roleName?: string;
     isActive: boolean;
 }
 
