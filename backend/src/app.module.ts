@@ -1,5 +1,5 @@
 // Main Application Module
-// Registers core modules: Prisma, EventBus, and DecimalTransformInterceptor
+// Registers core modules: Prisma, EventBus, DecimalTransformInterceptor, and feature modules
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -10,20 +10,25 @@ import { PrismaModule } from './core/prisma/prisma.module';
 import { EventBusModule } from './core/event-bus/event-bus.module';
 import { DecimalTransformInterceptor } from './common/interceptors/decimal-transform.interceptor';
 
+// Feature Modules
+import { ProductsModule } from './modules/products/products.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    PrismaModule,    // Global Prisma service
-    EventBusModule,  // Global Event Bus
+    PrismaModule,
+    EventBusModule,
+    // Feature Modules
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     {
       provide: APP_INTERCEPTOR,
-      useClass: DecimalTransformInterceptor,  // CRITICAL: Transforms Decimals to strings
+      useClass: DecimalTransformInterceptor,
     },
   ],
 })
