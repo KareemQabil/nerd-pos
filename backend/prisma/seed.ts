@@ -2,10 +2,16 @@
 // Source: Complete seed data for NerdPOS backend
 // Run: npx prisma db seed
 
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import * as bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+// Prisma 7 requires adapter
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
     console.log('🌱 Starting seed...');
