@@ -1,13 +1,21 @@
 // Products Module
-// Source: WORKFLOWS-BACKEND/01-create-module.md
+// Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
 
 import { Module } from '@nestjs/common';
-import { ProductsController } from './products.controller';
+import {
+    ProductsController,
+    CategoriesController,
+    ModifiersController,
+} from './products.controller';
 import { ProductsService } from './products.service';
 import { ProductsRepository } from './products.repository';
 
 @Module({
-    controllers: [ProductsController],
+    controllers: [
+        ProductsController,
+        CategoriesController,
+        ModifiersController,
+    ],
     providers: [ProductsService, ProductsRepository],
     exports: [ProductsService],
 })
