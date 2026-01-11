@@ -34,18 +34,19 @@ export function createMockEventBus() {
 /**
  * Creates a mock PrismaService for testing
  */
-export function createMockPrisma() {
+export function createMockPrisma(): Record<string, any> {
+    const mockRepo = createMockRepository();
     return {
-        product: createMockRepository(),
-        category: createMockRepository(),
-        salesOrder: createMockRepository(),
-        orderItem: createMockRepository(),
-        payment: createMockRepository(),
-        user: createMockRepository(),
-        registerSession: createMockRepository(),
-        customer: createMockRepository(),
-        inventoryItem: createMockRepository(),
-        $transaction: jest.fn((callback: any) => callback(createMockPrisma())),
+        product: { ...mockRepo },
+        category: { ...mockRepo },
+        salesOrder: { ...mockRepo },
+        orderItem: { ...mockRepo },
+        payment: { ...mockRepo },
+        user: { ...mockRepo },
+        registerSession: { ...mockRepo },
+        customer: { ...mockRepo },
+        inventoryItem: { ...mockRepo },
+        $transaction: jest.fn((callback: any) => Promise.resolve(callback({}))),
         $connect: jest.fn(),
         $disconnect: jest.fn(),
     };
