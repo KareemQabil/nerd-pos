@@ -76,7 +76,7 @@ export class SessionsService {
         // Calculate expected balance from session data
         // Expected = Opening + Cash Sales - Cash Refunds
         const expectedBalance = new Decimal(session.openingBalance)
-            .plus(session.totalCash)
+            .plus(session.totalCash || 0)
             .minus(session.totalRefunds);
 
         // Calculate variance
@@ -187,10 +187,10 @@ export class SessionsService {
         if (!session || session.status !== 'OPEN') return;
 
         await this.repo.update(sessionId, {
-            totalSales: new Decimal(session.totalSales).plus(saleAmount).toNumber(),
-            totalCash: new Decimal(session.totalCash).plus(cashAmount).toNumber(),
-            totalCard: new Decimal(session.totalCard).plus(cardAmount).toNumber(),
-            orderCount: session.orderCount + 1,
+            totalSales: new Decimal(session.totalSales || 0).plus(saleAmount).toNumber(),
+            totalCash: new Decimal(session.totalCash || 0).plus(cashAmount).toNumber(),
+            totalCard: new Decimal(session.totalCard || 0).plus(cardAmount).toNumber(),
+            orderCount: (session.orderCount || 0) + 1,
         });
     }
 
