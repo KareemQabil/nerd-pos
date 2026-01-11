@@ -122,7 +122,7 @@ export class SalesService {
             new OrderCreatedEvent(
                 order.id,
                 order.orderNumber,
-                order.type,
+                order.orderType,
                 calculated.grandTotal.toNumber(),
             ),
         );
@@ -359,12 +359,12 @@ export class SalesService {
         const context: CalculationContext = {
             items: order.items.map((item) => ({
                 productId: item.productId,
-                name: item.name,
-                price: new Decimal(item.price),
+                name: item.name || item.productNameEn || 'Unknown',
+                price: new Decimal(item.price || item.unitPrice || 0),
                 quantity: item.quantity,
-                modifiers: item.modifiers?.map((m) => ({ price: new Decimal(m.price) })),
+                modifiers: item.modifiers?.map((m: any) => ({ price: new Decimal(m.price || 0) })) || [],
             })),
-            orderType: order.type,
+            orderType: (order.type || order.orderType || 'DINE_IN') as 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY',
             customerId: order.customerId || null,
             discountCode: order.discountCode || null,
             discount: null,

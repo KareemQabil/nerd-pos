@@ -1,18 +1,18 @@
 // Sales Repository
 // Source: FINAL/BACKEND/05-MODULE-SALES.md, 01-create-module workflow
+// Aligned with: prisma/schema.prisma
 
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
-    Order,
-    OrderWithItems,
+    SalesOrder,
+    SalesOrderWithItems,
     OrderItem,
-    OrderItemModifier,
 } from './entities/sales.entity';
 
 @Injectable()
-export class SalesRepository extends BaseRepository<Order> {
+export class SalesRepository extends BaseRepository<SalesOrder> {
     constructor(prisma: PrismaService) {
         super(prisma);
     }
@@ -23,7 +23,7 @@ export class SalesRepository extends BaseRepository<Order> {
 
     // ==================== ORDER ====================
 
-    async findWithItems(id: string): Promise<OrderWithItems | null> {
+    async findWithItems(id: string): Promise<SalesOrderWithItems | null> {
         return (this.prisma as any).salesOrder.findUnique({
             where: { id },
             include: {
@@ -35,7 +35,7 @@ export class SalesRepository extends BaseRepository<Order> {
         });
     }
 
-    async findByOrderNumber(orderNumber: string): Promise<OrderWithItems | null> {
+    async findByOrderNumber(orderNumber: string): Promise<SalesOrderWithItems | null> {
         return (this.prisma as any).salesOrder.findUnique({
             where: { orderNumber },
             include: {
@@ -47,34 +47,34 @@ export class SalesRepository extends BaseRepository<Order> {
         });
     }
 
-    async findBySession(sessionId: string): Promise<Order[]> {
+    async findBySession(sessionId: string): Promise<SalesOrder[]> {
         return (this.prisma as any).salesOrder.findMany({
             where: { sessionId },
-            orderBy: { orderedAt: 'desc' },
+            orderBy: { orderDate: 'desc' },
         });
     }
 
-    async findByCustomer(customerId: string): Promise<Order[]> {
+    async findByCustomer(customerId: string): Promise<SalesOrder[]> {
         return (this.prisma as any).salesOrder.findMany({
             where: { customerId },
-            orderBy: { orderedAt: 'desc' },
+            orderBy: { orderDate: 'desc' },
             take: 50,
         });
     }
 
-    async findByStatus(status: string): Promise<Order[]> {
+    async findByStatus(status: string): Promise<SalesOrder[]> {
         return (this.prisma as any).salesOrder.findMany({
             where: { status },
-            orderBy: { orderedAt: 'desc' },
+            orderBy: { orderDate: 'desc' },
         });
     }
 
-    async findByDateRange(start: Date, end: Date): Promise<Order[]> {
+    async findByDateRange(start: Date, end: Date): Promise<SalesOrder[]> {
         return (this.prisma as any).salesOrder.findMany({
             where: {
-                orderedAt: { gte: start, lte: end },
+                orderDate: { gte: start, lte: end },
             },
-            orderBy: { orderedAt: 'desc' },
+            orderBy: { orderDate: 'desc' },
         });
     }
 
@@ -84,7 +84,7 @@ export class SalesRepository extends BaseRepository<Order> {
         });
     }
 
-    async createWithItems(data: any, items: any[]): Promise<OrderWithItems> {
+    async createWithItems(data: any, items: any[]): Promise<SalesOrderWithItems> {
         return (this.prisma as any).salesOrder.create({
             data: {
                 ...data,
@@ -174,7 +174,7 @@ export class SalesRepository extends BaseRepository<Order> {
         return (this.prisma as any).salesOrder.count({
             where: {
                 status: { not: 'CANCELLED' },
-                orderedAt: { gte: startOfDay, lte: endOfDay },
+                orderDate: { gte: startOfDay, lte: endOfDay },
             },
         });
     }
