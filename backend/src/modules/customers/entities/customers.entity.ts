@@ -1,5 +1,6 @@
 // Customers Entities
 // Source: FINAL/BACKEND/09-MODULE-CUSTOMERS.md
+// Aligned with: prisma/schema.prisma
 
 // ==================== CUSTOMER ====================
 
@@ -7,30 +8,37 @@ export interface Customer {
     id: string;
     code: string;
 
-    // Basic info
-    name: string;
-    nameAr?: string | null;
-    phone: string;
+    // Basic info - Matches schema
+    nameAr: string;                      // Required in schema
+    nameEn: string;                      // Required in schema
+    phone?: string | null;               // Optional in schema
     email?: string | null;
 
-    // Loyalty
+    // Loyalty - Matches schema
     loyaltyPoints: number;
-    tierId?: string | null;
+    loyaltyTier: string;                 // BRONZE, SILVER, GOLD, PLATINUM
 
-    // Stats
-    totalSpent: number;
-    orderCount: number;
-    lastOrderAt?: Date | null;
+    // Stats - Matches schema
+    totalSpent: number;                  // Decimal in DB
+    visitsCount: number;                 // Matches schema
+    lastVisit?: Date | null;             // Matches schema
 
-    // Preferences
-    preferredLanguage: 'en' | 'ar';
-    notes?: string | null;
+    // Custom fields
+    customFields?: any;                  // JSON in DB
 
     // Timestamps
     createdAt: Date;
     updatedAt: Date;
 
     isActive: boolean;
+
+    // Backward-compatible aliases
+    name?: string;                       // Alias for nameEn
+    orderCount?: number;                 // Alias for visitsCount
+    lastOrderAt?: Date | null;           // Alias for lastVisit
+    tierId?: string | null;              // Alias for loyaltyTier
+    preferredLanguage?: 'en' | 'ar';     // Not in schema
+    notes?: string | null;               // Not in schema
 }
 
 export interface CustomerWithTier extends Customer {
@@ -39,49 +47,37 @@ export interface CustomerWithTier extends Customer {
 }
 
 // ==================== CUSTOMER ADDRESS ====================
+// Note: CustomerAddress model not in current schema
 
 export interface CustomerAddress {
     id: string;
     customerId: string;
-
-    // Address
-    label: string; // "Home", "Office"
+    label: string;
     street: string;
     building?: string | null;
     floor?: string | null;
     apartment?: string | null;
     city: string;
     district: string;
-
-    // Location
     latitude?: number | null;
     longitude?: number | null;
-
-    // Delivery notes
     instructions?: string | null;
-
     isDefault: boolean;
 }
 
 // ==================== LOYALTY TIER ====================
+// Note: LoyaltyTier model not in current schema - using string values in Customer
 
 export interface LoyaltyTier {
     id: string;
-    name: string; // "Silver", "Gold", "Platinum"
+    name: string;
     nameAr: string;
-
-    // Requirements
     minSpent: number;
     minOrders: number;
-
-    // Benefits
-    pointsMultiplier: number; // 1.5x, 2.0x
-    discountPercent: number; // 5%, 10%
-
-    // Display
+    pointsMultiplier: number;
+    discountPercent: number;
     color: string;
     icon?: string | null;
-
     displayOrder: number;
     isActive: boolean;
 }

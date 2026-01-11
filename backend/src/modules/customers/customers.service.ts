@@ -59,7 +59,7 @@ export class CustomersService {
 
         await this.eventBus.publish(
             'CustomerCreated',
-            new CustomerCreatedEvent(customer.id, customer.name),
+            new CustomerCreatedEvent(customer.id, customer.nameEn),
         );
 
         return customer;
@@ -90,7 +90,7 @@ export class CustomersService {
 
         await this.eventBus.publish(
             'CustomerUpdated',
-            new CustomerUpdatedEvent(id, dto.name || customer.name),
+            new CustomerUpdatedEvent(id, dto.name || customer.nameEn),
         );
 
         return customer;
@@ -173,12 +173,12 @@ export class CustomersService {
         if (!customer) return;
 
         const totalSpent = new Decimal(customer.totalSpent).plus(orderTotal);
-        const orderCount = customer.orderCount + 1;
+        const orderCount = (customer.visitsCount || 0) + 1;
 
         await this.repo.update(customerId, {
             totalSpent: totalSpent.toNumber(),
-            orderCount,
-            lastOrderAt: new Date(),
+            visitsCount: orderCount,
+            lastVisit: new Date(),
         });
 
         // Check tier upgrade
@@ -197,7 +197,7 @@ export class CustomersService {
         for (const tier of tiers) {
             const totalSpent = new Decimal(customer.totalSpent);
             const meetsSpend = totalSpent.greaterThanOrEqualTo(tier.minSpent);
-            const meetsOrders = customer.orderCount >= tier.minOrders;
+            const meetsOrders = (customer.visitsCount || 0) >= tier.minOrders;
 
             if (meetsSpend && meetsOrders) {
                 if (!qualifyingTier || tier.minSpent > qualifyingTier.minSpent) {
