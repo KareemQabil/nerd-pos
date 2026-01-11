@@ -116,7 +116,7 @@ export class PaymentsService {
         }
 
         const refundAmount = new Decimal(dto.amount);
-        const alreadyRefunded = new Decimal(payment.refundedAmount);
+        const alreadyRefunded = new Decimal(payment.refundedAmount || 0);
         const paymentAmount = new Decimal(payment.amount);
 
         // Validate refund amount
@@ -167,7 +167,7 @@ export class PaymentsService {
         // Get associated payment to update refunded amount
         const payment = await this.repo.findById(refund.paymentId);
         if (payment) {
-            const newRefundedAmount = new Decimal(payment.refundedAmount)
+            const newRefundedAmount = new Decimal(payment.refundedAmount || 0)
                 .plus(refund.amount)
                 .toNumber();
 

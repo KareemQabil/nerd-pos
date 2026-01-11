@@ -1,82 +1,95 @@
 // Payments Entities
 // Source: FINAL/BACKEND/06-MODULE-PAYMENTS.md
+// Aligned with: prisma/schema.prisma
+
+// ==================== PAYMENT METHOD CONFIG ====================
+
+export interface PaymentMethodConfig {
+    id: string;
+    code: string;
+    nameAr: string;                      // Matches schema
+    nameEn: string;                      // Matches schema
+    type: string;                        // CASH, CARD, MADA, WALLET
+    requiresTerminal: boolean;
+    requiresReference: boolean;
+    isActive: boolean;
+    sortOrder: number;
+    receivableAccountId?: string | null;
+    clearingAccountId?: string | null;
+    feeAccountId?: string | null;
+}
+
+// Backward compatible alias
+export type PaymentMethod = PaymentMethodConfig;
 
 // ==================== PAYMENT ====================
 
 export interface Payment {
     id: string;
     orderId: string;
+    orderItemId?: string | null;
 
     // Payment details
-    method: 'CASH' | 'CARD' | 'MADA' | 'WALLET';
-    amount: number;
-    receivedAmount?: number | null; // For cash
-    changeAmount: number;
+    paymentMethod: string;               // Matches schema: code from PaymentMethodConfig
+    amount: number;                      // Decimal in DB
+    amountReceived?: number | null;      // Decimal in DB
+    changeGiven?: number | null;         // Decimal in DB
 
-    // Card details
+    // Backward compatible aliases
+    method?: string;                     // Alias for paymentMethod
+    receivedAmount?: number | null;      // Alias for amountReceived
+    changeAmount?: number;               // Alias for changeGiven
+
+    // Foreign currency
+    foreignCurrencyCode?: string | null;
+    foreignAmount?: number | null;
+    exchangeRate?: number | null;
+
+    // Card/terminal details
+    referenceNumber?: string | null;
+    terminalId?: string | null;
+    approvalCode?: string | null;
+
+    // Backward compatible aliases for card
     cardLast4?: string | null;
-    cardType?: string | null; // VISA, MASTERCARD, MADA
+    cardType?: string | null;
     transactionId?: string | null;
 
     // Status
-    status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
+    status: string;                      // PENDING, COMPLETED, FAILED, REFUNDED
+    paymentDate: Date;
 
-    // Refund tracking
-    refundedAmount: number;
+    // Session tracking
+    sessionId: string;
+    processedBy: string;
 
-    // Tips
-    tipAmount: number;
+    // Metadata
+    metadata?: any;
 
-    // Timestamps
-    paidAt?: Date | null;
-    failedAt?: Date | null;
-
-    // Audit
-    sessionId?: string | null;
-    createdBy: string;
-    createdAt: Date;
+    // Backward compatible
+    paidAt?: Date | null;                // Alias for paymentDate
+    createdBy?: string;                  // Alias for processedBy
+    createdAt?: Date;
+    refundedAmount?: number;
+    tipAmount?: number;
 }
 
 export interface PaymentWithRefunds extends Payment {
-    refunds: Refund[];
-}
-
-// ==================== PAYMENT METHOD ====================
-
-export interface PaymentMethod {
-    id: string;
-    name: string;
-    nameAr: string;
-    type: 'CASH' | 'CARD' | 'MADA' | 'WALLET';
-
-    // Integration
-    provider?: string | null; // STRIPE, PAYFORT, HYPERPAY
-    apiKey?: string | null; // Encrypted
-
-    // Settings
-    isActive: boolean;
-    sortOrder: number;
-
-    createdAt: Date;
-    updatedAt: Date;
+    refunds?: Refund[];
 }
 
 // ==================== REFUND ====================
+// Note: Refund model not in current schema, but needed for business logic
 
 export interface Refund {
     id: string;
     paymentId: string;
-
     amount: number;
     reason: string;
     notes?: string | null;
-
-    // Approval
     approvedBy?: string | null;
     approvedAt?: Date | null;
-
-    status: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'REJECTED';
-
+    status: string;                      // PENDING, APPROVED, COMPLETED, REJECTED
     createdBy: string;
     createdAt: Date;
 }
