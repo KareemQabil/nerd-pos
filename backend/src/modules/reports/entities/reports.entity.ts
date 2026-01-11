@@ -1,28 +1,41 @@
 // Reports Entities
-export interface ReportDefinition {
+// Source: FINAL/BACKEND/16-MODULE-REPORTS.md
+// Aligned with: prisma/schema.prisma
+
+// ==================== REPORT ====================
+
+export interface Report {
     id: string;
-    type: string;
+    type: string;                        // SALES, INVENTORY, FINANCIAL, CUSTOM
     name: string;
     nameAr: string;
-    query?: any;
-    parameters?: any;
-    schedule?: string | null;
+    query: any;                          // SQL or query builder JSON
+    parameters?: any | null;
+    schedule?: string | null;            // CRON expression
     lastRunAt?: Date | null;
-    format: 'PDF' | 'EXCEL' | 'CSV';
+    nextRunAt?: Date | null;
     roleIds: string[];
+    format: string;                      // PDF, EXCEL, CSV
     isActive: boolean;
-    createdAt: Date;
     createdBy: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
+
+// Backward-compatible alias
+export type ReportDefinition = Report;
+
+// ==================== REPORT EXECUTION ====================
 
 export interface ReportExecution {
     id: string;
     reportId: string;
-    status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+    status: string;                      // PENDING, RUNNING, COMPLETED, FAILED
     startedAt: Date;
     completedAt?: Date | null;
-    parameters?: any;
+    parameters?: any | null;
     filePath?: string | null;
+    fileSize?: number | null;
     error?: string | null;
     executedBy: string;
 }

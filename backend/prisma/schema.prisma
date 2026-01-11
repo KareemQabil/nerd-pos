@@ -835,6 +835,72 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model ComplianceEvent {
+  id          String    @id @default(uuid())
+  type        String    @db.VarChar(50)
+  severity    String    @db.VarChar(20)
+  description String    @db.Text
+  metadata    Json
+  resolved    Boolean   @default(false)
+  resolvedAt  DateTime? @map("resolved_at")
+  resolvedBy  String?   @map("resolved_by")
+  resolution  String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([type])
+  @@index([severity, resolved])
+  @@index([createdAt])
+  @@map("compliance_events")
+}
+
+// ============================================================================
+// MODULE 17: REPORTS
+// ============================================================================
+
+model Report {
+  id          String    @id @default(uuid())
+  type        String    @db.VarChar(50)
+  name        String    @db.VarChar(255)
+  nameAr      String    @map("name_ar") @db.VarChar(255)
+  query       Json
+  parameters  Json?
+  schedule    String?   @db.VarChar(50)
+  lastRunAt   DateTime? @map("last_run_at")
+  nextRunAt   DateTime? @map("next_run_at")
+  roleIds     String[]  @default([]) @map("role_ids")
+  format      String    @default("PDF") @db.VarChar(10)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdBy   String    @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  executions ReportExecution[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("reports")
+}
+
+model ReportExecution {
+  id          String    @id @default(uuid())
+  reportId    String    @map("report_id")
+  status      String    @default("PENDING") @db.VarChar(20)
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  parameters  Json?
+  filePath    String?   @map("file_path") @db.VarChar(500)
+  fileSize    Int?      @map("file_size")
+  error       String?   @db.Text
+  executedBy  String    @map("executed_by")
+
+  report Report @relation(fields: [reportId], references: [id])
+
+  @@index([reportId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("report_executions")
+}
+
 // ============================================================================
 // EXTENDED SETTINGS
 // ============================================================================
@@ -887,4 +953,49 @@ model ModuleSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("module_settings")
+}
+
+// ============================================================================
+// MODULE 16: COMPLIANCE (ZATCA/ETA)
+// ============================================================================
+
+model InvoiceCompliance {
+  id              String    @id @default(uuid())
+  orderId         String    @unique @map("order_id")
+  uuid            String    @unique @db.VarChar(50)
+  hash            String    @db.VarChar(64)
+  previousHash    String    @map("previous_hash") @db.VarChar(64)
+  signature       String?   @db.Text
+  publicKey       String?   @map("public_key") @db.Text
+  xmlContent      String    @map("xml_content") @db.Text
+  qrCodeData      String    @map("qr_code_data") @db.Text
+  submittedAt     DateTime? @map("submitted_at")
+  clearanceStatus String?   @map("clearance_status") @db.VarChar(20)
+  clearanceId     String?   @map("clearance_id") @db.VarChar(100)
+  etaUuid         String?   @map("eta_uuid") @db.VarChar(50)
+  etaSubmittedAt  DateTime? @map("eta_submitted_at")
+  etaStatus       String?   @map("eta_status") @db.VarChar(20)
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([submittedAt])
+  @@index([clearanceStatus])
+  @@map("invoice_compliance")
+}
+
+model ComplianceSettings {
+  id                String   @id @default(uuid())
+  zatcaCsid         String?  @map("zatca_csid") @db.VarChar(255)
+  zatcaSecret       String?  @map("zatca_secret") @db.VarChar(255)
+  zatcaCertificate  String?  @map("zatca_certificate") @db.Text
+  zatcaPrivateKey   String?  @map("zatca_private_key") @db.Text
+  etaClientId       String?  @map("eta_client_id") @db.VarChar(255)
+  etaClientSecret   String?  @map("eta_client_secret") @db.VarChar(255)
+  etaTaxId          String?  @map("eta_tax_id") @db.VarChar(50)
+  country           String   @db.VarChar(2)
+  vatNumber         String   @map("vat_number") @db.VarChar(50)
+  crNumber          String   @map("cr_number") @db.VarChar(50)
+  isProduction      Boolean  @default(false) @map("is_production")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("compliance_settings")
 }
