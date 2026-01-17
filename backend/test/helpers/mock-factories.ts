@@ -66,11 +66,11 @@ export const createMockUser = (overrides?: Partial<any>) => {
 
     return {
         id: faker.string.uuid(),
-        username: faker.internet.username({ firstName, lastName }),
+        username: faker.internet.userName(),
         password: '$2b$10$mockedhashedpassword', // Placeholder bcrypt hash
         nameAr: `${firstName} ${lastName}`,
         nameEn: `${firstName} ${lastName}`,
-        email: faker.internet.email({ firstName, lastName }),
+        email: faker.internet.email(),
         phone: faker.phone.number(),
         roleId: faker.string.uuid(),
         isActive: true,
