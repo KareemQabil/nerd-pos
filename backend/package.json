@@ -80,22 +80,33 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
+    "rootDir": ".",
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/test"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(uuid)/)"
+    ],
+    "moduleNameMapper": {
+      "^@test/(.*)$": "<rootDir>/test/$1",
+      "^uuid$": "<rootDir>/node_modules/uuid/dist/index.js"
+    },
     "collectCoverageFrom": [
-      "**/*.service.ts",
-      "**/*.repository.ts",
-      "**/*.handler.ts",
+      "src/**/*.service.ts",
+      "src/**/*.repository.ts",
+      "src/**/*.handler.ts",
       "!**/*.spec.ts",
       "!**/node_modules/**"
     ],
-    "coverageDirectory": "../coverage",
+    "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "setupFilesAfterEnv": [
-      "<rootDir>/../test/setup.ts"
+      "<rootDir>/test/setup.ts"
     ],
     "coverageThreshold": {
       "global": {
