@@ -78,47 +78,48 @@ export class SalesService {
         // 3. Generate order number (Outside TX - read only)
         const orderNumber = await this.generateOrderNumber();
 
-        // 4. Calculate item subtotals (Outside TX - pure computation)
+        // 4. Calculate item data (Outside TX - pure computation)
+        // Map DTO fields to Prisma OrderItem schema fields
         const itemsWithSubtotals = dto.items.map((item) => {
             const modifierTotal = (item.modifiers || []).reduce(
                 (sum, mod) => sum + mod.price,
                 0,
             );
-            const subtotal = (item.price + modifierTotal) * item.quantity;
+            const lineTotal = (item.price + modifierTotal) * item.quantity;
             return {
-                ...item,
-                subtotal,
-                status: 'PENDING' as const,
+                productId: item.productId,
+                productNameEn: item.name,       // DTO name → schema productNameEn
+                productNameAr: item.nameAr,     // DTO nameAr → schema productNameAr
+                unitPrice: item.price,          // DTO price → schema unitPrice
+                quantity: item.quantity,
+                lineTotal,                      // Calculated field → schema lineTotal
+                modifiersAmount: modifierTotal,
+                notes: item.notes,
+                status: 'NEW',  // Schema default value
             };
         });
 
         // 5. Database Write - ATOMIC TRANSACTION
+        // Only include fields that exist in SalesOrder Prisma schema
         const order = await this.prisma.$transaction(async (tx) => {
             return this.repo.createWithItems(
                 {
                     orderNumber,
-                    type: dto.type,
-                    status: 'DRAFT',
-                    customerId: dto.customerId,
-                    tableId: dto.tableId,
-                    guestCount: dto.guestCount,
-                    sessionId: dto.sessionId,
-                    discountCode: dto.discountCode,
+                    orderType: dto.type,
+                    businessDate: new Date(),
                     itemSubtotal: calculated.itemSubtotal.toNumber(),
-                    serviceCharge: calculated.serviceCharge.toNumber(),
-                    serviceChargePercent: calculated.serviceChargePercent.toNumber(),
+                    serviceChargeRate: calculated.serviceChargePercent.dividedBy(100).toNumber(),
+                    serviceChargeAmount: calculated.serviceCharge.toNumber(),
                     deliveryCharge: calculated.deliveryCharge.toNumber(),
                     subtotalBeforeTax: calculated.subtotalBeforeTax.toNumber(),
+                    taxRate: calculated.taxPercent.dividedBy(100).toNumber(),
                     taxAmount: calculated.taxAmount.toNumber(),
-                    taxPercent: calculated.taxPercent.toNumber(),
                     discountAmount: calculated.discountAmount.toNumber(),
                     grandTotal: calculated.grandTotal.toNumber(),
-                    paidAmount: 0,
-                    changeAmount: 0,
-                    createdBy,
+                    // Note: customerId, tableId, sessionId, createdBy not in current schema
                 },
                 itemsWithSubtotals,
-                tx,  // 🔑 Pass transaction client to repository
+                tx,
             );
         });
 

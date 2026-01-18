@@ -98,17 +98,20 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
                 ...data,
                 items: {
                     create: items.map((item) => ({
-                        ...item,
-                        modifiers: item.modifiers
-                            ? { create: item.modifiers }
-                            : undefined,
+                        productId: item.productId,
+                        productNameEn: item.productNameEn,
+                        productNameAr: item.productNameAr,
+                        unitPrice: item.unitPrice,
+                        quantity: item.quantity,
+                        lineTotal: item.lineTotal,
+                        modifiersAmount: item.modifiersAmount || 0,
+                        notes: item.notes,
+                        status: item.status || 'NEW',
                     })),
                 },
             },
             include: {
-                items: {
-                    include: { modifiers: true },
-                },
+                items: true,  // No modifiers relation in schema
             },
         });
     }
