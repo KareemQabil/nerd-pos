@@ -3,7 +3,7 @@
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './core/prisma/prisma.module';
@@ -26,6 +26,8 @@ import { ComplianceModule } from './modules/compliance/compliance.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -50,6 +52,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     ReportsModule,
     AuditModule,
     SettingsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
@@ -57,6 +60,11 @@ import { SettingsModule } from './modules/settings/settings.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: DecimalTransformInterceptor,
+    },
+    // Global JWT Guard - all routes protected by default
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })
