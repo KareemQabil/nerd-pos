@@ -116,6 +116,122 @@ async function main() {
     }
 
     // ============================================================================
+    // 2.5. ROLES AND PERMISSIONS (LEGO Auth System)
+    // ============================================================================
+    console.log('🔐 Seeding roles and permissions...');
+
+    // Create Roles
+    const roles = [
+        { id: 'role-admin', name: 'ADMIN', nameAr: 'مدير', level: 1, isSystem: true },
+        { id: 'role-manager', name: 'MANAGER', nameAr: 'مشرف', level: 2, isSystem: false },
+        { id: 'role-cashier', name: 'CASHIER', nameAr: 'كاشير', level: 5, isSystem: false },
+        { id: 'role-waiter', name: 'WAITER', nameAr: 'نادل', level: 7, isSystem: false },
+        { id: 'role-kitchen', name: 'KITCHEN', nameAr: 'مطبخ', level: 8, isSystem: false },
+    ];
+
+    for (const role of roles) {
+        await prisma.role.upsert({
+            where: { id: role.id },
+            update: {},
+            create: role,
+        });
+    }
+
+    // Create Permissions (50+ codes organized by module)
+    const permissions = [
+        // Sales Module (10)
+        { code: 'orders.create', name: 'Create Orders', nameAr: 'إنشاء طلب', module: 'sales', section: 'orders' },
+        { code: 'orders.view', name: 'View Orders', nameAr: 'عرض الطلبات', module: 'sales', section: 'orders' },
+        { code: 'orders.update', name: 'Update Orders', nameAr: 'تعديل طلب', module: 'sales', section: 'orders' },
+        { code: 'orders.cancel', name: 'Cancel Orders', nameAr: 'إلغاء طلب', module: 'sales', section: 'orders' },
+        { code: 'orders.refund', name: 'Refund Orders', nameAr: 'استرجاع طلب', module: 'sales', section: 'orders' },
+        { code: 'orders.discount', name: 'Apply Discounts', nameAr: 'تطبيق خصم', module: 'sales', section: 'orders' },
+        { code: 'orders.void', name: 'Void Orders', nameAr: 'إلغاء طلب', module: 'sales', section: 'orders' },
+        { code: 'orders.reprint', name: 'Reprint Receipt', nameAr: 'إعادة طباعة', module: 'sales', section: 'orders' },
+        { code: 'orders.hold', name: 'Hold Orders', nameAr: 'تعليق طلب', module: 'sales', section: 'orders' },
+        { code: 'orders.split', name: 'Split Bills', nameAr: 'تقسيم فاتورة', module: 'sales', section: 'orders' },
+        // Inventory Module (6)
+        { code: 'inventory.view', name: 'View Inventory', nameAr: 'عرض المخزون', module: 'inventory', section: 'stock' },
+        { code: 'inventory.receive', name: 'Receive Stock', nameAr: 'استلام بضاعة', module: 'inventory', section: 'stock' },
+        { code: 'inventory.adjust', name: 'Adjust Stock', nameAr: 'تعديل مخزون', module: 'inventory', section: 'stock' },
+        { code: 'inventory.transfer', name: 'Transfer Stock', nameAr: 'نقل مخزون', module: 'inventory', section: 'stock' },
+        { code: 'inventory.count', name: 'Stock Count', nameAr: 'جرد المخزون', module: 'inventory', section: 'stock' },
+        { code: 'inventory.waste', name: 'Record Waste', nameAr: 'تسجيل هدر', module: 'inventory', section: 'stock' },
+        // Products Module (6)
+        { code: 'products.view', name: 'View Products', nameAr: 'عرض المنتجات', module: 'products', section: 'catalog' },
+        { code: 'products.create', name: 'Create Product', nameAr: 'إنشاء منتج', module: 'products', section: 'catalog' },
+        { code: 'products.update', name: 'Update Product', nameAr: 'تعديل منتج', module: 'products', section: 'catalog' },
+        { code: 'products.delete', name: 'Delete Product', nameAr: 'حذف منتج', module: 'products', section: 'catalog' },
+        { code: 'products.price', name: 'Change Prices', nameAr: 'تغيير الأسعار', module: 'products', section: 'catalog' },
+        { code: 'categories.manage', name: 'Manage Categories', nameAr: 'إدارة الفئات', module: 'products', section: 'catalog' },
+        // Payments Module (6)
+        { code: 'payments.process', name: 'Process Payments', nameAr: 'معالجة دفع', module: 'payments', section: 'transactions' },
+        { code: 'payments.refund', name: 'Process Refunds', nameAr: 'معالجة استرجاع', module: 'payments', section: 'transactions' },
+        { code: 'payments.void', name: 'Void Payments', nameAr: 'إلغاء دفع', module: 'payments', section: 'transactions' },
+        { code: 'payments.split', name: 'Split Payments', nameAr: 'تقسيم دفع', module: 'payments', section: 'transactions' },
+        { code: 'payments.view', name: 'View Payments', nameAr: 'عرض المدفوعات', module: 'payments', section: 'transactions' },
+        { code: 'payments.tips', name: 'Add Tips', nameAr: 'إضافة إكرامية', module: 'payments', section: 'transactions' },
+        // Sessions Module (4)
+        { code: 'sessions.open', name: 'Open Session', nameAr: 'فتح وردية', module: 'sessions', section: 'register' },
+        { code: 'sessions.close', name: 'Close Session', nameAr: 'إغلاق وردية', module: 'sessions', section: 'register' },
+        { code: 'sessions.view', name: 'View Sessions', nameAr: 'عرض الورديات', module: 'sessions', section: 'register' },
+        { code: 'sessions.cash', name: 'Cash In/Out', nameAr: 'إيداع/سحب نقدي', module: 'sessions', section: 'register' },
+        // Kitchen Module (4)
+        { code: 'kitchen.view', name: 'View Kitchen', nameAr: 'عرض المطبخ', module: 'kitchen', section: 'prep' },
+        { code: 'kitchen.bump', name: 'Bump Items', nameAr: 'تجهيز طلب', module: 'kitchen', section: 'prep' },
+        { code: 'kitchen.stations', name: 'Manage Stations', nameAr: 'إدارة المحطات', module: 'kitchen', section: 'prep' },
+        { code: 'kitchen.priority', name: 'Set Priority', nameAr: 'تحديد أولوية', module: 'kitchen', section: 'prep' },
+        // Customers Module (4)
+        { code: 'customers.view', name: 'View Customers', nameAr: 'عرض العملاء', module: 'customers', section: 'crm' },
+        { code: 'customers.create', name: 'Create Customer', nameAr: 'إنشاء عميل', module: 'customers', section: 'crm' },
+        { code: 'customers.update', name: 'Update Customer', nameAr: 'تعديل عميل', module: 'customers', section: 'crm' },
+        { code: 'customers.loyalty', name: 'Manage Loyalty', nameAr: 'إدارة الولاء', module: 'customers', section: 'crm' },
+        // Tables Module (4)
+        { code: 'tables.view', name: 'View Tables', nameAr: 'عرض الطاولات', module: 'tables', section: 'floor' },
+        { code: 'tables.assign', name: 'Assign Tables', nameAr: 'تخصيص طاولة', module: 'tables', section: 'floor' },
+        { code: 'tables.transfer', name: 'Transfer Tables', nameAr: 'نقل طاولة', module: 'tables', section: 'floor' },
+        { code: 'tables.manage', name: 'Manage Floor', nameAr: 'إدارة الصالة', module: 'tables', section: 'floor' },
+        // Reports Module (4)
+        { code: 'reports.view', name: 'View Reports', nameAr: 'عرض التقارير', module: 'reports', section: 'analytics' },
+        { code: 'reports.export', name: 'Export Reports', nameAr: 'تصدير تقارير', module: 'reports', section: 'analytics' },
+        { code: 'reports.sales', name: 'Sales Reports', nameAr: 'تقارير المبيعات', module: 'reports', section: 'analytics' },
+        { code: 'reports.inventory', name: 'Inventory Reports', nameAr: 'تقارير المخزون', module: 'reports', section: 'analytics' },
+        // Settings Module (4)
+        { code: 'settings.view', name: 'View Settings', nameAr: 'عرض الإعدادات', module: 'settings', section: 'config' },
+        { code: 'settings.update', name: 'Update Settings', nameAr: 'تعديل الإعدادات', module: 'settings', section: 'config' },
+        { code: 'settings.tax', name: 'Tax Settings', nameAr: 'إعدادات الضريبة', module: 'settings', section: 'config' },
+        { code: 'settings.printers', name: 'Printer Settings', nameAr: 'إعدادات الطابعات', module: 'settings', section: 'config' },
+        // Users Module (4)
+        { code: 'users.view', name: 'View Users', nameAr: 'عرض المستخدمين', module: 'users', section: 'admin' },
+        { code: 'users.create', name: 'Create Users', nameAr: 'إنشاء مستخدم', module: 'users', section: 'admin' },
+        { code: 'users.update', name: 'Update Users', nameAr: 'تعديل مستخدم', module: 'users', section: 'admin' },
+        { code: 'roles.manage', name: 'Manage Roles', nameAr: 'إدارة الأدوار', module: 'users', section: 'admin' },
+    ];
+
+    for (const perm of permissions) {
+        await prisma.permission.upsert({
+            where: { code: perm.code },
+            update: {},
+            create: perm,
+        });
+    }
+
+    // Assign all permissions to ADMIN role
+    const allPermissions = await prisma.permission.findMany();
+    const adminRole = await prisma.role.findUnique({ where: { id: 'role-admin' } });
+    if (adminRole) {
+        for (const perm of allPermissions) {
+            await prisma.rolePermission.upsert({
+                where: { roleId_permissionId: { roleId: adminRole.id, permissionId: perm.id } },
+                update: {},
+                create: { roleId: adminRole.id, permissionId: perm.id },
+            });
+        }
+    }
+
+    console.log(`✅ Seeded ${roles.length} roles and ${permissions.length} permissions`);
+
+    // ============================================================================
     // 3. PAYMENT METHODS (4: CASH, CARD, WALLET, BANK_TRANSFER)
     // ============================================================================
     console.log('💳 Seeding payment methods...');
