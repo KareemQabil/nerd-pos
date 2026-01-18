@@ -9,6 +9,8 @@ import {
     SalesOrder,
     SalesOrderWithItems,
     OrderItem,
+    CreateOrderData,
+    CreateOrderItemData,
 } from './entities/sales.entity';
 
 @Injectable()
@@ -84,7 +86,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
         });
     }
 
-    async createWithItems(data: any, items: any[]): Promise<SalesOrderWithItems> {
+    async createWithItems(data: CreateOrderData, items: CreateOrderItemData[]): Promise<SalesOrderWithItems> {
         return (this.prisma as any).salesOrder.create({
             data: {
                 ...data,
@@ -107,7 +109,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
 
     // ==================== ORDER ITEMS ====================
 
-    async addItem(orderId: string, item: any): Promise<OrderItem> {
+    async addItem(orderId: string, item: CreateOrderItemData): Promise<OrderItem> {
         return (this.prisma as any).salesOrderItem.create({
             data: {
                 ...item,

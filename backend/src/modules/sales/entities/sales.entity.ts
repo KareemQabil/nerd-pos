@@ -138,3 +138,56 @@ export interface CalculationResult {
 // Backward-compatible aliases for existing code
 export type Order = SalesOrder;
 export type OrderWithItems = SalesOrderWithItems;
+
+// ==================== CREATE DATA TYPES (for Repository) ====================
+
+export interface CreateOrderData {
+    orderNumber: string;
+    orderType?: string;
+    type?: string;  // Alias for orderType
+    businessDate?: Date;
+    customerId?: string | null;
+    tableId?: string | null;
+    guestCount?: number;
+    sessionId?: string | null;
+    createdBy?: string;
+    status?: string;
+    paymentStatus?: string;
+    itemSubtotal?: number;
+    serviceChargeRate?: number;
+    serviceChargeAmount?: number;
+    serviceCharge?: number;
+    deliveryCharge?: number;
+    subtotalBeforeTax?: number;
+    taxRate?: number;
+    taxAmount?: number;
+    discountAmount?: number;
+    discountCode?: string | null;
+    grandTotal?: number;
+    tipAmount?: number;
+    totalWithTip?: number;
+    notes?: string | null;
+}
+
+export interface CreateOrderItemData {
+    productId: string;
+    productNameAr?: string;
+    productNameEn?: string;
+    quantity: number;
+    unitPrice: number;
+    modifiersAmount?: number;
+    lineTotal?: number;
+    costPerUnit?: number;
+    totalCost?: number;
+    notes?: string | null;
+    status?: string;
+    modifiers?: CreateModifierData[];
+}
+
+export interface CreateModifierData {
+    modifierId: string;
+    optionId: string;
+    name: string;
+    price: number;
+}
+
