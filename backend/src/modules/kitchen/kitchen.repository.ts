@@ -44,7 +44,7 @@ export class KitchenRepository extends BaseRepository<KitchenTicket> {
     }
 
     async findByStation(stationId: string, status?: string): Promise<KitchenTicket[]> {
-        const where: any = { stationId };
+        const where: { stationId: string; status?: string } = { stationId };
         if (status) {
             where.status = status;
         }
@@ -63,13 +63,13 @@ export class KitchenRepository extends BaseRepository<KitchenTicket> {
 
     // ==================== TICKET ITEMS ====================
 
-    async addItem(ticketId: string, data: any): Promise<KitchenTicketItem> {
+    async addItem(ticketId: string, data: Omit<KitchenTicketItem, 'id' | 'ticketId'>): Promise<KitchenTicketItem> {
         return (this.prisma as any).kitchenTicketItem.create({
             data: { ...data, ticketId },
         });
     }
 
-    async updateItem(itemId: string, data: any): Promise<KitchenTicketItem> {
+    async updateItem(itemId: string, data: Partial<KitchenTicketItem>): Promise<KitchenTicketItem> {
         return (this.prisma as any).kitchenTicketItem.update({
             where: { id: itemId },
             data,
@@ -106,11 +106,11 @@ export class KitchenRepository extends BaseRepository<KitchenTicket> {
         });
     }
 
-    async createStation(data: any): Promise<KitchenStation> {
+    async createStation(data: Omit<KitchenStation, 'id'>): Promise<KitchenStation> {
         return (this.prisma as any).kitchenStation.create({ data });
     }
 
-    async updateStation(id: string, data: any): Promise<KitchenStation> {
+    async updateStation(id: string, data: Partial<KitchenStation>): Promise<KitchenStation> {
         return (this.prisma as any).kitchenStation.update({
             where: { id },
             data,
