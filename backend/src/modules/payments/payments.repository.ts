@@ -67,11 +67,11 @@ export class PaymentsRepository extends BaseRepository<Payment> {
         });
     }
 
-    async createMethod(data: any): Promise<PaymentMethod> {
+    async createMethod(data: Omit<PaymentMethod, 'id'>): Promise<PaymentMethod> {
         return (this.prisma as any).paymentMethod.create({ data });
     }
 
-    async updateMethod(id: string, data: any): Promise<PaymentMethod> {
+    async updateMethod(id: string, data: Partial<PaymentMethod>): Promise<PaymentMethod> {
         return (this.prisma as any).paymentMethod.update({
             where: { id },
             data,
@@ -102,11 +102,11 @@ export class PaymentsRepository extends BaseRepository<Payment> {
         });
     }
 
-    async createRefund(data: any): Promise<Refund> {
+    async createRefund(data: Omit<Refund, 'id' | 'createdAt'>): Promise<Refund> {
         return (this.prisma as any).refund.create({ data });
     }
 
-    async updateRefund(id: string, data: any): Promise<Refund> {
+    async updateRefund(id: string, data: Partial<Refund>): Promise<Refund> {
         return (this.prisma as any).refund.update({
             where: { id },
             data,
