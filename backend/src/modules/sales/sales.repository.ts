@@ -1,8 +1,10 @@
 // Sales Repository
 // Source: FINAL/BACKEND/05-MODULE-SALES.md, 01-create-module workflow
 // Aligned with: prisma/schema.prisma
+// Sprint 4: Added optional transaction client support for ACID compliance
 
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -12,6 +14,9 @@ import {
     CreateOrderData,
     CreateOrderItemData,
 } from './entities/sales.entity';
+
+// Type alias for transaction client
+type TxClient = Prisma.TransactionClient;
 
 @Injectable()
 export class SalesRepository extends BaseRepository<SalesOrder> {
@@ -86,8 +91,9 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
         });
     }
 
-    async createWithItems(data: CreateOrderData, items: CreateOrderItemData[]): Promise<SalesOrderWithItems> {
-        return (this.prisma as any).salesOrder.create({
+    async createWithItems(data: CreateOrderData, items: CreateOrderItemData[], tx?: TxClient): Promise<SalesOrderWithItems> {
+        const client = tx || this.prisma;
+        return (client as any).salesOrder.create({
             data: {
                 ...data,
                 items: {
@@ -109,8 +115,9 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
 
     // ==================== ORDER ITEMS ====================
 
-    async addItem(orderId: string, item: CreateOrderItemData): Promise<OrderItem> {
-        return (this.prisma as any).salesOrderItem.create({
+    async addItem(orderId: string, item: CreateOrderItemData, tx?: TxClient): Promise<OrderItem> {
+        const client = tx || this.prisma;
+        return (client as any).salesOrderItem.create({
             data: {
                 ...item,
                 orderId,
@@ -122,8 +129,9 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
         });
     }
 
-    async updateItem(itemId: string, data: Partial<OrderItem>): Promise<OrderItem> {
-        return (this.prisma as any).salesOrderItem.update({
+    async updateItem(itemId: string, data: Partial<OrderItem>, tx?: TxClient): Promise<OrderItem> {
+        const client = tx || this.prisma;
+        return (client as any).salesOrderItem.update({
             where: { id: itemId },
             data,
             include: { modifiers: true },

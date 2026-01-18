@@ -1,9 +1,11 @@
 // Sales Service
 // Source: FINAL/BACKEND/05-MODULE-SALES.md, 01-create-module workflow
 // Uses 7-step Calculation Pipeline
+// Sprint 4: Added $transaction wrapper for ACID compliance
 
 import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { SalesRepository } from './sales.repository';
+import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import { ICalculationStep, CalculationContext } from '../../core/calculation/calculation-step.interface';
 import {
@@ -42,6 +44,7 @@ export class SalesService {
 
     constructor(
         private readonly repo: SalesRepository,
+        private readonly prisma: PrismaService,  // 🆕 For $transaction
         @Inject('IEventBus') private readonly eventBus: IEventBus,
         private readonly itemSubtotalStep: ItemSubtotalStep,
         private readonly serviceChargeStep: ServiceChargeStep,
@@ -66,16 +69,16 @@ export class SalesService {
     // ==================== ORDER CREATION ====================
 
     async createOrder(dto: CreateOrderDto, createdBy: string): Promise<OrderWithItems> {
-        // Build calculation context
+        // 1. Build calculation context (Outside TX - pure computation)
         const context = this.buildCalculationContext(dto);
 
-        // Execute 7-step pipeline
+        // 2. Execute 7-step pipeline (Outside TX - pure computation)
         const calculated = await this.executeCalculationPipeline(context);
 
-        // Generate order number
+        // 3. Generate order number (Outside TX - read only)
         const orderNumber = await this.generateOrderNumber();
 
-        // Calculate item subtotals
+        // 4. Calculate item subtotals (Outside TX - pure computation)
         const itemsWithSubtotals = dto.items.map((item) => {
             const modifierTotal = (item.modifiers || []).reduce(
                 (sum, mod) => sum + mod.price,
@@ -89,34 +92,37 @@ export class SalesService {
             };
         });
 
-        // Create order with items
-        const order = await this.repo.createWithItems(
-            {
-                orderNumber,
-                type: dto.type,
-                status: 'DRAFT',
-                customerId: dto.customerId,
-                tableId: dto.tableId,
-                guestCount: dto.guestCount,
-                sessionId: dto.sessionId,
-                discountCode: dto.discountCode,
-                itemSubtotal: calculated.itemSubtotal.toNumber(),
-                serviceCharge: calculated.serviceCharge.toNumber(),
-                serviceChargePercent: calculated.serviceChargePercent.toNumber(),
-                deliveryCharge: calculated.deliveryCharge.toNumber(),
-                subtotalBeforeTax: calculated.subtotalBeforeTax.toNumber(),
-                taxAmount: calculated.taxAmount.toNumber(),
-                taxPercent: calculated.taxPercent.toNumber(),
-                discountAmount: calculated.discountAmount.toNumber(),
-                grandTotal: calculated.grandTotal.toNumber(),
-                paidAmount: 0,
-                changeAmount: 0,
-                createdBy,
-            },
-            itemsWithSubtotals,
-        );
+        // 5. Database Write - ATOMIC TRANSACTION
+        const order = await this.prisma.$transaction(async (tx) => {
+            return this.repo.createWithItems(
+                {
+                    orderNumber,
+                    type: dto.type,
+                    status: 'DRAFT',
+                    customerId: dto.customerId,
+                    tableId: dto.tableId,
+                    guestCount: dto.guestCount,
+                    sessionId: dto.sessionId,
+                    discountCode: dto.discountCode,
+                    itemSubtotal: calculated.itemSubtotal.toNumber(),
+                    serviceCharge: calculated.serviceCharge.toNumber(),
+                    serviceChargePercent: calculated.serviceChargePercent.toNumber(),
+                    deliveryCharge: calculated.deliveryCharge.toNumber(),
+                    subtotalBeforeTax: calculated.subtotalBeforeTax.toNumber(),
+                    taxAmount: calculated.taxAmount.toNumber(),
+                    taxPercent: calculated.taxPercent.toNumber(),
+                    discountAmount: calculated.discountAmount.toNumber(),
+                    grandTotal: calculated.grandTotal.toNumber(),
+                    paidAmount: 0,
+                    changeAmount: 0,
+                    createdBy,
+                },
+                itemsWithSubtotals,
+                tx,  // 🔑 Pass transaction client to repository
+            );
+        });
 
-        // Publish event
+        // 6. Event Emission - AFTER TRANSACTION COMMITS (cannot be rolled back)
         await this.eventBus.publish(
             'OrderCreated',
             new OrderCreatedEvent(

@@ -1,7 +1,9 @@
 // Inventory Repository
 // Source: FINAL/BACKEND/04-MODULE-INVENTORY.md
+// Sprint 4: Added optional transaction client support for ACID compliance
 
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -13,6 +15,9 @@ import {
     RecipeIngredient,
 } from './entities/inventory.entity';
 import { CreateMovementDto } from './dto';
+
+// Type alias for transaction client
+type TxClient = Prisma.TransactionClient;
 
 @Injectable()
 export class InventoryRepository extends BaseRepository<InventoryItem> {
@@ -85,8 +90,9 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
 
     // ==================== BATCH (FIFO) ====================
 
-    async createBatch(data: Partial<InventoryBatch>): Promise<InventoryBatch> {
-        return (this.prisma as any).inventoryBatch.create({ data });
+    async createBatch(data: Partial<InventoryBatch>, tx?: TxClient): Promise<InventoryBatch> {
+        const client = tx || this.prisma;
+        return (client as any).inventoryBatch.create({ data });
     }
 
     async findBatchesFIFO(inventoryItemId: string): Promise<InventoryBatch[]> {
@@ -109,8 +115,9 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
         });
     }
 
-    async updateBatch(id: string, data: Partial<InventoryBatch>): Promise<InventoryBatch> {
-        return (this.prisma as any).inventoryBatch.update({
+    async updateBatch(id: string, data: Partial<InventoryBatch>, tx?: TxClient): Promise<InventoryBatch> {
+        const client = tx || this.prisma;
+        return (client as any).inventoryBatch.update({
             where: { id },
             data,
         });
@@ -118,8 +125,9 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
 
     // ==================== MOVEMENT ====================
 
-    async createMovement(data: CreateMovementDto): Promise<InventoryMovement> {
-        return (this.prisma as any).inventoryMovement.create({ data });
+    async createMovement(data: CreateMovementDto, tx?: TxClient): Promise<InventoryMovement> {
+        const client = tx || this.prisma;
+        return (client as any).inventoryMovement.create({ data });
     }
 
     async findMovementsByProduct(productId: string, warehouseId?: string): Promise<InventoryMovement[]> {

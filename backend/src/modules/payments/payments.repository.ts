@@ -1,10 +1,15 @@
 // Payments Repository
 // Source: FINAL/BACKEND/06-MODULE-PAYMENTS.md, 08-repository.md
+// Sprint 4: Added optional transaction client support for ACID compliance
 
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { Payment, PaymentWithRefunds, PaymentMethod, Refund } from './entities/payments.entity';
+
+// Type alias for transaction client
+type TxClient = Prisma.TransactionClient;
 
 @Injectable()
 export class PaymentsRepository extends BaseRepository<Payment> {
