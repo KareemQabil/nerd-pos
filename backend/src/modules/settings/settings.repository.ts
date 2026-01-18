@@ -23,7 +23,7 @@ export class SettingsRepository extends BaseRepository<StoreSetting> {
         return (this.prisma as any).storeSetting.findFirst();
     }
 
-    async updateStoreSetting(id: string, data: any): Promise<StoreSetting> {
+    async updateStoreSetting(id: string, data: Partial<StoreSetting>): Promise<StoreSetting> {
         return (this.prisma as any).storeSetting.update({
             where: { id },
             data,
@@ -51,13 +51,13 @@ export class SettingsRepository extends BaseRepository<StoreSetting> {
         });
     }
 
-    async createTax(data: any): Promise<TaxSetting> {
+    async createTax(data: Omit<TaxSetting, 'id'>): Promise<TaxSetting> {
         return (this.prisma as any).taxSetting.create({
             data: { ...data, isActive: true },
         });
     }
 
-    async updateTax(id: string, data: any): Promise<TaxSetting> {
+    async updateTax(id: string, data: Partial<TaxSetting>): Promise<TaxSetting> {
         return (this.prisma as any).taxSetting.update({
             where: { id },
             data,
@@ -92,13 +92,13 @@ export class SettingsRepository extends BaseRepository<StoreSetting> {
         });
     }
 
-    async createTerminal(data: any): Promise<POSTerminal> {
+    async createTerminal(data: Omit<POSTerminal, 'id' | 'createdAt' | 'updatedAt'>): Promise<POSTerminal> {
         return (this.prisma as any).posTerminal.create({
             data: { ...data, isActive: true },
         });
     }
 
-    async updateTerminal(id: string, data: any): Promise<POSTerminal> {
+    async updateTerminal(id: string, data: Partial<POSTerminal>): Promise<POSTerminal> {
         return (this.prisma as any).posTerminal.update({
             where: { id },
             data,
@@ -124,7 +124,7 @@ export class SettingsRepository extends BaseRepository<StoreSetting> {
         });
     }
 
-    async upsertModuleSetting(module: string, config: any): Promise<ModuleSetting> {
+    async upsertModuleSetting(module: string, config: Record<string, unknown>): Promise<ModuleSetting> {
         return (this.prisma as any).moduleSetting.upsert({
             where: { module },
             update: { config },
