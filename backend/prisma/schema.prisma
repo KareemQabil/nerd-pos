@@ -26,9 +26,9 @@ model Category {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children Category[] @relation("CategoryHierarchy")
-  products Product[]
+  products Product[]  // Cannot add onDelete here (defined on parent side)
 
   @@index([parentId])
   @@index([sortOrder])
@@ -63,7 +63,7 @@ model Product {
   createdAt               DateTime       @default(now()) @map("created_at")
   updatedAt               DateTime       @updatedAt @map("updated_at")
 
-  category          Category                @relation(fields: [categoryId], references: [id])
+  category          Category                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   modifierGroups    ProductModifierGroup[]
   inventoryItems    InventoryItem[]
   recipe            Recipe?
