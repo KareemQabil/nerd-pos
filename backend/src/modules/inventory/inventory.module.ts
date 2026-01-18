@@ -5,6 +5,7 @@ import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 import { InventoryRepository } from './inventory.repository';
 import { FIFOStrategy } from './strategies/fifo.strategy';
+import { InventoryEventHandlers } from './inventory.handlers';
 
 @Module({
     controllers: [InventoryController],
@@ -12,7 +13,9 @@ import { FIFOStrategy } from './strategies/fifo.strategy';
         InventoryService,
         InventoryRepository,
         FIFOStrategy,
+        InventoryEventHandlers,
     ],
     exports: [InventoryService, FIFOStrategy],
 })
 export class InventoryModule { }
+
