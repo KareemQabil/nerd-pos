@@ -9,6 +9,8 @@ import {
     Body,
     Param,
     Request,
+    UseGuards,
+    ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import {
@@ -22,6 +24,8 @@ import {
     UpdateRoleDto,
     CreatePermissionDto,
 } from './dto';
+import { OwnershipGuard, SkipOwnershipCheck } from '../auth/guards/ownership.guard';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('users')
 export class UsersController {
@@ -29,6 +33,7 @@ export class UsersController {
 
     // ==================== AUTH ====================
 
+    @Public()
     @Post('login')
     async login(@Body() dto: LoginDto) {
         return this.service.login(dto.username, dto.password);
@@ -56,13 +61,38 @@ export class UsersController {
         return this.service.findAll();
     }
 
+    /**
+     * GET /users/:id - User can only view their own profile (unless ADMIN/MANAGER)
+     */
+    @UseGuards(OwnershipGuard)
     @Get(':id')
-    async findById(@Param('id') id: string) {
+    async findById(@Param('id') id: string, @Request() req: any) {
+        // Self-ownership check: user can only view their own profile
+        const userId = req.user?.sub;
+        const userRole = req.user?.role;
+
+        // Allow if viewing own profile or if ADMIN/MANAGER
+        if (userId !== id && !['ADMIN', 'MANAGER'].includes(userRole)) {
+            throw new ForbiddenException('You can only view your own profile');
+        }
+
         return this.service.findById(id);
     }
 
+    /**
+     * PUT /users/:id - User can only edit their own profile (unless ADMIN/MANAGER)
+     */
+    @UseGuards(OwnershipGuard)
     @Put(':id')
-    async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    async update(@Param('id') id: string, @Body() dto: UpdateUserDto, @Request() req: any) {
+        const userId = req.user?.sub;
+        const userRole = req.user?.role;
+
+        // Self-ownership check
+        if (userId !== id && !['ADMIN', 'MANAGER'].includes(userRole)) {
+            throw new ForbiddenException('You can only edit your own profile');
+        }
+
         return this.service.updateUser(id, dto);
     }
 
