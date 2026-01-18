@@ -155,11 +155,13 @@ export interface CreateOrderData {
     paymentStatus?: string;
     itemSubtotal?: number;
     serviceChargeRate?: number;
+    serviceChargePercent?: number;  // Alias for serviceChargeRate
     serviceChargeAmount?: number;
     serviceCharge?: number;
     deliveryCharge?: number;
     subtotalBeforeTax?: number;
     taxRate?: number;
+    taxPercent?: number;  // Alias for taxRate
     taxAmount?: number;
     discountAmount?: number;
     discountCode?: string | null;
@@ -167,6 +169,7 @@ export interface CreateOrderData {
     tipAmount?: number;
     totalWithTip?: number;
     notes?: string | null;
+    [key: string]: unknown;  // Allow additional fields from calculation
 }
 
 export interface CreateOrderItemData {
@@ -174,14 +177,17 @@ export interface CreateOrderItemData {
     productNameAr?: string;
     productNameEn?: string;
     quantity: number;
-    unitPrice: number;
+    unitPrice?: number;
+    price?: number;  // Alias for unitPrice
     modifiersAmount?: number;
     lineTotal?: number;
+    subtotal?: number;  // Alias for lineTotal
     costPerUnit?: number;
     totalCost?: number;
     notes?: string | null;
     status?: string;
     modifiers?: CreateModifierData[];
+    [key: string]: unknown;  // Allow additional DTO fields
 }
 
 export interface CreateModifierData {

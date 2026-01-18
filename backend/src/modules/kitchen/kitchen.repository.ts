@@ -63,7 +63,7 @@ export class KitchenRepository extends BaseRepository<KitchenTicket> {
 
     // ==================== TICKET ITEMS ====================
 
-    async addItem(ticketId: string, data: Omit<KitchenTicketItem, 'id' | 'ticketId'>): Promise<KitchenTicketItem> {
+    async addItem(ticketId: string, data: { productId: string; productName: string; productNameAr: string; quantity: number; notes?: string | null; modifiers?: unknown; status?: string }): Promise<KitchenTicketItem> {
         return (this.prisma as any).kitchenTicketItem.create({
             data: { ...data, ticketId },
         });

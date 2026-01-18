@@ -51,7 +51,7 @@ export class SettingsRepository extends BaseRepository<StoreSetting> {
         });
     }
 
-    async createTax(data: Omit<TaxSetting, 'id'>): Promise<TaxSetting> {
+    async createTax(data: Partial<TaxSetting> & { name: string; rate: number }): Promise<TaxSetting> {
         return (this.prisma as any).taxSetting.create({
             data: { ...data, isActive: true },
         });
@@ -92,7 +92,7 @@ export class SettingsRepository extends BaseRepository<StoreSetting> {
         });
     }
 
-    async createTerminal(data: Omit<POSTerminal, 'id' | 'createdAt' | 'updatedAt'>): Promise<POSTerminal> {
+    async createTerminal(data: Partial<POSTerminal> & { name: string; nameAr: string; code: string }): Promise<POSTerminal> {
         return (this.prisma as any).posTerminal.create({
             data: { ...data, isActive: true },
         });

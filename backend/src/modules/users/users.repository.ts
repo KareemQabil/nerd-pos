@@ -57,7 +57,7 @@ export class UsersRepository extends BaseRepository<User> {
 
     // ==================== AUTH LOGGING ====================
 
-    async createAuthLog(data: { userId: string; action: string; ipAddress?: string; userAgent?: string; success: boolean }): Promise<void> {
+    async createAuthLog(data: { userId: string; action?: string; method?: string; ipAddress?: string; userAgent?: string; success?: boolean; failureReason?: string }): Promise<void> {
         await (this.prisma as any).authenticationLog.create({ data });
     }
 
@@ -101,7 +101,7 @@ export class UsersRepository extends BaseRepository<User> {
         });
     }
 
-    async createRole(data: Omit<Role, 'id' | 'createdAt' | 'updatedAt'>): Promise<Role> {
+    async createRole(data: Partial<Role> & { name: string; nameAr: string }): Promise<Role> {
         return (this.prisma as any).role.create({ data });
     }
 
@@ -135,7 +135,7 @@ export class UsersRepository extends BaseRepository<User> {
         });
     }
 
-    async createPermission(data: Omit<Permission, 'id'>): Promise<Permission> {
+    async createPermission(data: { code: string; name: string; nameAr: string; module: string; section?: string | null; description?: string | null }): Promise<Permission> {
         return (this.prisma as any).permission.create({ data });
     }
 

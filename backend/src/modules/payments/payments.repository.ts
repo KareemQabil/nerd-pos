@@ -67,7 +67,7 @@ export class PaymentsRepository extends BaseRepository<Payment> {
         });
     }
 
-    async createMethod(data: Omit<PaymentMethod, 'id'>): Promise<PaymentMethod> {
+    async createMethod(data: Partial<PaymentMethod> & { name: string }): Promise<PaymentMethod> {
         return (this.prisma as any).paymentMethod.create({ data });
     }
 
@@ -102,7 +102,7 @@ export class PaymentsRepository extends BaseRepository<Payment> {
         });
     }
 
-    async createRefund(data: Omit<Refund, 'id' | 'createdAt'>): Promise<Refund> {
+    async createRefund(data: Partial<Refund> & { paymentId: string; amount: number; reason: string }): Promise<Refund> {
         return (this.prisma as any).refund.create({ data });
     }
 
