@@ -67,6 +67,42 @@ async function main() {
 
     try {
         // =====================================================================
+        // PRE-CLEANUP: Remove stale data from previous failed test runs
+        // =====================================================================
+        console.log('\n🗑️ PRE-CLEANUP: Removing stale test data...');
+
+        // Delete any orders that start with today's date pattern (ORD-YYYYMMDD-)
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        await (prisma as any).orderItem.deleteMany({
+            where: { order: { orderNumber: { startsWith: `ORD-${today}` } } }
+        }).catch(() => { });
+        await (prisma as any).salesOrder.deleteMany({
+            where: { orderNumber: { startsWith: `ORD-${today}` } }
+        }).catch(() => { });
+
+        // Delete test products and related data
+        await (prisma as any).inventoryMovement.deleteMany({
+            where: { productId: { startsWith: 'test-product-' } }
+        }).catch(() => { });
+        await (prisma as any).inventoryBatch.deleteMany({
+            where: { inventoryItem: { productId: { startsWith: 'test-product-' } } }
+        }).catch(() => { });
+        await (prisma as any).inventoryItem.deleteMany({
+            where: { productId: { startsWith: 'test-product-' } }
+        }).catch(() => { });
+        await (prisma as any).product.deleteMany({
+            where: { id: { startsWith: 'test-product-' } }
+        }).catch(() => { });
+        await (prisma as any).category.deleteMany({
+            where: { id: { startsWith: 'test-cat-' } }
+        }).catch(() => { });
+        await (prisma as any).warehouse.deleteMany({
+            where: { id: { startsWith: 'test-wh' } }
+        }).catch(() => { });
+
+        console.log('   ✅ Pre-cleanup complete');
+
+        // =====================================================================
         // STAGE 1: SETUP (Warehouses, Category, Product)
         // =====================================================================
         console.log('\n🔧 STAGE 1: SETUP - Creating Test Data...');
@@ -319,8 +355,12 @@ async function main() {
         console.error('   ❌ SMOKE TEST FAILED');
         console.error('═══════════════════════════════════════════════════════════');
         console.error(`   Error: ${error.message}`);
+        console.error(`   Code: ${error.code}`);
+        if (error.meta) {
+            console.error(`   Meta: ${JSON.stringify(error.meta, null, 2)}`);
+        }
         if (error.stack) {
-            console.error('   Stack:', error.stack.split('\n').slice(0, 5).join('\n'));
+            console.error('   Stack:', error.stack.split('\n').slice(0, 8).join('\n'));
         }
         console.error('═══════════════════════════════════════════════════════════\n');
 

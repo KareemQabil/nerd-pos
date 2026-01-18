@@ -93,14 +93,38 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
 
     async createWithItems(data: CreateOrderData, items: CreateOrderItemData[], tx?: TxClient): Promise<SalesOrderWithItems> {
         const client = tx || this.prisma;
+
+        // Debug logging
+        console.log('=== createWithItems DEBUG ===');
+        console.log('orderNumber:', data.orderNumber);
+        console.log('orderType:', data.orderType, '(type:', typeof data.orderType, ')');
+        console.log('businessDate:', data.businessDate);
+        console.log('taxRate:', data.taxRate);
+        console.log('items count:', items.length);
+
         return (client as any).salesOrder.create({
             data: {
-                ...data,
+                // Explicit mapping - NO spread operator
+                // SalesOrder required fields from schema.prisma:
+                orderNumber: data.orderNumber,
+                orderType: data.orderType,
+                businessDate: data.businessDate,
+                taxRate: data.taxRate || 0.15,
+                // SalesOrder optional fields with defaults:
+                itemSubtotal: data.itemSubtotal || 0,
+                serviceChargeRate: data.serviceChargeRate || 0,
+                serviceChargeAmount: data.serviceChargeAmount || 0,
+                deliveryCharge: data.deliveryCharge || 0,
+                subtotalBeforeTax: data.subtotalBeforeTax || 0,
+                taxAmount: data.taxAmount || 0,
+                discountAmount: data.discountAmount || 0,
+                grandTotal: data.grandTotal || 0,
+                // Create nested OrderItem records
                 items: {
                     create: items.map((item) => ({
                         productId: item.productId,
-                        productNameEn: item.productNameEn,
-                        productNameAr: item.productNameAr,
+                        productNameEn: item.productNameEn || '',
+                        productNameAr: item.productNameAr || '',
                         unitPrice: item.unitPrice,
                         quantity: item.quantity,
                         lineTotal: item.lineTotal,
@@ -111,7 +135,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
                 },
             },
             include: {
-                items: true,  // No modifiers relation in schema
+                items: true,
             },
         });
     }

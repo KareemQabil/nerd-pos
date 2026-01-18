@@ -78,59 +78,76 @@ export class SalesService {
         // 3. Generate order number (Outside TX - read only)
         const orderNumber = await this.generateOrderNumber();
 
-        // 4. Calculate item data (Outside TX - pure computation)
-        // Map DTO fields to Prisma OrderItem schema fields
+        // 4. Build HARDENED item data with ?? fallbacks
+        // Map DTO fields to Prisma OrderItem schema fields with SAFE defaults
         const itemsWithSubtotals = dto.items.map((item) => {
-            const modifierTotal = (item.modifiers || []).reduce(
-                (sum, mod) => sum + mod.price,
+            const modifierTotal = (item.modifiers ?? []).reduce(
+                (sum, mod) => sum + (mod.price ?? 0),
                 0,
             );
-            const lineTotal = (item.price + modifierTotal) * item.quantity;
+            const unitPrice = item.price ?? 0;
+            const quantity = item.quantity ?? 1;
+            const lineTotal = (unitPrice + modifierTotal) * quantity;
+
             return {
                 productId: item.productId,
-                productNameEn: item.name,       // DTO name → schema productNameEn
-                productNameAr: item.nameAr,     // DTO nameAr → schema productNameAr
-                unitPrice: item.price,          // DTO price → schema unitPrice
-                quantity: item.quantity,
-                lineTotal,                      // Calculated field → schema lineTotal
+                productNameEn: item.name ?? 'Unknown',
+                productNameAr: item.nameAr ?? 'غير معروف',
+                unitPrice: unitPrice,
+                quantity: quantity,
+                lineTotal: lineTotal,
                 modifiersAmount: modifierTotal,
-                notes: item.notes,
-                status: 'NEW',  // Schema default value
+                notes: item.notes ?? null,
+                status: 'NEW',
             };
         });
 
-        // 5. Database Write - ATOMIC TRANSACTION
-        // Only include fields that exist in SalesOrder Prisma schema
+        // 5. Build HARDENED order data with ?? fallbacks for ALL calculated values
+        // CRITICAL: Use safe Decimal-to-Number conversion with fallbacks
+        const safeToNumber = (val: any, fallback: number = 0): number => {
+            if (val === undefined || val === null) return fallback;
+            if (typeof val === 'number') return val;
+            if (typeof val.toNumber === 'function') return val.toNumber();
+            return fallback;
+        };
+
+        const safeDivide100 = (val: any, fallback: number = 0): number => {
+            if (val === undefined || val === null) return fallback;
+            if (typeof val.dividedBy === 'function') return val.dividedBy(100).toNumber();
+            if (typeof val === 'number') return val / 100;
+            return fallback;
+        };
+
+        const orderData = {
+            orderNumber: orderNumber,
+            orderType: dto.type ?? 'DINE_IN',  // HARDENED: fallback to DINE_IN
+            businessDate: new Date(),           // HARDENED: always set to now
+            status: 'DRAFT',                    // HARDENED: explicit status
+            // Calculated values with SAFE fallbacks
+            itemSubtotal: safeToNumber(calculated.itemSubtotal, 0),
+            serviceChargeRate: safeDivide100(calculated.serviceChargePercent, 0),
+            serviceChargeAmount: safeToNumber(calculated.serviceCharge, 0),
+            deliveryCharge: safeToNumber(calculated.deliveryCharge, 0),
+            subtotalBeforeTax: safeToNumber(calculated.subtotalBeforeTax, 0),
+            taxRate: safeDivide100(calculated.taxPercent, 0.15),  // HARDENED: 15% VAT fallback
+            taxAmount: safeToNumber(calculated.taxAmount, 0),
+            discountAmount: safeToNumber(calculated.discountAmount, 0),
+            grandTotal: safeToNumber(calculated.grandTotal, 0),
+        };
+
+        // 6. Database Write - ATOMIC TRANSACTION
         const order = await this.prisma.$transaction(async (tx) => {
-            return this.repo.createWithItems(
-                {
-                    orderNumber,
-                    orderType: dto.type,
-                    businessDate: new Date(),
-                    itemSubtotal: calculated.itemSubtotal.toNumber(),
-                    serviceChargeRate: calculated.serviceChargePercent.dividedBy(100).toNumber(),
-                    serviceChargeAmount: calculated.serviceCharge.toNumber(),
-                    deliveryCharge: calculated.deliveryCharge.toNumber(),
-                    subtotalBeforeTax: calculated.subtotalBeforeTax.toNumber(),
-                    taxRate: calculated.taxPercent.dividedBy(100).toNumber(),
-                    taxAmount: calculated.taxAmount.toNumber(),
-                    discountAmount: calculated.discountAmount.toNumber(),
-                    grandTotal: calculated.grandTotal.toNumber(),
-                    // Note: customerId, tableId, sessionId, createdBy not in current schema
-                },
-                itemsWithSubtotals,
-                tx,
-            );
+            return this.repo.createWithItems(orderData, itemsWithSubtotals, tx);
         });
 
-        // 6. Event Emission - AFTER TRANSACTION COMMITS (cannot be rolled back)
+        // 7. Event Emission - AFTER TRANSACTION COMMITS
         await this.eventBus.publish(
             'OrderCreated',
             new OrderCreatedEvent(
                 order.id,
                 order.orderNumber,
                 order.orderType,
-                calculated.grandTotal.toNumber(),
+                safeToNumber(calculated.grandTotal, 0),
             ),
         );
 
