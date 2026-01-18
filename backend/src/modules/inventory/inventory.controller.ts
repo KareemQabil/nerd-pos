@@ -18,6 +18,7 @@ import {
     CreateRecipeDto,
     AddRecipeIngredientDto,
 } from './dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('inventory')
 export class InventoryController {
@@ -43,19 +44,27 @@ export class InventoryController {
     // ==================== STOCK ====================
 
     @Post('receive')
-    async receiveStock(@Body() dto: ReceiveStockDto) {
-        // TODO: Get userId from JWT token
-        return this.service.receiveStock(dto, 'system');
+    async receiveStock(
+        @Body() dto: ReceiveStockDto,
+        @CurrentUser('sub') userId: string,
+    ) {
+        return this.service.receiveStock(dto, userId);
     }
 
     @Post('adjust')
-    async adjustStock(@Body() dto: AdjustStockDto) {
-        return this.service.adjustStock(dto, 'system');
+    async adjustStock(
+        @Body() dto: AdjustStockDto,
+        @CurrentUser('sub') userId: string,
+    ) {
+        return this.service.adjustStock(dto, userId);
     }
 
     @Post('transfer')
-    async transferStock(@Body() dto: TransferStockDto) {
-        return this.service.transferStock(dto, 'system');
+    async transferStock(
+        @Body() dto: TransferStockDto,
+        @CurrentUser('sub') userId: string,
+    ) {
+        return this.service.transferStock(dto, userId);
     }
 
     @Get('stock/:productId/:warehouseId')
