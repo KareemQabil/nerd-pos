@@ -3,6 +3,7 @@
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -35,6 +36,7 @@ import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    EventEmitterModule.forRoot(),  // Enable @OnEvent handlers
     PrismaModule,
     EventBusModule,
     // Feature Modules
