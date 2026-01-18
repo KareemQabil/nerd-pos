@@ -18,6 +18,7 @@ import {
     AddOrderItemDto,
     UpdateOrderItemDto,
 } from './dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('orders')
 export class SalesController {
@@ -26,9 +27,11 @@ export class SalesController {
     // ==================== ORDER CRUD ====================
 
     @Post()
-    async createOrder(@Body() dto: CreateOrderDto) {
-        // TODO: Get createdBy from JWT token
-        return this.service.createOrder(dto, 'system');
+    async createOrder(
+        @Body() dto: CreateOrderDto,
+        @CurrentUser('sub') userId: string,
+    ) {
+        return this.service.createOrder(dto, userId);
     }
 
     @Get()
