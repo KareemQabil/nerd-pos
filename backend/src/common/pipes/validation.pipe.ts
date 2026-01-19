@@ -4,12 +4,13 @@
 import { ValidationPipe, ValidationPipeOptions } from '@nestjs/common';
 
 export const validationPipeOptions: ValidationPipeOptions = {
-    whitelist: true, // Strip properties not in DTO
-    forbidNonWhitelisted: true, // Throw error for extra properties
-    transform: true, // Auto-transform payloads to DTO instances
-    transformOptions: {
-        enableImplicitConversion: true,
-    },
+  whitelist: true, // Strip properties not in DTO
+  forbidNonWhitelisted: true, // Throw error for extra properties
+  transform: true, // Auto-transform payloads to DTO instances
+  transformOptions: {
+    enableImplicitConversion: true,
+  },
 };
 
-export const createValidationPipe = () => new ValidationPipe(validationPipeOptions);
+export const createValidationPipe = () =>
+  new ValidationPipe(validationPipeOptions);

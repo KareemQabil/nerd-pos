@@ -8,89 +8,94 @@ import { Discount, DiscountUsage } from './entities/discounts.entity';
 
 @Injectable()
 export class DiscountsRepository extends BaseRepository<Discount> {
-    constructor(prisma: PrismaService) {
-        super(prisma);
-    }
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
 
-    protected get model() {
-        return 'discount';
-    }
+  protected get model() {
+    return 'discount';
+  }
 
-    // ==================== DISCOUNTS ====================
+  // ==================== DISCOUNTS ====================
 
-    async findByCode(code: string): Promise<Discount | null> {
-        return (this.prisma as any).discount.findUnique({
-            where: { code },
-        });
-    }
+  async findByCode(code: string): Promise<Discount | null> {
+    return (this.prisma as any).discount.findUnique({
+      where: { code },
+    });
+  }
 
-    async findActive(): Promise<Discount[]> {
-        return (this.prisma as any).discount.findMany({
-            where: { isActive: true },
-            orderBy: { name: 'asc' },
-        });
-    }
+  async findActive(): Promise<Discount[]> {
+    return (this.prisma as any).discount.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+    });
+  }
 
-    async findActiveByType(type: 'PERCENTAGE' | 'FIXED_AMOUNT'): Promise<Discount[]> {
-        return (this.prisma as any).discount.findMany({
-            where: { isActive: true, type },
-            orderBy: { name: 'asc' },
-        });
-    }
+  async findActiveByType(
+    type: 'PERCENTAGE' | 'FIXED_AMOUNT',
+  ): Promise<Discount[]> {
+    return (this.prisma as any).discount.findMany({
+      where: { isActive: true, type },
+      orderBy: { name: 'asc' },
+    });
+  }
 
-    async incrementUsage(id: string): Promise<void> {
-        await (this.prisma as any).discount.update({
-            where: { id },
-            data: { usedCount: { increment: 1 } },
-        });
-    }
+  async incrementUsage(id: string): Promise<void> {
+    await (this.prisma as any).discount.update({
+      where: { id },
+      data: { usedCount: { increment: 1 } },
+    });
+  }
 
-    // ==================== DISCOUNT USAGE ====================
+  // ==================== DISCOUNT USAGE ====================
 
-    async createUsage(data: any): Promise<DiscountUsage> {
-        return (this.prisma as any).discountUsage.create({ data });
-    }
+  async createUsage(data: any): Promise<DiscountUsage> {
+    return (this.prisma as any).discountUsage.create({ data });
+  }
 
-    async findUsageByOrder(orderId: string): Promise<DiscountUsage[]> {
-        return (this.prisma as any).discountUsage.findMany({
-            where: { orderId },
-            include: { discount: true },
-        });
-    }
+  async findUsageByOrder(orderId: string): Promise<DiscountUsage[]> {
+    return (this.prisma as any).discountUsage.findMany({
+      where: { orderId },
+      include: { discount: true },
+    });
+  }
 
-    async findUsageByCustomer(customerId: string): Promise<DiscountUsage[]> {
-        return (this.prisma as any).discountUsage.findMany({
-            where: { customerId },
-            orderBy: { appliedAt: 'desc' },
-        });
-    }
+  async findUsageByCustomer(customerId: string): Promise<DiscountUsage[]> {
+    return (this.prisma as any).discountUsage.findMany({
+      where: { customerId },
+      orderBy: { appliedAt: 'desc' },
+    });
+  }
 
-    async countUsageByCustomer(discountId: string, customerId: string): Promise<number> {
-        return (this.prisma as any).discountUsage.count({
-            where: { discountId, customerId },
-        });
-    }
+  async countUsageByCustomer(
+    discountId: string,
+    customerId: string,
+  ): Promise<number> {
+    return (this.prisma as any).discountUsage.count({
+      where: { discountId, customerId },
+    });
+  }
 
-    // ==================== STATISTICS ====================
+  // ==================== STATISTICS ====================
 
-    async getPopularDiscounts(limit: number = 10): Promise<any[]> {
-        return (this.prisma as any).discount.findMany({
-            where: { isActive: true },
-            orderBy: { usedCount: 'desc' },
-            take: limit,
-        });
-    }
+  async getPopularDiscounts(limit: number = 10): Promise<any[]> {
+    return (this.prisma as any).discount.findMany({
+      where: { isActive: true },
+      orderBy: { usedCount: 'desc' },
+      take: limit,
+    });
+  }
 
-    async getUsageStats(discountId: string): Promise<any> {
-        const usage = await (this.prisma as any).discountUsage.aggregate({
-            where: { discountId },
-            _sum: { discountAmount: true },
-            _count: { id: true },
-        });
+  async getUsageStats(discountId: string): Promise<any> {
+    const usage = await (this.prisma as any).discountUsage.aggregate({
+      where: { discountId },
+      _sum: { discountAmount: true },
+      _count: { id: true },
+    });
 
-        return {
-            totalUsage: usage._count.id,
-            totalDiscountGiven: usage._sum.discountAmount || 0,
-        };
-    }
+    return {
+      totalUsage: usage._count.id,
+      totalDiscountGiven: usage._sum.discountAmount || 0,
+    };
+  }
 }

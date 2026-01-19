@@ -7,8 +7,8 @@ import { PaymentsService } from './payments.service';
 import { PaymentsRepository } from './payments.repository';
 
 @Module({
-    controllers: [PaymentsController],
-    providers: [PaymentsService, PaymentsRepository],
-    exports: [PaymentsService],
+  controllers: [PaymentsController],
+  providers: [PaymentsService, PaymentsRepository],
+  exports: [PaymentsService],
 })
-export class PaymentsModule { }
+export class PaymentsModule {}

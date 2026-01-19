@@ -1,6 +1,6 @@
 /**
  * Auth Module
- * 
+ *
  * Central authentication module combining:
  * - JwtStrategy for token validation
  * - JwtAuthGuard for route protection
@@ -18,18 +18,19 @@ import { UsersModule } from '../users/users.module';
 import { PermissionsGuard } from './guards/permissions.guard';
 
 @Module({
-    imports: [
-        UsersModule,
-        PassportModule.register({ defaultStrategy: 'jwt' }),
-        JwtModule.register({
-            secret: process.env.JWT_SECRET || 'nerdpos-secret-change-in-production-2026',
-            signOptions: {
-                expiresIn: '7d',
-            },
-        }),
-    ],
-    controllers: [AuthController],
-    providers: [AuthService, JwtStrategy, PermissionsGuard],
-    exports: [AuthService, JwtModule, PermissionsGuard],
+  imports: [
+    UsersModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.register({
+      secret:
+        process.env.JWT_SECRET || 'nerdpos-secret-change-in-production-2026',
+      signOptions: {
+        expiresIn: '7d',
+      },
+    }),
+  ],
+  controllers: [AuthController],
+  providers: [AuthService, JwtStrategy, PermissionsGuard],
+  exports: [AuthService, JwtModule, PermissionsGuard],
 })
-export class AuthModule { }
+export class AuthModule {}

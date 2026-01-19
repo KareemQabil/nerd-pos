@@ -2,14 +2,14 @@
 import { IsString, IsUUID, IsOptional } from 'class-validator';
 
 export class GenerateInvoiceDto {
-    @IsUUID() orderId: string;
+  @IsUUID() orderId: string;
 }
 
 export class SubmitInvoiceDto {
-    @IsUUID() invoiceId: string;
+  @IsUUID() invoiceId: string;
 }
 
 export class VerifyHashChainDto {
-    @IsOptional() @IsString() startDate?: string;
-    @IsOptional() @IsString() endDate?: string;
+  @IsOptional() @IsString() startDate?: string;
+  @IsOptional() @IsString() endDate?: string;
 }

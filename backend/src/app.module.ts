@@ -36,7 +36,7 @@ import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    EventEmitterModule.forRoot(),  // Enable @OnEvent handlers
+    EventEmitterModule.forRoot(), // Enable @OnEvent handlers
     PrismaModule,
     EventBusModule,
     // Feature Modules
@@ -76,5 +76,4 @@ import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
     },
   ],
 })
-export class AppModule { }
-
+export class AppModule {}

@@ -8,6 +8,21 @@ import { SalesRepository } from './sales.repository';
 
 // Import 7-step calculation pipeline
 import {
+  ItemSubtotalStep,
+  ServiceChargeStep,
+  DeliveryChargeStep,
+  SubtotalBeforeTaxStep,
+  TaxStep,
+  DiscountStep,
+  GrandTotalStep,
+} from './calculation-steps';
+
+@Module({
+  controllers: [SalesController],
+  providers: [
+    SalesService,
+    SalesRepository,
+    // 7-Step Calculation Pipeline
     ItemSubtotalStep,
     ServiceChargeStep,
     DeliveryChargeStep,
@@ -15,22 +30,7 @@ import {
     TaxStep,
     DiscountStep,
     GrandTotalStep,
-} from './calculation-steps';
-
-@Module({
-    controllers: [SalesController],
-    providers: [
-        SalesService,
-        SalesRepository,
-        // 7-Step Calculation Pipeline
-        ItemSubtotalStep,
-        ServiceChargeStep,
-        DeliveryChargeStep,
-        SubtotalBeforeTaxStep,
-        TaxStep,
-        DiscountStep,
-        GrandTotalStep,
-    ],
-    exports: [SalesService],
+  ],
+  exports: [SalesService],
 })
-export class SalesModule { }
+export class SalesModule {}

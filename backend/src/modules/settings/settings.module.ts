@@ -7,8 +7,8 @@ import { SettingsService } from './settings.service';
 import { SettingsRepository } from './settings.repository';
 
 @Module({
-    controllers: [SettingsController],
-    providers: [SettingsService, SettingsRepository],
-    exports: [SettingsService],
+  controllers: [SettingsController],
+  providers: [SettingsService, SettingsRepository],
+  exports: [SettingsService],
 })
-export class SettingsModule { }
+export class SettingsModule {}

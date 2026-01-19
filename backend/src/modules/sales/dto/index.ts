@@ -2,125 +2,138 @@
 // Source: FINAL/BACKEND/05-MODULE-SALES.md
 
 import {
-    IsString,
-    IsNumber,
-    IsBoolean,
-    IsOptional,
-    IsUUID,
-    IsEnum,
-    IsArray,
-    ValidateNested,
-    IsInt,
-    Min,
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsUUID,
+  IsEnum,
+  IsArray,
+  ValidateNested,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 // ==================== ORDER ITEM DTO ====================
 
 export class OrderItemModifierDto {
-    @IsUUID()
-    modifierId: string;
+  @IsUUID()
+  modifierId: string;
 
-    @IsUUID()
-    optionId: string;
+  @IsUUID()
+  optionId: string;
 
-    @IsString()
-    name: string;
+  @IsString()
+  name: string;
 
-    @IsNumber()
-    price: number;
+  @IsNumber()
+  price: number;
 }
 
 export class CreateOrderItemDto {
-    @IsUUID()
-    productId: string;
+  @IsUUID()
+  productId: string;
 
-    @IsString()
-    name: string;
+  @IsString()
+  name: string;
 
-    @IsString()
-    nameAr: string;
+  @IsString()
+  nameAr: string;
 
-    @IsNumber()
-    price: number;
+  @IsNumber()
+  price: number;
 
-    @IsInt()
-    @Min(1)
-    quantity: number;
+  @IsInt()
+  @Min(1)
+  quantity: number;
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
-    @IsOptional()
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => OrderItemModifierDto)
-    modifiers?: OrderItemModifierDto[];
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrderItemModifierDto)
+  modifiers?: OrderItemModifierDto[];
 }
 
 // ==================== ORDER DTO ====================
 
 export class CreateOrderDto {
-    @IsEnum(['DINE_IN', 'TAKEAWAY', 'DELIVERY'])
-    type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
+  @IsEnum(['DINE_IN', 'TAKEAWAY', 'DELIVERY'])
+  type: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
 
-    @IsOptional()
-    @IsUUID()
-    customerId?: string;
+  @IsOptional()
+  @IsUUID()
+  customerId?: string;
 
-    @IsOptional()
-    @IsUUID()
-    tableId?: string;
+  @IsOptional()
+  @IsUUID()
+  tableId?: string;
 
-    @IsOptional()
-    @IsInt()
-    guestCount?: number;
+  @IsOptional()
+  @IsInt()
+  guestCount?: number;
 
-    @IsArray()
-    @ValidateNested({ each: true })
-    @Type(() => CreateOrderItemDto)
-    items: CreateOrderItemDto[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateOrderItemDto)
+  items: CreateOrderItemDto[];
 
-    @IsOptional()
-    @IsString()
-    discountCode?: string;
+  @IsOptional()
+  @IsString()
+  discountCode?: string;
 
-    @IsOptional()
-    @IsUUID()
-    sessionId?: string;
+  @IsOptional()
+  @IsUUID()
+  sessionId?: string;
 }
 
 export class UpdateOrderStatusDto {
-    @IsEnum(['DRAFT', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'])
-    status: 'DRAFT' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CANCELLED';
+  @IsEnum([
+    'DRAFT',
+    'CONFIRMED',
+    'PREPARING',
+    'READY',
+    'COMPLETED',
+    'CANCELLED',
+  ])
+  status:
+    | 'DRAFT'
+    | 'CONFIRMED'
+    | 'PREPARING'
+    | 'READY'
+    | 'COMPLETED'
+    | 'CANCELLED';
 }
 
-export class AddOrderItemDto extends CreateOrderItemDto { }
+export class AddOrderItemDto extends CreateOrderItemDto {}
 
 export class UpdateOrderItemDto {
-    @IsOptional()
-    @IsInt()
-    @Min(1)
-    quantity?: number;
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  quantity?: number;
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class ApplyDiscountDto {
-    @IsString()
-    discountCode: string;
+  @IsString()
+  discountCode: string;
 }
 
 // ==================== DELIVERY DTO ====================
 
 export class SetDeliveryAddressDto {
-    @IsUUID()
-    addressId: string;
+  @IsUUID()
+  addressId: string;
 
-    @IsOptional()
-    @IsString()
-    zoneId?: string;
+  @IsOptional()
+  @IsString()
+  zoneId?: string;
 }

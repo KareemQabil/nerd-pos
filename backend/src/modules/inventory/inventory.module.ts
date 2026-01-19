@@ -8,14 +8,13 @@ import { FIFOStrategy } from './strategies/fifo.strategy';
 import { InventoryEventHandlers } from './inventory.handlers';
 
 @Module({
-    controllers: [InventoryController],
-    providers: [
-        InventoryService,
-        InventoryRepository,
-        FIFOStrategy,
-        InventoryEventHandlers,
-    ],
-    exports: [InventoryService, FIFOStrategy],
+  controllers: [InventoryController],
+  providers: [
+    InventoryService,
+    InventoryRepository,
+    FIFOStrategy,
+    InventoryEventHandlers,
+  ],
+  exports: [InventoryService, FIFOStrategy],
 })
-export class InventoryModule { }
-
+export class InventoryModule {}

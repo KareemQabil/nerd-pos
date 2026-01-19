@@ -7,10 +7,10 @@ import { SetMetadata } from '@nestjs/common';
 export const PLUGIN_METADATA = 'PLUGIN_METADATA';
 
 export interface PluginOptions {
-    name: string;
-    enabled?: boolean;
+  name: string;
+  enabled?: boolean;
 }
 
 export const Plugin = (options: PluginOptions) => {
-    return SetMetadata(PLUGIN_METADATA, options);
+  return SetMetadata(PLUGIN_METADATA, options);
 };

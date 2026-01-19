@@ -3,438 +3,470 @@
 // Uses 7-step Calculation Pipeline
 // Sprint 4: Added $transaction wrapper for ACID compliance
 
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { SalesRepository } from './sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
-import { ICalculationStep, CalculationContext } from '../../core/calculation/calculation-step.interface';
 import {
-    CreateOrderDto,
-    UpdateOrderStatusDto,
-    AddOrderItemDto,
-    UpdateOrderItemDto,
-    ApplyDiscountDto,
+  ICalculationStep,
+  CalculationContext,
+} from '../../core/calculation/calculation-step.interface';
+import {
+  CreateOrderDto,
+  UpdateOrderStatusDto,
+  AddOrderItemDto,
+  UpdateOrderItemDto,
+  ApplyDiscountDto,
 } from './dto';
 import {
-    OrderCreatedEvent,
-    OrderConfirmedEvent,
-    OrderCompletedEvent,
-    OrderCancelledEvent,
-    OrderItemAddedEvent,
-    OrderStatusChangedEvent,
-    OrderCalculatedEvent,
+  OrderCreatedEvent,
+  OrderConfirmedEvent,
+  OrderCompletedEvent,
+  OrderCancelledEvent,
+  OrderItemAddedEvent,
+  OrderStatusChangedEvent,
+  OrderCalculatedEvent,
 } from './events/sales.events';
-import { Order, OrderWithItems, CalculationResult } from './entities/sales.entity';
+import {
+  Order,
+  OrderWithItems,
+  CalculationResult,
+} from './entities/sales.entity';
 import Decimal from 'decimal.js';
 
 // Import calculation steps
 import {
-    ItemSubtotalStep,
-    ServiceChargeStep,
-    DeliveryChargeStep,
-    SubtotalBeforeTaxStep,
-    TaxStep,
-    DiscountStep,
-    GrandTotalStep,
+  ItemSubtotalStep,
+  ServiceChargeStep,
+  DeliveryChargeStep,
+  SubtotalBeforeTaxStep,
+  TaxStep,
+  DiscountStep,
+  GrandTotalStep,
 } from './calculation-steps';
 
 @Injectable()
 export class SalesService {
-    private calculationSteps: ICalculationStep[];
+  private calculationSteps: ICalculationStep[];
 
-    constructor(
-        private readonly repo: SalesRepository,
-        private readonly prisma: PrismaService,  // 🆕 For $transaction
-        @Inject('IEventBus') private readonly eventBus: IEventBus,
-        private readonly itemSubtotalStep: ItemSubtotalStep,
-        private readonly serviceChargeStep: ServiceChargeStep,
-        private readonly deliveryChargeStep: DeliveryChargeStep,
-        private readonly subtotalBeforeTaxStep: SubtotalBeforeTaxStep,
-        private readonly taxStep: TaxStep,
-        private readonly discountStep: DiscountStep,
-        private readonly grandTotalStep: GrandTotalStep,
-    ) {
-        // Sort steps by order
-        this.calculationSteps = [
-            itemSubtotalStep,
-            serviceChargeStep,
-            deliveryChargeStep,
-            subtotalBeforeTaxStep,
-            taxStep,
-            discountStep,
-            grandTotalStep,
-        ].sort((a, b) => a.order - b.order);
+  constructor(
+    private readonly repo: SalesRepository,
+    private readonly prisma: PrismaService, // 🆕 For $transaction
+    @Inject('IEventBus') private readonly eventBus: IEventBus,
+    private readonly itemSubtotalStep: ItemSubtotalStep,
+    private readonly serviceChargeStep: ServiceChargeStep,
+    private readonly deliveryChargeStep: DeliveryChargeStep,
+    private readonly subtotalBeforeTaxStep: SubtotalBeforeTaxStep,
+    private readonly taxStep: TaxStep,
+    private readonly discountStep: DiscountStep,
+    private readonly grandTotalStep: GrandTotalStep,
+  ) {
+    // Sort steps by order
+    this.calculationSteps = [
+      itemSubtotalStep,
+      serviceChargeStep,
+      deliveryChargeStep,
+      subtotalBeforeTaxStep,
+      taxStep,
+      discountStep,
+      grandTotalStep,
+    ].sort((a, b) => a.order - b.order);
+  }
+
+  // ==================== ORDER CREATION ====================
+
+  async createOrder(
+    dto: CreateOrderDto,
+    createdBy: string,
+  ): Promise<OrderWithItems> {
+    // 1. Build calculation context (Outside TX - pure computation)
+    const context = this.buildCalculationContext(dto);
+
+    // 2. Execute 7-step pipeline (Outside TX - pure computation)
+    const calculated = await this.executeCalculationPipeline(context);
+
+    // 3. Generate order number (Outside TX - read only)
+    const orderNumber = await this.generateOrderNumber();
+
+    // 4. Build HARDENED item data with ?? fallbacks
+    // Map DTO fields to Prisma OrderItem schema fields with SAFE defaults
+    const itemsWithSubtotals = dto.items.map((item) => {
+      const modifierTotal = (item.modifiers ?? []).reduce(
+        (sum, mod) => sum + (mod.price ?? 0),
+        0,
+      );
+      const unitPrice = item.price ?? 0;
+      const quantity = item.quantity ?? 1;
+      const lineTotal = (unitPrice + modifierTotal) * quantity;
+
+      return {
+        productId: item.productId,
+        productNameEn: item.name ?? 'Unknown',
+        productNameAr: item.nameAr ?? 'غير معروف',
+        unitPrice: unitPrice,
+        quantity: quantity,
+        lineTotal: lineTotal,
+        modifiersAmount: modifierTotal,
+        notes: item.notes ?? null,
+        status: 'NEW',
+      };
+    });
+
+    // 5. Build HARDENED order data with ?? fallbacks for ALL calculated values
+    // CRITICAL: Use safe Decimal-to-Number conversion with fallbacks
+    const safeToNumber = (val: any, fallback: number = 0): number => {
+      if (val === undefined || val === null) return fallback;
+      if (typeof val === 'number') return val;
+      if (typeof val.toNumber === 'function') return val.toNumber();
+      return fallback;
+    };
+
+    const safeDivide100 = (val: any, fallback: number = 0): number => {
+      if (val === undefined || val === null) return fallback;
+      if (typeof val.dividedBy === 'function')
+        return val.dividedBy(100).toNumber();
+      if (typeof val === 'number') return val / 100;
+      return fallback;
+    };
+
+    const orderData = {
+      orderNumber: orderNumber,
+      orderType: dto.type ?? 'DINE_IN', // HARDENED: fallback to DINE_IN
+      businessDate: new Date(), // HARDENED: always set to now
+      status: 'DRAFT', // HARDENED: explicit status
+      // Calculated values with SAFE fallbacks
+      itemSubtotal: safeToNumber(calculated.itemSubtotal, 0),
+      serviceChargeRate: safeDivide100(calculated.serviceChargePercent, 0),
+      serviceChargeAmount: safeToNumber(calculated.serviceCharge, 0),
+      deliveryCharge: safeToNumber(calculated.deliveryCharge, 0),
+      subtotalBeforeTax: safeToNumber(calculated.subtotalBeforeTax, 0),
+      taxRate: safeDivide100(calculated.taxPercent, 0.15), // HARDENED: 15% VAT fallback
+      taxAmount: safeToNumber(calculated.taxAmount, 0),
+      discountAmount: safeToNumber(calculated.discountAmount, 0),
+      grandTotal: safeToNumber(calculated.grandTotal, 0),
+    };
+
+    // 6. Database Write - ATOMIC TRANSACTION
+    const order = await this.prisma.$transaction(async (tx) => {
+      return this.repo.createWithItems(orderData, itemsWithSubtotals, tx);
+    });
+
+    // 7. Event Emission - AFTER TRANSACTION COMMITS
+    await this.eventBus.publish(
+      'OrderCreated',
+      new OrderCreatedEvent(
+        order.id,
+        order.orderNumber,
+        order.orderType,
+        safeToNumber(calculated.grandTotal, 0),
+      ),
+    );
+
+    return order;
+  }
+
+  // ==================== ORDER STATUS ====================
+
+  async confirmOrder(orderId: string): Promise<Order> {
+    const order = await this.findOrderById(orderId);
+
+    if (order.status !== 'DRAFT') {
+      throw new BadRequestException('Only DRAFT orders can be confirmed');
     }
 
-    // ==================== ORDER CREATION ====================
+    const updated = await this.repo.update(orderId, {
+      status: 'CONFIRMED',
+      confirmedAt: new Date(),
+    });
 
-    async createOrder(dto: CreateOrderDto, createdBy: string): Promise<OrderWithItems> {
-        // 1. Build calculation context (Outside TX - pure computation)
-        const context = this.buildCalculationContext(dto);
+    await this.eventBus.publish(
+      'OrderConfirmed',
+      new OrderConfirmedEvent(orderId, order.orderNumber),
+    );
 
-        // 2. Execute 7-step pipeline (Outside TX - pure computation)
-        const calculated = await this.executeCalculationPipeline(context);
+    await this.eventBus.publish(
+      'OrderStatusChanged',
+      new OrderStatusChangedEvent(orderId, 'DRAFT', 'CONFIRMED'),
+    );
 
-        // 3. Generate order number (Outside TX - read only)
-        const orderNumber = await this.generateOrderNumber();
+    return updated;
+  }
 
-        // 4. Build HARDENED item data with ?? fallbacks
-        // Map DTO fields to Prisma OrderItem schema fields with SAFE defaults
-        const itemsWithSubtotals = dto.items.map((item) => {
-            const modifierTotal = (item.modifiers ?? []).reduce(
-                (sum, mod) => sum + (mod.price ?? 0),
-                0,
-            );
-            const unitPrice = item.price ?? 0;
-            const quantity = item.quantity ?? 1;
-            const lineTotal = (unitPrice + modifierTotal) * quantity;
+  async updateStatus(
+    orderId: string,
+    dto: UpdateOrderStatusDto,
+  ): Promise<Order> {
+    const order = await this.findOrderById(orderId);
+    const previousStatus = order.status;
 
-            return {
-                productId: item.productId,
-                productNameEn: item.name ?? 'Unknown',
-                productNameAr: item.nameAr ?? 'غير معروف',
-                unitPrice: unitPrice,
-                quantity: quantity,
-                lineTotal: lineTotal,
-                modifiersAmount: modifierTotal,
-                notes: item.notes ?? null,
-                status: 'NEW',
-            };
-        });
+    const updated = await this.repo.update(orderId, {
+      status: dto.status,
+      ...(dto.status === 'COMPLETED' && { completedAt: new Date() }),
+      ...(dto.status === 'CANCELLED' && { cancelledAt: new Date() }),
+    });
 
-        // 5. Build HARDENED order data with ?? fallbacks for ALL calculated values
-        // CRITICAL: Use safe Decimal-to-Number conversion with fallbacks
-        const safeToNumber = (val: any, fallback: number = 0): number => {
-            if (val === undefined || val === null) return fallback;
-            if (typeof val === 'number') return val;
-            if (typeof val.toNumber === 'function') return val.toNumber();
-            return fallback;
-        };
+    await this.eventBus.publish(
+      'OrderStatusChanged',
+      new OrderStatusChangedEvent(orderId, previousStatus, dto.status),
+    );
 
-        const safeDivide100 = (val: any, fallback: number = 0): number => {
-            if (val === undefined || val === null) return fallback;
-            if (typeof val.dividedBy === 'function') return val.dividedBy(100).toNumber();
-            if (typeof val === 'number') return val / 100;
-            return fallback;
-        };
-
-        const orderData = {
-            orderNumber: orderNumber,
-            orderType: dto.type ?? 'DINE_IN',  // HARDENED: fallback to DINE_IN
-            businessDate: new Date(),           // HARDENED: always set to now
-            status: 'DRAFT',                    // HARDENED: explicit status
-            // Calculated values with SAFE fallbacks
-            itemSubtotal: safeToNumber(calculated.itemSubtotal, 0),
-            serviceChargeRate: safeDivide100(calculated.serviceChargePercent, 0),
-            serviceChargeAmount: safeToNumber(calculated.serviceCharge, 0),
-            deliveryCharge: safeToNumber(calculated.deliveryCharge, 0),
-            subtotalBeforeTax: safeToNumber(calculated.subtotalBeforeTax, 0),
-            taxRate: safeDivide100(calculated.taxPercent, 0.15),  // HARDENED: 15% VAT fallback
-            taxAmount: safeToNumber(calculated.taxAmount, 0),
-            discountAmount: safeToNumber(calculated.discountAmount, 0),
-            grandTotal: safeToNumber(calculated.grandTotal, 0),
-        };
-
-        // 6. Database Write - ATOMIC TRANSACTION
-        const order = await this.prisma.$transaction(async (tx) => {
-            return this.repo.createWithItems(orderData, itemsWithSubtotals, tx);
-        });
-
-        // 7. Event Emission - AFTER TRANSACTION COMMITS
-        await this.eventBus.publish(
-            'OrderCreated',
-            new OrderCreatedEvent(
-                order.id,
-                order.orderNumber,
-                order.orderType,
-                safeToNumber(calculated.grandTotal, 0),
-            ),
-        );
-
-        return order;
+    if (dto.status === 'COMPLETED') {
+      await this.eventBus.publish(
+        'OrderCompleted',
+        new OrderCompletedEvent(orderId, order.orderNumber, order.grandTotal),
+      );
     }
 
-    // ==================== ORDER STATUS ====================
-
-    async confirmOrder(orderId: string): Promise<Order> {
-        const order = await this.findOrderById(orderId);
-
-        if (order.status !== 'DRAFT') {
-            throw new BadRequestException('Only DRAFT orders can be confirmed');
-        }
-
-        const updated = await this.repo.update(orderId, {
-            status: 'CONFIRMED',
-            confirmedAt: new Date(),
-        });
-
-        await this.eventBus.publish(
-            'OrderConfirmed',
-            new OrderConfirmedEvent(orderId, order.orderNumber),
-        );
-
-        await this.eventBus.publish(
-            'OrderStatusChanged',
-            new OrderStatusChangedEvent(orderId, 'DRAFT', 'CONFIRMED'),
-        );
-
-        return updated;
+    if (dto.status === 'CANCELLED') {
+      await this.eventBus.publish(
+        'OrderCancelled',
+        new OrderCancelledEvent(orderId, order.orderNumber),
+      );
     }
 
-    async updateStatus(orderId: string, dto: UpdateOrderStatusDto): Promise<Order> {
-        const order = await this.findOrderById(orderId);
-        const previousStatus = order.status;
+    return updated;
+  }
 
-        const updated = await this.repo.update(orderId, {
-            status: dto.status,
-            ...(dto.status === 'COMPLETED' && { completedAt: new Date() }),
-            ...(dto.status === 'CANCELLED' && { cancelledAt: new Date() }),
-        });
+  async cancelOrder(orderId: string, reason?: string): Promise<Order> {
+    const order = await this.findOrderById(orderId);
 
-        await this.eventBus.publish(
-            'OrderStatusChanged',
-            new OrderStatusChangedEvent(orderId, previousStatus, dto.status),
-        );
-
-        if (dto.status === 'COMPLETED') {
-            await this.eventBus.publish(
-                'OrderCompleted',
-                new OrderCompletedEvent(orderId, order.orderNumber, order.grandTotal),
-            );
-        }
-
-        if (dto.status === 'CANCELLED') {
-            await this.eventBus.publish(
-                'OrderCancelled',
-                new OrderCancelledEvent(orderId, order.orderNumber),
-            );
-        }
-
-        return updated;
+    if (['COMPLETED', 'CANCELLED'].includes(order.status)) {
+      throw new BadRequestException(
+        'Cannot cancel completed or already cancelled order',
+      );
     }
 
-    async cancelOrder(orderId: string, reason?: string): Promise<Order> {
-        const order = await this.findOrderById(orderId);
+    const updated = await this.repo.update(orderId, {
+      status: 'CANCELLED',
+      cancelledAt: new Date(),
+    });
 
-        if (['COMPLETED', 'CANCELLED'].includes(order.status)) {
-            throw new BadRequestException('Cannot cancel completed or already cancelled order');
-        }
+    await this.eventBus.publish(
+      'OrderCancelled',
+      new OrderCancelledEvent(orderId, order.orderNumber, reason),
+    );
 
-        const updated = await this.repo.update(orderId, {
-            status: 'CANCELLED',
-            cancelledAt: new Date(),
-        });
+    return updated;
+  }
 
-        await this.eventBus.publish(
-            'OrderCancelled',
-            new OrderCancelledEvent(orderId, order.orderNumber, reason),
-        );
+  // ==================== ORDER ITEMS ====================
 
-        return updated;
+  async addItem(
+    orderId: string,
+    dto: AddOrderItemDto,
+  ): Promise<OrderWithItems> {
+    const order = await this.findOrderById(orderId);
+
+    if (order.status !== 'DRAFT') {
+      throw new BadRequestException('Can only add items to DRAFT orders');
     }
 
-    // ==================== ORDER ITEMS ====================
+    // Calculate subtotal
+    const modifierTotal = (dto.modifiers || []).reduce(
+      (sum, mod) => sum + mod.price,
+      0,
+    );
+    const subtotal = (dto.price + modifierTotal) * dto.quantity;
 
-    async addItem(orderId: string, dto: AddOrderItemDto): Promise<OrderWithItems> {
-        const order = await this.findOrderById(orderId);
+    const item = await this.repo.addItem(orderId, {
+      ...dto,
+      subtotal,
+      status: 'PENDING',
+    });
 
-        if (order.status !== 'DRAFT') {
-            throw new BadRequestException('Can only add items to DRAFT orders');
-        }
+    // Recalculate order
+    await this.recalculateOrder(orderId);
 
-        // Calculate subtotal
-        const modifierTotal = (dto.modifiers || []).reduce(
-            (sum, mod) => sum + mod.price,
-            0,
-        );
-        const subtotal = (dto.price + modifierTotal) * dto.quantity;
+    await this.eventBus.publish(
+      'OrderItemAdded',
+      new OrderItemAddedEvent(orderId, item.id, dto.productId, dto.quantity),
+    );
 
-        const item = await this.repo.addItem(orderId, {
-            ...dto,
-            subtotal,
-            status: 'PENDING',
-        });
+    return this.findOrderByIdWithItems(orderId);
+  }
 
-        // Recalculate order
-        await this.recalculateOrder(orderId);
+  async updateItem(
+    orderId: string,
+    itemId: string,
+    dto: UpdateOrderItemDto,
+  ): Promise<OrderWithItems> {
+    const order = await this.findOrderById(orderId);
 
-        await this.eventBus.publish(
-            'OrderItemAdded',
-            new OrderItemAddedEvent(orderId, item.id, dto.productId, dto.quantity),
-        );
-
-        return this.findOrderByIdWithItems(orderId);
+    if (order.status !== 'DRAFT') {
+      throw new BadRequestException('Can only modify items in DRAFT orders');
     }
 
-    async updateItem(
-        orderId: string,
-        itemId: string,
-        dto: UpdateOrderItemDto,
-    ): Promise<OrderWithItems> {
-        const order = await this.findOrderById(orderId);
+    await this.repo.updateItem(itemId, dto);
+    await this.recalculateOrder(orderId);
 
-        if (order.status !== 'DRAFT') {
-            throw new BadRequestException('Can only modify items in DRAFT orders');
-        }
+    return this.findOrderByIdWithItems(orderId);
+  }
 
-        await this.repo.updateItem(itemId, dto);
-        await this.recalculateOrder(orderId);
+  async removeItem(orderId: string, itemId: string): Promise<OrderWithItems> {
+    const order = await this.findOrderById(orderId);
 
-        return this.findOrderByIdWithItems(orderId);
+    if (order.status !== 'DRAFT') {
+      throw new BadRequestException('Can only remove items from DRAFT orders');
     }
 
-    async removeItem(orderId: string, itemId: string): Promise<OrderWithItems> {
-        const order = await this.findOrderById(orderId);
+    await this.repo.removeItem(itemId);
+    await this.recalculateOrder(orderId);
 
-        if (order.status !== 'DRAFT') {
-            throw new BadRequestException('Can only remove items from DRAFT orders');
-        }
+    return this.findOrderByIdWithItems(orderId);
+  }
 
-        await this.repo.removeItem(itemId);
-        await this.recalculateOrder(orderId);
+  // ==================== QUERIES ====================
 
-        return this.findOrderByIdWithItems(orderId);
+  async findOrderById(id: string): Promise<Order> {
+    const order = await this.repo.findById(id);
+    if (!order) {
+      throw new NotFoundException(`Order ${id} not found`);
+    }
+    return order;
+  }
+
+  async findOrderByIdWithItems(id: string): Promise<OrderWithItems> {
+    const order = await this.repo.findWithItems(id);
+    if (!order) {
+      throw new NotFoundException(`Order ${id} not found`);
+    }
+    return order;
+  }
+
+  async findOrderByNumber(orderNumber: string): Promise<OrderWithItems> {
+    const order = await this.repo.findByOrderNumber(orderNumber);
+    if (!order) {
+      throw new NotFoundException(`Order ${orderNumber} not found`);
+    }
+    return order;
+  }
+
+  async findOrdersBySession(sessionId: string): Promise<Order[]> {
+    return this.repo.findBySession(sessionId);
+  }
+
+  async findOrdersByStatus(status: string): Promise<Order[]> {
+    return this.repo.findByStatus(status);
+  }
+
+  async findOrdersByCustomer(customerId: string): Promise<Order[]> {
+    return this.repo.findByCustomer(customerId);
+  }
+
+  // ==================== PRIVATE METHODS ====================
+
+  private buildCalculationContext(dto: CreateOrderDto): CalculationContext {
+    return {
+      items: dto.items.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        price: new Decimal(item.price),
+        quantity: item.quantity,
+        modifiers: item.modifiers?.map((m) => ({
+          price: new Decimal(m.price),
+        })),
+      })),
+      orderType: dto.type,
+      customerId: dto.customerId || null,
+      discountCode: dto.discountCode || null,
+      discount: null, // Will be set by discount step if code exists
+      deliveryZoneCharge: null, // Will come from delivery address
+      itemSubtotal: new Decimal(0),
+      serviceCharge: new Decimal(0),
+      serviceChargePercent: new Decimal(0),
+      deliveryCharge: new Decimal(0),
+      subtotalBeforeTax: new Decimal(0),
+      taxAmount: new Decimal(0),
+      taxPercent: new Decimal(15),
+      discountAmount: new Decimal(0),
+      grandTotal: new Decimal(0),
+      metadata: {},
+    };
+  }
+
+  private async executeCalculationPipeline(
+    context: CalculationContext,
+  ): Promise<CalculationContext> {
+    let ctx = context;
+
+    for (const step of this.calculationSteps) {
+      ctx = await step.execute(ctx);
     }
 
-    // ==================== QUERIES ====================
+    return ctx;
+  }
 
-    async findOrderById(id: string): Promise<Order> {
-        const order = await this.repo.findById(id);
-        if (!order) {
-            throw new NotFoundException(`Order ${id} not found`);
-        }
-        return order;
-    }
+  private async recalculateOrder(orderId: string): Promise<void> {
+    const order = await this.repo.findWithItems(orderId);
+    if (!order) return;
 
-    async findOrderByIdWithItems(id: string): Promise<OrderWithItems> {
-        const order = await this.repo.findWithItems(id);
-        if (!order) {
-            throw new NotFoundException(`Order ${id} not found`);
-        }
-        return order;
-    }
+    // Build context from existing order
+    const context: CalculationContext = {
+      items: order.items.map((item) => ({
+        productId: item.productId,
+        name: item.name || item.productNameEn || 'Unknown',
+        price: new Decimal(item.price || item.unitPrice || 0),
+        quantity: item.quantity,
+        modifiers:
+          item.modifiers?.map((m: any) => ({
+            price: new Decimal(m.price || 0),
+          })) || [],
+      })),
+      orderType: (order.type || order.orderType || 'DINE_IN') as
+        | 'DINE_IN'
+        | 'TAKEAWAY'
+        | 'DELIVERY',
+      customerId: order.customerId || null,
+      discountCode: order.discountCode || null,
+      discount: null,
+      deliveryZoneCharge: null,
+      itemSubtotal: new Decimal(0),
+      serviceCharge: new Decimal(0),
+      serviceChargePercent: new Decimal(0),
+      deliveryCharge: new Decimal(0),
+      subtotalBeforeTax: new Decimal(0),
+      taxAmount: new Decimal(0),
+      taxPercent: new Decimal(15),
+      discountAmount: new Decimal(0),
+      grandTotal: new Decimal(0),
+      metadata: {},
+    };
 
-    async findOrderByNumber(orderNumber: string): Promise<OrderWithItems> {
-        const order = await this.repo.findByOrderNumber(orderNumber);
-        if (!order) {
-            throw new NotFoundException(`Order ${orderNumber} not found`);
-        }
-        return order;
-    }
+    const calculated = await this.executeCalculationPipeline(context);
 
-    async findOrdersBySession(sessionId: string): Promise<Order[]> {
-        return this.repo.findBySession(sessionId);
-    }
+    await this.repo.update(orderId, {
+      itemSubtotal: calculated.itemSubtotal.toNumber(),
+      serviceCharge: calculated.serviceCharge.toNumber(),
+      serviceChargePercent: calculated.serviceChargePercent.toNumber(),
+      deliveryCharge: calculated.deliveryCharge.toNumber(),
+      subtotalBeforeTax: calculated.subtotalBeforeTax.toNumber(),
+      taxAmount: calculated.taxAmount.toNumber(),
+      taxPercent: calculated.taxPercent.toNumber(),
+      discountAmount: calculated.discountAmount.toNumber(),
+      grandTotal: calculated.grandTotal.toNumber(),
+    });
 
-    async findOrdersByStatus(status: string): Promise<Order[]> {
-        return this.repo.findByStatus(status);
-    }
+    await this.eventBus.publish(
+      'OrderCalculated',
+      new OrderCalculatedEvent(
+        orderId,
+        calculated.itemSubtotal.toNumber(),
+        calculated.grandTotal.toNumber(),
+      ),
+    );
+  }
 
-    async findOrdersByCustomer(customerId: string): Promise<Order[]> {
-        return this.repo.findByCustomer(customerId);
-    }
-
-    // ==================== PRIVATE METHODS ====================
-
-    private buildCalculationContext(dto: CreateOrderDto): CalculationContext {
-        return {
-            items: dto.items.map((item) => ({
-                productId: item.productId,
-                name: item.name,
-                price: new Decimal(item.price),
-                quantity: item.quantity,
-                modifiers: item.modifiers?.map((m) => ({ price: new Decimal(m.price) })),
-            })),
-            orderType: dto.type,
-            customerId: dto.customerId || null,
-            discountCode: dto.discountCode || null,
-            discount: null, // Will be set by discount step if code exists
-            deliveryZoneCharge: null, // Will come from delivery address
-            itemSubtotal: new Decimal(0),
-            serviceCharge: new Decimal(0),
-            serviceChargePercent: new Decimal(0),
-            deliveryCharge: new Decimal(0),
-            subtotalBeforeTax: new Decimal(0),
-            taxAmount: new Decimal(0),
-            taxPercent: new Decimal(15),
-            discountAmount: new Decimal(0),
-            grandTotal: new Decimal(0),
-            metadata: {},
-        };
-    }
-
-    private async executeCalculationPipeline(
-        context: CalculationContext,
-    ): Promise<CalculationContext> {
-        let ctx = context;
-
-        for (const step of this.calculationSteps) {
-            ctx = await step.execute(ctx);
-        }
-
-        return ctx;
-    }
-
-    private async recalculateOrder(orderId: string): Promise<void> {
-        const order = await this.repo.findWithItems(orderId);
-        if (!order) return;
-
-        // Build context from existing order
-        const context: CalculationContext = {
-            items: order.items.map((item) => ({
-                productId: item.productId,
-                name: item.name || item.productNameEn || 'Unknown',
-                price: new Decimal(item.price || item.unitPrice || 0),
-                quantity: item.quantity,
-                modifiers: item.modifiers?.map((m: any) => ({ price: new Decimal(m.price || 0) })) || [],
-            })),
-            orderType: (order.type || order.orderType || 'DINE_IN') as 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY',
-            customerId: order.customerId || null,
-            discountCode: order.discountCode || null,
-            discount: null,
-            deliveryZoneCharge: null,
-            itemSubtotal: new Decimal(0),
-            serviceCharge: new Decimal(0),
-            serviceChargePercent: new Decimal(0),
-            deliveryCharge: new Decimal(0),
-            subtotalBeforeTax: new Decimal(0),
-            taxAmount: new Decimal(0),
-            taxPercent: new Decimal(15),
-            discountAmount: new Decimal(0),
-            grandTotal: new Decimal(0),
-            metadata: {},
-        };
-
-        const calculated = await this.executeCalculationPipeline(context);
-
-        await this.repo.update(orderId, {
-            itemSubtotal: calculated.itemSubtotal.toNumber(),
-            serviceCharge: calculated.serviceCharge.toNumber(),
-            serviceChargePercent: calculated.serviceChargePercent.toNumber(),
-            deliveryCharge: calculated.deliveryCharge.toNumber(),
-            subtotalBeforeTax: calculated.subtotalBeforeTax.toNumber(),
-            taxAmount: calculated.taxAmount.toNumber(),
-            taxPercent: calculated.taxPercent.toNumber(),
-            discountAmount: calculated.discountAmount.toNumber(),
-            grandTotal: calculated.grandTotal.toNumber(),
-        });
-
-        await this.eventBus.publish(
-            'OrderCalculated',
-            new OrderCalculatedEvent(
-                orderId,
-                calculated.itemSubtotal.toNumber(),
-                calculated.grandTotal.toNumber(),
-            ),
-        );
-    }
-
-    private async generateOrderNumber(): Promise<string> {
-        const date = new Date();
-        const prefix = `ORD${date.getFullYear()}${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, '0')}`;
-        const count = await this.repo.countByPrefix(prefix);
-        return `${prefix}${(count + 1).toString().padStart(4, '0')}`;
-    }
+  private async generateOrderNumber(): Promise<string> {
+    const date = new Date();
+    const prefix = `ORD${date.getFullYear()}${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}`;
+    const count = await this.repo.countByPrefix(prefix);
+    return `${prefix}${(count + 1).toString().padStart(4, '0')}`;
+  }
 }

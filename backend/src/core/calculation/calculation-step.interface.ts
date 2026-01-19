@@ -5,58 +5,58 @@
 import Decimal from 'decimal.js';
 
 export interface CalculationItem {
-    productId: string;
-    name: string;
-    price: Decimal;
-    quantity: number;
-    modifiers?: { price: Decimal }[];
+  productId: string;
+  name: string;
+  price: Decimal;
+  quantity: number;
+  modifiers?: { price: Decimal }[];
 }
 
 export interface CalculationDiscount {
-    type: 'PERCENTAGE' | 'FIXED';
-    value: number;
-    code?: string;
+  type: 'PERCENTAGE' | 'FIXED';
+  value: number;
+  code?: string;
 }
 
 export interface CalculationContext {
-    // Input
-    items: CalculationItem[];
-    orderType: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
-    customerId: string | null;
-    discountCode: string | null;
-    discount: CalculationDiscount | null;
-    deliveryZoneCharge: number | null;
+  // Input
+  items: CalculationItem[];
+  orderType: 'DINE_IN' | 'TAKEAWAY' | 'DELIVERY';
+  customerId: string | null;
+  discountCode: string | null;
+  discount: CalculationDiscount | null;
+  deliveryZoneCharge: number | null;
 
-    // 7-Step Calculation Results
-    itemSubtotal: Decimal;
-    serviceCharge: Decimal;
-    serviceChargePercent: Decimal;
-    deliveryCharge: Decimal;
-    subtotalBeforeTax: Decimal;
-    taxAmount: Decimal;
-    taxPercent: Decimal;
-    discountAmount: Decimal;
-    grandTotal: Decimal;
+  // 7-Step Calculation Results
+  itemSubtotal: Decimal;
+  serviceCharge: Decimal;
+  serviceChargePercent: Decimal;
+  deliveryCharge: Decimal;
+  subtotalBeforeTax: Decimal;
+  taxAmount: Decimal;
+  taxPercent: Decimal;
+  discountAmount: Decimal;
+  grandTotal: Decimal;
 
-    // Metadata
-    metadata: Record<string, any>;
+  // Metadata
+  metadata: Record<string, any>;
 }
 
 export interface ICalculationStep {
-    readonly order: number;
-    execute(context: CalculationContext): Promise<CalculationContext>;
+  readonly order: number;
+  execute(context: CalculationContext): Promise<CalculationContext>;
 }
 
 // Legacy interface for compatibility
 export interface ICalculationContext {
-    itemSubtotal: Decimal;
-    serviceChargeRate?: Decimal;
-    serviceChargeAmount?: Decimal;
-    deliveryCharge?: Decimal;
-    subtotalBeforeTax: Decimal;
-    taxRate: Decimal;
-    taxAmount?: Decimal;
-    discountAmount?: Decimal;
-    grandTotal: Decimal;
-    metadata?: Record<string, any>;
+  itemSubtotal: Decimal;
+  serviceChargeRate?: Decimal;
+  serviceChargeAmount?: Decimal;
+  deliveryCharge?: Decimal;
+  subtotalBeforeTax: Decimal;
+  taxRate: Decimal;
+  taxAmount?: Decimal;
+  discountAmount?: Decimal;
+  grandTotal: Decimal;
+  metadata?: Record<string, any>;
 }

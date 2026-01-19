@@ -26,4 +26,3 @@ async function bootstrap() {
   console.log(`🚀 NerdPOS API running on http://localhost:${port}/api/v1`);
 }
 bootstrap();
-

@@ -7,8 +7,8 @@ import { SessionsService } from './sessions.service';
 import { SessionsRepository } from './sessions.repository';
 
 @Module({
-    controllers: [SessionsController],
-    providers: [SessionsService, SessionsRepository],
-    exports: [SessionsService],
+  controllers: [SessionsController],
+  providers: [SessionsService, SessionsRepository],
+  exports: [SessionsService],
 })
-export class SessionsModule { }
+export class SessionsModule {}

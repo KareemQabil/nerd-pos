@@ -1,9 +1,9 @@
 /**
  * Public Decorator
- * 
+ *
  * Use @Public() on routes that should be accessible without authentication.
  * Works with JwtAuthGuard to skip JWT validation for marked routes.
- * 
+ *
  * @example
  * @Public()
  * @Post('login')

@@ -3,24 +3,27 @@
 // Final calculation: subtotalBeforeTax + taxAmount - discountAmount
 
 import { Injectable } from '@nestjs/common';
-import { ICalculationStep, CalculationContext } from '../../../core/calculation/calculation-step.interface';
+import {
+  ICalculationStep,
+  CalculationContext,
+} from '../../../core/calculation/calculation-step.interface';
 import Decimal from 'decimal.js';
 
 @Injectable()
 export class GrandTotalStep implements ICalculationStep {
-    order = 70;
+  order = 70;
 
-    async execute(ctx: CalculationContext): Promise<CalculationContext> {
-        ctx.grandTotal = ctx.subtotalBeforeTax
-            .plus(ctx.taxAmount)
-            .minus(ctx.discountAmount)
-            .toDecimalPlaces(2);
+  async execute(ctx: CalculationContext): Promise<CalculationContext> {
+    ctx.grandTotal = ctx.subtotalBeforeTax
+      .plus(ctx.taxAmount)
+      .minus(ctx.discountAmount)
+      .toDecimalPlaces(2);
 
-        // Ensure non-negative
-        if (ctx.grandTotal.lessThan(0)) {
-            ctx.grandTotal = new Decimal(0);
-        }
-
-        return ctx;
+    // Ensure non-negative
+    if (ctx.grandTotal.lessThan(0)) {
+      ctx.grandTotal = new Decimal(0);
     }
+
+    return ctx;
+  }
 }

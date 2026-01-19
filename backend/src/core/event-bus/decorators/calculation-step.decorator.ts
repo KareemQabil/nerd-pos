@@ -7,4 +7,4 @@ import { SetMetadata } from '@nestjs/common';
 export const CALCULATION_STEP_ORDER = 'CALCULATION_STEP_ORDER';
 
 export const CalculationStep = (order: number) =>
-    SetMetadata(CALCULATION_STEP_ORDER, order);
+  SetMetadata(CALCULATION_STEP_ORDER, order);

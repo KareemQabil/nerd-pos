@@ -1,152 +1,160 @@
 // Inventory DTOs
 // Source: FINAL/BACKEND/04-MODULE-INVENTORY.md
-import { IsString, IsNumber, IsBoolean, IsOptional, IsUUID, IsDate, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsBoolean,
+  IsOptional,
+  IsUUID,
+  IsDate,
+  IsEnum,
+} from 'class-validator';
 
 export class CreateWarehouseDto {
-    @IsString()
-    code: string;
+  @IsString()
+  code: string;
 
-    @IsString()
-    nameAr: string;
+  @IsString()
+  nameAr: string;
 
-    @IsString()
-    nameEn: string;
+  @IsString()
+  nameEn: string;
 
-    @IsOptional()
-    @IsString()
-    location?: string;
+  @IsOptional()
+  @IsString()
+  location?: string;
 
-    @IsOptional()
-    @IsBoolean()
-    isDefault?: boolean = false;
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean = false;
 }
 
 export class ReceiveStockDto {
-    @IsUUID()
-    productId: string;
+  @IsUUID()
+  productId: string;
 
-    @IsUUID()
-    warehouseId: string;
+  @IsUUID()
+  warehouseId: string;
 
-    @IsNumber()
-    quantity: number;
+  @IsNumber()
+  quantity: number;
 
-    @IsNumber()
-    costPerUnit: number;
+  @IsNumber()
+  costPerUnit: number;
 
-    @IsOptional()
-    @IsString()
-    batchNumber?: string;
+  @IsOptional()
+  @IsString()
+  batchNumber?: string;
 
-    @IsOptional()
-    expiryDate?: Date;
+  @IsOptional()
+  expiryDate?: Date;
 
-    @IsOptional()
-    @IsString()
-    lotNumber?: string;
+  @IsOptional()
+  @IsString()
+  lotNumber?: string;
 }
 
 export class AdjustStockDto {
-    @IsUUID()
-    productId: string;
+  @IsUUID()
+  productId: string;
 
-    @IsUUID()
-    warehouseId: string;
+  @IsUUID()
+  warehouseId: string;
 
-    @IsNumber()
-    quantity: number; // Positive = add, Negative = subtract
+  @IsNumber()
+  quantity: number; // Positive = add, Negative = subtract
 
-    @IsString()
-    reason: string;
+  @IsString()
+  reason: string;
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class TransferStockDto {
-    @IsUUID()
-    productId: string;
+  @IsUUID()
+  productId: string;
 
-    @IsUUID()
-    fromWarehouseId: string;
+  @IsUUID()
+  fromWarehouseId: string;
 
-    @IsUUID()
-    toWarehouseId: string;
+  @IsUUID()
+  toWarehouseId: string;
 
-    @IsNumber()
-    quantity: number;
+  @IsNumber()
+  quantity: number;
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class CreateMovementDto {
-    @IsEnum(['IN', 'OUT', 'ADJUSTMENT', 'TRANSFER'])
-    type: 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER';
+  @IsEnum(['IN', 'OUT', 'ADJUSTMENT', 'TRANSFER'])
+  type: 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER';
 
-    @IsUUID()
-    productId: string;
+  @IsUUID()
+  productId: string;
 
-    @IsUUID()
-    warehouseId: string;
+  @IsUUID()
+  warehouseId: string;
 
-    @IsOptional()
-    @IsUUID()
-    batchId?: string;
+  @IsOptional()
+  @IsUUID()
+  batchId?: string;
 
-    @IsNumber()
-    quantity: number;
+  @IsNumber()
+  quantity: number;
 
-    @IsOptional()
-    @IsNumber()
-    unitCost?: number;
+  @IsOptional()
+  @IsNumber()
+  unitCost?: number;
 
-    @IsOptional()
-    @IsNumber()
-    totalValue?: number;
+  @IsOptional()
+  @IsNumber()
+  totalValue?: number;
 
-    @IsOptional()
-    @IsString()
-    referenceType?: string;
+  @IsOptional()
+  @IsString()
+  referenceType?: string;
 
-    @IsOptional()
-    @IsString()
-    referenceId?: string;
+  @IsOptional()
+  @IsString()
+  referenceId?: string;
 
-    @IsOptional()
-    @IsString()
-    reason?: string;
+  @IsOptional()
+  @IsString()
+  reason?: string;
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsString()
+  notes?: string;
 
-    @IsString()
-    createdBy: string;
+  @IsString()
+  createdBy: string;
 }
 
 // Recipe DTOs
 export class CreateRecipeDto {
-    @IsUUID()
-    productId: string;
+  @IsUUID()
+  productId: string;
 
-    @IsOptional()
-    @IsNumber()
-    yield?: number = 1;
+  @IsOptional()
+  @IsNumber()
+  yield?: number = 1;
 }
 
 export class AddRecipeIngredientDto {
-    @IsUUID()
-    recipeId: string;
+  @IsUUID()
+  recipeId: string;
 
-    @IsUUID()
-    productId: string; // Ingredient
+  @IsUUID()
+  productId: string; // Ingredient
 
-    @IsNumber()
-    quantity: number;
+  @IsNumber()
+  quantity: number;
 
-    @IsString()
-    unit: string; // kg, g, L, ml, pieces
+  @IsString()
+  unit: string; // kg, g, L, ml, pieces
 }

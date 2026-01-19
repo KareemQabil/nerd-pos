@@ -6,7 +6,10 @@ import { SetMetadata } from '@nestjs/common';
 
 export const OFFLINE_SYNC_STRATEGY = 'OFFLINE_SYNC_STRATEGY';
 
-export type SyncStrategy = 'APPEND_ONLY' | 'DELTA_INCREMENT' | 'SERVER_AUTHORITY';
+export type SyncStrategy =
+  | 'APPEND_ONLY'
+  | 'DELTA_INCREMENT'
+  | 'SERVER_AUTHORITY';
 
 export const OfflineSync = (strategy: SyncStrategy) =>
-    SetMetadata(OFFLINE_SYNC_STRATEGY, strategy);
+  SetMetadata(OFFLINE_SYNC_STRATEGY, strategy);

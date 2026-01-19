@@ -4,156 +4,192 @@
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { User, UserProfile, Role, RoleWithPermissions, Permission } from './entities/users.entity';
+import {
+  User,
+  UserProfile,
+  Role,
+  RoleWithPermissions,
+  Permission,
+} from './entities/users.entity';
 
 @Injectable()
 export class UsersRepository extends BaseRepository<User> {
-    constructor(prisma: PrismaService) {
-        super(prisma);
-    }
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
 
-    protected get model() {
-        return 'user';
-    }
+  protected get model() {
+    return 'user';
+  }
 
-    // ==================== USERS ====================
+  // ==================== USERS ====================
 
-    async findByUsername(username: string): Promise<User | null> {
-        return (this.prisma as any).user.findUnique({
-            where: { username },
-        });
-    }
+  async findByUsername(username: string): Promise<User | null> {
+    return (this.prisma as any).user.findUnique({
+      where: { username },
+    });
+  }
 
-    async findByEmail(email: string): Promise<User | null> {
-        return (this.prisma as any).user.findUnique({
-            where: { email },
-        });
-    }
+  async findByEmail(email: string): Promise<User | null> {
+    return (this.prisma as any).user.findUnique({
+      where: { email },
+    });
+  }
 
-    async findWithRole(id: string): Promise<(User & { userRole: Role | null }) | null> {
-        return (this.prisma as any).user.findUnique({
-            where: { id },
-            include: { userRole: true },
-        });
-    }
+  async findWithRole(
+    id: string,
+  ): Promise<(User & { userRole: Role | null }) | null> {
+    return (this.prisma as any).user.findUnique({
+      where: { id },
+      include: { userRole: true },
+    });
+  }
 
-    async findActive(): Promise<User[]> {
-        return (this.prisma as any).user.findMany({
-            where: { isActive: true },
-            include: { userRole: true },
-            orderBy: { nameEn: 'asc' },
-        });
-    }
+  async findActive(): Promise<User[]> {
+    return (this.prisma as any).user.findMany({
+      where: { isActive: true },
+      include: { userRole: true },
+      orderBy: { nameEn: 'asc' },
+    });
+  }
 
-    async findByRoleLevel(level: number): Promise<User[]> {
-        return (this.prisma as any).user.findMany({
-            where: {
-                isActive: true,
-                role: { level },
-            },
-            include: { role: true },
-        });
-    }
+  async findByRoleLevel(level: number): Promise<User[]> {
+    return (this.prisma as any).user.findMany({
+      where: {
+        isActive: true,
+        role: { level },
+      },
+      include: { role: true },
+    });
+  }
 
-    // ==================== AUTH LOGGING ====================
+  // ==================== AUTH LOGGING ====================
 
-    async createAuthLog(data: { userId: string; action?: string; method?: string; ipAddress?: string; userAgent?: string; success?: boolean; failureReason?: string }): Promise<void> {
-        await (this.prisma as any).authenticationLog.create({ data });
-    }
+  async createAuthLog(data: {
+    userId: string;
+    action?: string;
+    method?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    success?: boolean;
+    failureReason?: string;
+  }): Promise<void> {
+    await (this.prisma as any).authenticationLog.create({ data });
+  }
 
-    async findAuthLogsByUser(userId: string, limit: number = 20): Promise<any[]> {
-        return (this.prisma as any).authenticationLog.findMany({
-            where: { userId },
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-        });
-    }
+  async findAuthLogsByUser(userId: string, limit: number = 20): Promise<any[]> {
+    return (this.prisma as any).authenticationLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
 
-    // ==================== ROLES ====================
+  // ==================== ROLES ====================
 
-    async findAllRoles(): Promise<Role[]> {
-        return (this.prisma as any).role.findMany({
-            where: { isActive: true },
-            orderBy: { level: 'asc' },
-        });
-    }
+  async findAllRoles(): Promise<Role[]> {
+    return (this.prisma as any).role.findMany({
+      where: { isActive: true },
+      orderBy: { level: 'asc' },
+    });
+  }
 
-    async findRoleById(id: string): Promise<Role | null> {
-        return (this.prisma as any).role.findUnique({
-            where: { id },
-        });
-    }
+  async findRoleById(id: string): Promise<Role | null> {
+    return (this.prisma as any).role.findUnique({
+      where: { id },
+    });
+  }
 
-    async findRoleWithPermissions(id: string): Promise<RoleWithPermissions | null> {
-        return (this.prisma as any).role.findUnique({
-            where: { id },
-            include: {
-                permissions: {
-                    include: { permission: true },
-                },
-            },
-        });
-    }
+  async findRoleWithPermissions(
+    id: string,
+  ): Promise<RoleWithPermissions | null> {
+    return (this.prisma as any).role.findUnique({
+      where: { id },
+      include: {
+        permissions: {
+          include: { permission: true },
+        },
+      },
+    });
+  }
 
-    async findRoleByName(name: string): Promise<Role | null> {
-        return (this.prisma as any).role.findUnique({
-            where: { name },
-        });
-    }
+  async findRoleByName(name: string): Promise<Role | null> {
+    return (this.prisma as any).role.findUnique({
+      where: { name },
+    });
+  }
 
-    async createRole(data: Partial<Role> & { name: string; nameAr: string }): Promise<Role> {
-        return (this.prisma as any).role.create({ data });
-    }
+  async createRole(
+    data: Partial<Role> & { name: string; nameAr: string },
+  ): Promise<Role> {
+    return (this.prisma as any).role.create({ data });
+  }
 
-    async updateRole(id: string, data: Partial<Role>): Promise<Role> {
-        return (this.prisma as any).role.update({
-            where: { id },
-            data,
-        });
-    }
+  async updateRole(id: string, data: Partial<Role>): Promise<Role> {
+    return (this.prisma as any).role.update({
+      where: { id },
+      data,
+    });
+  }
 
-    async getPermissions(roleId: string): Promise<Permission[]> {
-        const rolePermissions = await (this.prisma as any).rolePermission.findMany({
-            where: { roleId },
-            include: { permission: true },
-        });
-        return rolePermissions.map((rp: { permission: Permission }) => rp.permission);
-    }
+  async getPermissions(roleId: string): Promise<Permission[]> {
+    const rolePermissions = await (this.prisma as any).rolePermission.findMany({
+      where: { roleId },
+      include: { permission: true },
+    });
+    return rolePermissions.map(
+      (rp: { permission: Permission }) => rp.permission,
+    );
+  }
 
-    // ==================== PERMISSIONS ====================
+  // ==================== PERMISSIONS ====================
 
-    async findAllPermissions(): Promise<Permission[]> {
-        return (this.prisma as any).permission.findMany({
-            orderBy: [{ module: 'asc' }, { code: 'asc' }],
-        });
-    }
+  async findAllPermissions(): Promise<Permission[]> {
+    return (this.prisma as any).permission.findMany({
+      orderBy: [{ module: 'asc' }, { code: 'asc' }],
+    });
+  }
 
-    async findPermissionsByModule(module: string): Promise<Permission[]> {
-        return (this.prisma as any).permission.findMany({
-            where: { module },
-            orderBy: { code: 'asc' },
-        });
-    }
+  async findPermissionsByModule(module: string): Promise<Permission[]> {
+    return (this.prisma as any).permission.findMany({
+      where: { module },
+      orderBy: { code: 'asc' },
+    });
+  }
 
-    async createPermission(data: { code: string; name: string; nameAr: string; module: string; section?: string | null; description?: string | null }): Promise<Permission> {
-        return (this.prisma as any).permission.create({ data });
-    }
+  async createPermission(data: {
+    code: string;
+    name: string;
+    nameAr: string;
+    module: string;
+    section?: string | null;
+    description?: string | null;
+  }): Promise<Permission> {
+    return (this.prisma as any).permission.create({ data });
+  }
 
-    async assignPermissionToRole(roleId: string, permissionId: string, assignedBy: string): Promise<void> {
-        await (this.prisma as any).rolePermission.create({
-            data: {
-                roleId,
-                permissionId,
-                assignedBy,
-            },
-        });
-    }
+  async assignPermissionToRole(
+    roleId: string,
+    permissionId: string,
+    assignedBy: string,
+  ): Promise<void> {
+    await (this.prisma as any).rolePermission.create({
+      data: {
+        roleId,
+        permissionId,
+        assignedBy,
+      },
+    });
+  }
 
-    async removePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
-        await (this.prisma as any).rolePermission.delete({
-            where: {
-                roleId_permissionId: { roleId, permissionId },
-            },
-        });
-    }
+  async removePermissionFromRole(
+    roleId: string,
+    permissionId: string,
+  ): Promise<void> {
+    await (this.prisma as any).rolePermission.delete({
+      where: {
+        roleId_permissionId: { roleId, permissionId },
+      },
+    });
+  }
 }

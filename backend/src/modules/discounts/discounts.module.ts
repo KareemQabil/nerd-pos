@@ -7,8 +7,8 @@ import { DiscountsService } from './discounts.service';
 import { DiscountsRepository } from './discounts.repository';
 
 @Module({
-    controllers: [DiscountsController],
-    providers: [DiscountsService, DiscountsRepository],
-    exports: [DiscountsService],
+  controllers: [DiscountsController],
+  providers: [DiscountsService, DiscountsRepository],
+  exports: [DiscountsService],
 })
-export class DiscountsModule { }
+export class DiscountsModule {}

@@ -4,79 +4,79 @@
 // ==================== FLOOR ====================
 
 export interface Floor {
-    id: string;
-    name: string;
-    nameAr: string;
+  id: string;
+  name: string;
+  nameAr: string;
 
-    // Display
-    displayOrder: number;
-    isActive: boolean;
+  // Display
+  displayOrder: number;
+  isActive: boolean;
 
-    createdAt: Date;
-    updatedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface FloorWithTables extends Floor {
-    tables: Table[];
+  tables: Table[];
 }
 
 // ==================== TABLE ====================
 
 export interface Table {
-    id: string;
-    number: string;
-    floorId: string;
+  id: string;
+  number: string;
+  floorId: string;
 
-    // Configuration
-    capacity: number;
-    section: 'INDOOR' | 'OUTDOOR' | 'VIP';
-    shape: 'SQUARE' | 'ROUND' | 'RECTANGLE';
+  // Configuration
+  capacity: number;
+  section: 'INDOOR' | 'OUTDOOR' | 'VIP';
+  shape: 'SQUARE' | 'ROUND' | 'RECTANGLE';
 
-    // Position (for floor plan UI)
-    positionX?: number | null;
-    positionY?: number | null;
+  // Position (for floor plan UI)
+  positionX?: number | null;
+  positionY?: number | null;
 
-    // Status
-    status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'DIRTY';
+  // Status
+  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'DIRTY';
 
-    // Current order
-    currentOrderId?: string | null;
+  // Current order
+  currentOrderId?: string | null;
 
-    // Assigned waiter
-    waiterId?: string | null;
+  // Assigned waiter
+  waiterId?: string | null;
 
-    isActive: boolean;
+  isActive: boolean;
 
-    createdAt: Date;
-    updatedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TableWithFloor extends Table {
-    floor: Floor;
+  floor: Floor;
 }
 
 // ==================== TABLE RESERVATION ====================
 
 export interface TableReservation {
-    id: string;
-    tableId: string;
+  id: string;
+  tableId: string;
 
-    // Customer
-    customerId?: string | null;
-    customerName: string;
-    customerPhone: string;
+  // Customer
+  customerId?: string | null;
+  customerName: string;
+  customerPhone: string;
 
-    // Reservation
-    reservedFor: Date;
-    partySize: number;
-    duration: number; // minutes
+  // Reservation
+  reservedFor: Date;
+  partySize: number;
+  duration: number; // minutes
 
-    // Notes
-    specialRequests?: string | null;
+  // Notes
+  specialRequests?: string | null;
 
-    // Status
-    status: 'PENDING' | 'CONFIRMED' | 'SEATED' | 'CANCELLED' | 'NO_SHOW';
+  // Status
+  status: 'PENDING' | 'CONFIRMED' | 'SEATED' | 'CANCELLED' | 'NO_SHOW';
 
-    createdBy: string;
-    createdAt: Date;
+  createdBy: string;
+  createdAt: Date;
 }

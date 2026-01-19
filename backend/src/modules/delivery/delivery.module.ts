@@ -5,8 +5,8 @@ import { DeliveryService } from './delivery.service';
 import { DeliveryRepository } from './delivery.repository';
 
 @Module({
-    controllers: [DeliveryController],
-    providers: [DeliveryService, DeliveryRepository],
-    exports: [DeliveryService],
+  controllers: [DeliveryController],
+  providers: [DeliveryService, DeliveryRepository],
+  exports: [DeliveryService],
 })
-export class DeliveryModule { }
+export class DeliveryModule {}

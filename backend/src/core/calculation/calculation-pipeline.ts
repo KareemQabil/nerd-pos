@@ -3,29 +3,32 @@
 // Executes steps in order to calculate totals
 
 import { Injectable } from '@nestjs/common';
-import { ICalculationStep, CalculationContext } from './calculation-step.interface';
+import {
+  ICalculationStep,
+  CalculationContext,
+} from './calculation-step.interface';
 
 @Injectable()
 export class CalculationPipeline {
-    private steps: ICalculationStep[] = [];
+  private steps: ICalculationStep[] = [];
 
-    registerStep(step: ICalculationStep): void {
-        this.steps.push(step);
-        // Sort by order
-        this.steps.sort((a, b) => a.order - b.order);
+  registerStep(step: ICalculationStep): void {
+    this.steps.push(step);
+    // Sort by order
+    this.steps.sort((a, b) => a.order - b.order);
+  }
+
+  async execute(context: CalculationContext): Promise<CalculationContext> {
+    let result = { ...context };
+
+    for (const step of this.steps) {
+      result = await step.execute(result);
     }
 
-    async execute(context: CalculationContext): Promise<CalculationContext> {
-        let result = { ...context };
+    return result;
+  }
 
-        for (const step of this.steps) {
-            result = await step.execute(result);
-        }
-
-        return result;
-    }
-
-    getSteps(): ICalculationStep[] {
-        return [...this.steps];
-    }
+  getSteps(): ICalculationStep[] {
+    return [...this.steps];
+  }
 }

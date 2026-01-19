@@ -9,9 +9,13 @@ import { KitchenGateway } from './kitchen.gateway';
 import { KitchenEventHandlers } from './kitchen.handlers';
 
 @Module({
-    controllers: [KitchenController],
-    providers: [KitchenService, KitchenRepository, KitchenGateway, KitchenEventHandlers],
-    exports: [KitchenService],
+  controllers: [KitchenController],
+  providers: [
+    KitchenService,
+    KitchenRepository,
+    KitchenGateway,
+    KitchenEventHandlers,
+  ],
+  exports: [KitchenService],
 })
-export class KitchenModule { }
-
+export class KitchenModule {}
