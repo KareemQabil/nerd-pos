@@ -1,11 +1,18 @@
 // Audit Controller
-import { Controller, Get, Param, Query } from '@nestjs/common';
+// Security: Block 2 - All endpoints secured with @Permissions
+
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { AuditService } from './audit.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { Permissions } from '../auth/decorators/permissions.decorator';
+import { PERMISSIONS } from '../../core/constants/permissions';
 
 @Controller('audit')
 export class AuditController {
-  constructor(private readonly service: AuditService) {}
+  constructor(private readonly service: AuditService) { }
 
+  @Permissions(PERMISSIONS.AUDIT_VIEW) // 🔒 Manager+
   @Get('entity/:entity/:entityId')
   async getEntityHistory(
     @Param('entity') entity: string,
@@ -14,6 +21,7 @@ export class AuditController {
     return this.service.findByEntity(entity, entityId);
   }
 
+  @Permissions(PERMISSIONS.AUDIT_VIEW) // 🔒 Manager+
   @Get('user/:userId')
   async getUserActivity(
     @Param('userId') userId: string,
@@ -23,6 +31,7 @@ export class AuditController {
     return this.service.findByUser(userId, new Date(start), new Date(end));
   }
 
+  @Permissions(PERMISSIONS.AUDIT_VIEW) // 🔒 Manager+
   @Get('module/:module')
   async getModuleActivity(
     @Param('module') module: string,
