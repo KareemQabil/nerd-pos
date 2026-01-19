@@ -71,13 +71,15 @@ async function main() {
         // =====================================================================
         console.log('\n🗑️ PRE-CLEANUP: Removing stale test data...');
 
-        // Delete any orders that start with today's date pattern (ORD-YYYYMMDD-)
-        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        // Delete any orders that start with current month pattern (ORD{YYYYMM}...)
+        // Order format from generateOrderNumber: ORD${YYYY}${MM}${NNNN}
+        const now = new Date();
+        const orderPrefix = `ORD${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`;
         await (prisma as any).orderItem.deleteMany({
-            where: { order: { orderNumber: { startsWith: `ORD-${today}` } } }
+            where: { order: { orderNumber: { startsWith: orderPrefix } } }
         }).catch(() => { });
         await (prisma as any).salesOrder.deleteMany({
-            where: { orderNumber: { startsWith: `ORD-${today}` } }
+            where: { orderNumber: { startsWith: orderPrefix } }
         }).catch(() => { });
 
         // Delete test products and related data

@@ -93,15 +93,6 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
 
     async createWithItems(data: CreateOrderData, items: CreateOrderItemData[], tx?: TxClient): Promise<SalesOrderWithItems> {
         const client = tx || this.prisma;
-
-        // Debug logging
-        console.log('=== createWithItems DEBUG ===');
-        console.log('orderNumber:', data.orderNumber);
-        console.log('orderType:', data.orderType, '(type:', typeof data.orderType, ')');
-        console.log('businessDate:', data.businessDate);
-        console.log('taxRate:', data.taxRate);
-        console.log('items count:', items.length);
-
         return (client as any).salesOrder.create({
             data: {
                 // Explicit mapping - NO spread operator
