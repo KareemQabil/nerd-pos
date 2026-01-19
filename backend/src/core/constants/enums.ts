@@ -49,6 +49,7 @@ export enum TableStatus {
     OCCUPIED = 'OCCUPIED',
     RESERVED = 'RESERVED',
     CLEANING = 'CLEANING',
+    DIRTY = 'DIRTY',
 }
 
 /**

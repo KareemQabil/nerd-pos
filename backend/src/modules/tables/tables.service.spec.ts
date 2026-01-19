@@ -1,5 +1,6 @@
 /**
  * Tables Service Unit Tests
+ * BLOCK 3.5 FIX: Updated to use TableStatus and ReservationStatus enums
  *
  * Tests for floor/table management including assignment, status, and transfers.
  * Uses repository pattern with event publishing.
@@ -9,6 +10,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { TablesService } from './tables.service';
 import { TablesRepository } from './tables.repository';
+import { TableStatus, ReservationStatus } from '../../core/constants/enums';
 
 function createMockRepository() {
   return {
@@ -49,7 +51,7 @@ const mockTable = {
   number: 'T1',
   floorId: 'floor-1',
   capacity: 4,
-  status: 'AVAILABLE',
+  status: TableStatus.AVAILABLE,
   isActive: true,
 };
 
@@ -136,7 +138,7 @@ describe('TablesService', () => {
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           shape: 'SQUARE',
-          status: 'AVAILABLE',
+          status: TableStatus.AVAILABLE,
           isActive: true,
         }),
       );
@@ -158,13 +160,13 @@ describe('TablesService', () => {
       repo.findById.mockResolvedValue(mockTable);
       repo.update.mockResolvedValue({
         ...mockTable,
-        status: 'OCCUPIED',
+        status: TableStatus.OCCUPIED,
         currentOrderId: 'order-1',
       });
 
       const result = await service.assignOrderToTable('table-1', 'order-1');
 
-      expect(result.status).toBe('OCCUPIED');
+      expect(result.status).toBe(TableStatus.OCCUPIED);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'TableOccupied',
         expect.anything(),
@@ -179,7 +181,7 @@ describe('TablesService', () => {
     });
 
     it('should throw BadRequestException if table not available', async () => {
-      repo.findById.mockResolvedValue({ ...mockTable, status: 'OCCUPIED' });
+      repo.findById.mockResolvedValue({ ...mockTable, status: TableStatus.OCCUPIED });
       await expect(
         service.assignOrderToTable('table-1', 'order-1'),
       ).rejects.toThrow(BadRequestException);
@@ -188,16 +190,16 @@ describe('TablesService', () => {
 
   describe('releaseTable', () => {
     it('should release table and publish TableReleased event', async () => {
-      repo.findById.mockResolvedValue({ ...mockTable, status: 'OCCUPIED' });
+      repo.findById.mockResolvedValue({ ...mockTable, status: TableStatus.OCCUPIED });
       repo.update.mockResolvedValue({
         ...mockTable,
-        status: 'DIRTY',
+        status: TableStatus.DIRTY,
         currentOrderId: null,
       });
 
       const result = await service.releaseTable('table-1');
 
-      expect(result.status).toBe('DIRTY');
+      expect(result.status).toBe(TableStatus.DIRTY);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'TableReleased',
         expect.anything(),
@@ -207,9 +209,9 @@ describe('TablesService', () => {
 
   describe('markTableClean', () => {
     it('should set table status to available', async () => {
-      repo.update.mockResolvedValue({ ...mockTable, status: 'AVAILABLE' });
+      repo.update.mockResolvedValue({ ...mockTable, status: TableStatus.AVAILABLE });
       const result = await service.markTableClean('table-1');
-      expect(result.status).toBe('AVAILABLE');
+      expect(result.status).toBe(TableStatus.AVAILABLE);
     });
   });
 
@@ -218,14 +220,14 @@ describe('TablesService', () => {
       const fromTable = {
         ...mockTable,
         id: 'from',
-        status: 'OCCUPIED',
+        status: TableStatus.OCCUPIED,
         currentOrderId: 'order-1',
       };
       const toTable = {
         ...mockTable,
         id: 'to',
         number: 'T2',
-        status: 'AVAILABLE',
+        status: TableStatus.AVAILABLE,
       };
 
       repo.findById
@@ -249,7 +251,7 @@ describe('TablesService', () => {
     it('should throw BadRequestException if target table not available', async () => {
       repo.findById
         .mockResolvedValueOnce(mockTable)
-        .mockResolvedValueOnce({ ...mockTable, status: 'OCCUPIED' });
+        .mockResolvedValueOnce({ ...mockTable, status: TableStatus.OCCUPIED });
       await expect(
         service.transferTable({
           fromTableId: 'from',
@@ -267,7 +269,7 @@ describe('TablesService', () => {
       repo.createReservation.mockResolvedValue({
         id: 'res-1',
         tableId: 'table-1',
-        status: 'PENDING',
+        status: ReservationStatus.PENDING,
       });
 
       const result = await service.createReservation({
@@ -279,7 +281,7 @@ describe('TablesService', () => {
         userId: 'user-1',
       });
 
-      expect(result.status).toBe('PENDING');
+      expect(result.status).toBe(ReservationStatus.PENDING);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'ReservationCreated',
         expect.anything(),
@@ -307,15 +309,15 @@ describe('TablesService', () => {
       repo.updateReservation.mockResolvedValue({
         id: 'res-1',
         tableId: 'table-1',
-        status: 'CONFIRMED',
+        status: ReservationStatus.CONFIRMED,
       });
       repo.update.mockResolvedValue(mockTable);
 
       const result = await service.updateReservationStatus('res-1', {
-        status: 'CONFIRMED',
+        status: ReservationStatus.CONFIRMED,
       });
 
-      expect(result.status).toBe('CONFIRMED');
+      expect(result.status).toBe(ReservationStatus.CONFIRMED);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'ReservationStatusChanged',
         expect.anything(),

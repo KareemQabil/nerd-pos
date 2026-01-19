@@ -2,6 +2,7 @@
  * SessionsService Unit Tests
  * Source: FINAL/WORKFLOWS-BACKEND/07-testing.md
  * Phase 2 - Unit Testing
+ * BLOCK 3.5 FIX: Updated to use SessionStatus enum
  *
  * Applied Error Fixing Workflow:
  * - Verified service methods from sessions.service.ts
@@ -13,6 +14,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { SessionsRepository } from './sessions.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { SessionStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 
 // Mock Repository - methods from sessions.repository.ts
@@ -102,7 +104,7 @@ describe('SessionsService', () => {
         sessionNumber: 'SES2026010001',
         userId: dto.userId,
         openingBalance: 500.0,
-        status: 'OPEN',
+        status: SessionStatus.OPEN,
         totalSales: 0,
         totalCash: 0,
         totalCard: 0,
@@ -116,7 +118,7 @@ describe('SessionsService', () => {
 
       const result = await service.openSession(dto);
 
-      expect(result.status).toBe('OPEN');
+      expect(result.status).toBe(SessionStatus.OPEN);
       expect(result.openingBalance).toBe(500.0);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'SessionOpened',
@@ -128,7 +130,7 @@ describe('SessionsService', () => {
       const existingSession = {
         id: 'session-1',
         sessionNumber: 'SES2026010001',
-        status: 'OPEN',
+        status: SessionStatus.OPEN,
       };
 
       repo.findOpenSession.mockResolvedValue(existingSession);
@@ -148,7 +150,7 @@ describe('SessionsService', () => {
     it('should close session with denomination count', async () => {
       const mockSession = {
         id: 'session-1',
-        status: 'OPEN',
+        status: SessionStatus.OPEN,
         openingBalance: 500.0,
         totalCash: 1000.0,
         totalRefunds: 50.0,
@@ -166,7 +168,7 @@ describe('SessionsService', () => {
 
       const closedSession = {
         ...mockSession,
-        status: 'CLOSED',
+        status: SessionStatus.CLOSED,
         closingBalance: 1450,
         expectedBalance: 1450, // 500 + 1000 - 50
         variance: 0,
@@ -179,7 +181,7 @@ describe('SessionsService', () => {
 
       const result = await service.closeSession(dto);
 
-      expect(result.status).toBe('CLOSED');
+      expect(result.status).toBe(SessionStatus.CLOSED);
       expect(prisma.denominationCount.create).toHaveBeenCalledTimes(3);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'SessionClosed',
@@ -190,7 +192,7 @@ describe('SessionsService', () => {
     it('should throw error for already closed session', async () => {
       const closedSession = {
         id: 'session-1',
-        status: 'CLOSED',
+        status: SessionStatus.CLOSED,
       };
 
       repo.findById.mockResolvedValue(closedSession);
@@ -217,7 +219,7 @@ describe('SessionsService', () => {
     it('should publish variance alert for large variance', async () => {
       const mockSession = {
         id: 'session-1',
-        status: 'OPEN',
+        status: SessionStatus.OPEN,
         openingBalance: 500.0,
         totalCash: 1000.0,
         totalRefunds: 0,
@@ -234,7 +236,7 @@ describe('SessionsService', () => {
       repo.createDenomination.mockResolvedValue({});
       repo.update.mockResolvedValue({
         ...mockSession,
-        status: 'CLOSED',
+        status: SessionStatus.CLOSED,
         closingBalance: 1300,
         expectedBalance: 1500,
         variance: -200,
@@ -255,12 +257,12 @@ describe('SessionsService', () => {
 
   describe('getCurrentSession', () => {
     it('should return open session for user', async () => {
-      const session = { id: 'session-1', status: 'OPEN' };
+      const session = { id: 'session-1', status: SessionStatus.OPEN };
       repo.findOpenSession.mockResolvedValue(session);
 
       const result = await service.getCurrentSession('user-1');
 
-      expect(result?.status).toBe('OPEN');
+      expect(result?.status).toBe(SessionStatus.OPEN);
     });
 
     it('should return null if no open session', async () => {
@@ -308,7 +310,7 @@ describe('SessionsService', () => {
     it('should update running session totals', async () => {
       const session = {
         id: 'session-1',
-        status: 'OPEN',
+        status: SessionStatus.OPEN,
         totalSales: 100,
         totalCash: 50,
         totalCard: 50,
@@ -334,7 +336,7 @@ describe('SessionsService', () => {
     it('should not update closed session', async () => {
       const session = {
         id: 'session-1',
-        status: 'CLOSED',
+        status: SessionStatus.CLOSED,
       };
 
       repo.findById.mockResolvedValue(session);
@@ -349,7 +351,7 @@ describe('SessionsService', () => {
     it('should update refund total', async () => {
       const session = {
         id: 'session-1',
-        status: 'OPEN',
+        status: SessionStatus.OPEN,
         totalRefunds: 50,
       };
 

@@ -2,6 +2,7 @@
  * SalesService Unit Tests
  * Source: FINAL/WORKFLOWS-BACKEND/07-testing.md
  * Phase 2 - Unit Testing
+ * BLOCK 3.5 FIX: Updated to use OrderStatus enum
  *
  * Applied Error Fixing Workflow:
  * - Verified SalesService constructor (7 calculation steps)
@@ -12,6 +13,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { SalesRepository } from './sales.repository';
+import { PrismaService } from '../../core/prisma/prisma.service';
+import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 
 // Import calculation step classes (must mock all 7)
@@ -64,23 +67,36 @@ function createMockEventBus() {
 // Mock Calculation Step
 function createMockStep() {
   return {
+    order: 1,
     execute: jest.fn((ctx) => Promise.resolve(ctx)),
   };
+}
+
+// Mock PrismaService
+function createMockPrismaService() {
+  const mockPrisma: Record<string, unknown> = {};
+  mockPrisma.$transaction = jest.fn((callback: (tx: unknown) => Promise<unknown>) =>
+    callback(mockPrisma),
+  );
+  return mockPrisma;
 }
 
 describe('SalesService', () => {
   let service: SalesService;
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
+  let prisma: ReturnType<typeof createMockPrismaService>;
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
+    prisma = createMockPrismaService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SalesService,
         { provide: SalesRepository, useValue: repo },
+        { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
         { provide: ItemSubtotalStep, useValue: createMockStep() },
         { provide: ServiceChargeStep, useValue: createMockStep() },
@@ -121,7 +137,7 @@ describe('SalesService', () => {
         id: 'order-1',
         orderNumber: 'ORD-001',
         type: 'DINE_IN',
-        status: 'DRAFT',
+        status: OrderStatus.DRAFT,
         subtotal: 70.0,
         taxAmount: 10.5,
         grandTotal: 80.5,
@@ -174,18 +190,18 @@ describe('SalesService', () => {
     it('should confirm draft order', async () => {
       const draftOrder = {
         id: 'order-1',
-        status: 'DRAFT',
+        status: OrderStatus.DRAFT,
         items: [],
       };
 
-      const confirmedOrder = { ...draftOrder, status: 'CONFIRMED' };
+      const confirmedOrder = { ...draftOrder, status: OrderStatus.CONFIRMED };
 
       repo.findById.mockResolvedValue(draftOrder);
       repo.update.mockResolvedValue(confirmedOrder);
 
       const result = await service.confirmOrder('order-1');
 
-      expect(result.status).toBe('CONFIRMED');
+      expect(result.status).toBe(OrderStatus.CONFIRMED);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'OrderConfirmed',
         expect.anything(),
@@ -195,15 +211,15 @@ describe('SalesService', () => {
 
   describe('cancelOrder', () => {
     it('should cancel order and publish event', async () => {
-      const order = { id: 'order-1', status: 'DRAFT' };
-      const cancelledOrder = { ...order, status: 'CANCELLED' };
+      const order = { id: 'order-1', status: OrderStatus.DRAFT };
+      const cancelledOrder = { ...order, status: OrderStatus.CANCELLED };
 
       repo.findById.mockResolvedValue(order);
       repo.update.mockResolvedValue(cancelledOrder);
 
       const result = await service.cancelOrder('order-1', 'Customer request');
 
-      expect(result.status).toBe('CANCELLED');
+      expect(result.status).toBe(OrderStatus.CANCELLED);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'OrderCancelled',
         expect.anything(),
@@ -213,17 +229,17 @@ describe('SalesService', () => {
 
   describe('updateStatus', () => {
     it('should update order status', async () => {
-      const order = { id: 'order-1', status: 'CONFIRMED' };
-      const preparedOrder = { ...order, status: 'PREPARING' };
+      const order = { id: 'order-1', status: OrderStatus.CONFIRMED };
+      const preparedOrder = { ...order, status: OrderStatus.PREPARING };
 
       repo.findById.mockResolvedValue(order);
       repo.update.mockResolvedValue(preparedOrder);
 
       const result = await service.updateStatus('order-1', {
-        status: 'PREPARING',
+        status: OrderStatus.PREPARING,
       });
 
-      expect(result.status).toBe('PREPARING');
+      expect(result.status).toBe(OrderStatus.PREPARING);
     });
   });
 
@@ -233,7 +249,7 @@ describe('SalesService', () => {
     it('should add item to order and recalculate', async () => {
       const order = {
         id: 'order-1',
-        status: 'DRAFT',
+        status: OrderStatus.DRAFT,
         items: [],
       };
 
@@ -266,7 +282,7 @@ describe('SalesService', () => {
     it('should remove item from order', async () => {
       const order = {
         id: 'order-1',
-        status: 'DRAFT',
+        status: OrderStatus.DRAFT,
         items: [{ id: 'item-1' }],
       };
 
