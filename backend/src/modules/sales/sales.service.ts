@@ -2,6 +2,7 @@
 // Source: FINAL/BACKEND/05-MODULE-SALES.md, 01-create-module workflow
 // Uses 7-step Calculation Pipeline
 // Sprint 4: Added $transaction wrapper for ACID compliance
+// BLOCK 3 FIX: Replaced magic strings with OrderStatus enum
 
 import {
   Injectable,
@@ -37,6 +38,7 @@ import {
   OrderWithItems,
   CalculationResult,
 } from './entities/sales.entity';
+import { OrderStatus, KitchenItemStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 
 // Import calculation steps
@@ -113,7 +115,7 @@ export class SalesService {
         lineTotal: lineTotal,
         modifiersAmount: modifierTotal,
         notes: item.notes ?? null,
-        status: 'NEW',
+        status: KitchenItemStatus.PENDING,
       };
     });
 
@@ -138,7 +140,7 @@ export class SalesService {
       orderNumber: orderNumber,
       orderType: dto.type ?? 'DINE_IN', // HARDENED: fallback to DINE_IN
       businessDate: new Date(), // HARDENED: always set to now
-      status: 'DRAFT', // HARDENED: explicit status
+      status: OrderStatus.DRAFT, // HARDENED: explicit status
       // Calculated values with SAFE fallbacks
       itemSubtotal: safeToNumber(calculated.itemSubtotal, 0),
       serviceChargeRate: safeDivide100(calculated.serviceChargePercent, 0),
@@ -175,12 +177,12 @@ export class SalesService {
   async confirmOrder(orderId: string): Promise<Order> {
     const order = await this.findOrderById(orderId);
 
-    if (order.status !== 'DRAFT') {
+    if (order.status !== OrderStatus.DRAFT) {
       throw new BadRequestException('Only DRAFT orders can be confirmed');
     }
 
     const updated = await this.repo.update(orderId, {
-      status: 'CONFIRMED',
+      status: OrderStatus.CONFIRMED,
       confirmedAt: new Date(),
     });
 
@@ -191,7 +193,7 @@ export class SalesService {
 
     await this.eventBus.publish(
       'OrderStatusChanged',
-      new OrderStatusChangedEvent(orderId, 'DRAFT', 'CONFIRMED'),
+      new OrderStatusChangedEvent(orderId, OrderStatus.DRAFT, OrderStatus.CONFIRMED),
     );
 
     return updated;
@@ -206,8 +208,8 @@ export class SalesService {
 
     const updated = await this.repo.update(orderId, {
       status: dto.status,
-      ...(dto.status === 'COMPLETED' && { completedAt: new Date() }),
-      ...(dto.status === 'CANCELLED' && { cancelledAt: new Date() }),
+      ...(dto.status === OrderStatus.COMPLETED && { completedAt: new Date() }),
+      ...(dto.status === OrderStatus.CANCELLED && { cancelledAt: new Date() }),
     });
 
     await this.eventBus.publish(
@@ -215,14 +217,14 @@ export class SalesService {
       new OrderStatusChangedEvent(orderId, previousStatus, dto.status),
     );
 
-    if (dto.status === 'COMPLETED') {
+    if (dto.status === OrderStatus.COMPLETED) {
       await this.eventBus.publish(
         'OrderCompleted',
         new OrderCompletedEvent(orderId, order.orderNumber, order.grandTotal),
       );
     }
 
-    if (dto.status === 'CANCELLED') {
+    if (dto.status === OrderStatus.CANCELLED) {
       await this.eventBus.publish(
         'OrderCancelled',
         new OrderCancelledEvent(orderId, order.orderNumber),
@@ -235,14 +237,14 @@ export class SalesService {
   async cancelOrder(orderId: string, reason?: string): Promise<Order> {
     const order = await this.findOrderById(orderId);
 
-    if (['COMPLETED', 'CANCELLED'].includes(order.status)) {
+    if ([OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(order.status as OrderStatus)) {
       throw new BadRequestException(
         'Cannot cancel completed or already cancelled order',
       );
     }
 
     const updated = await this.repo.update(orderId, {
-      status: 'CANCELLED',
+      status: OrderStatus.CANCELLED,
       cancelledAt: new Date(),
     });
 
@@ -262,7 +264,7 @@ export class SalesService {
   ): Promise<OrderWithItems> {
     const order = await this.findOrderById(orderId);
 
-    if (order.status !== 'DRAFT') {
+    if (order.status !== OrderStatus.DRAFT) {
       throw new BadRequestException('Can only add items to DRAFT orders');
     }
 
@@ -276,7 +278,7 @@ export class SalesService {
     const item = await this.repo.addItem(orderId, {
       ...dto,
       subtotal,
-      status: 'PENDING',
+      status: KitchenItemStatus.PENDING,
     });
 
     // Recalculate order
@@ -297,7 +299,7 @@ export class SalesService {
   ): Promise<OrderWithItems> {
     const order = await this.findOrderById(orderId);
 
-    if (order.status !== 'DRAFT') {
+    if (order.status !== OrderStatus.DRAFT) {
       throw new BadRequestException('Can only modify items in DRAFT orders');
     }
 
@@ -310,7 +312,7 @@ export class SalesService {
   async removeItem(orderId: string, itemId: string): Promise<OrderWithItems> {
     const order = await this.findOrderById(orderId);
 
-    if (order.status !== 'DRAFT') {
+    if (order.status !== OrderStatus.DRAFT) {
       throw new BadRequestException('Can only remove items from DRAFT orders');
     }
 

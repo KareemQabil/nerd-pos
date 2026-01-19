@@ -1,11 +1,13 @@
 // Reports Service
+// BLOCK 3 FIX: Replaced magic strings with OrderStatus enum
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async generateDailySalesReport(date: Date): Promise<any> {
     const startOfDay = new Date(date);
@@ -16,7 +18,7 @@ export class ReportsService {
     const orders = await (this.prisma as any).order.findMany({
       where: {
         createdAt: { gte: startOfDay, lte: endOfDay },
-        status: { in: ['COMPLETED', 'PAID'] },
+        status: { in: [OrderStatus.COMPLETED, OrderStatus.PAID] },
       },
     });
 

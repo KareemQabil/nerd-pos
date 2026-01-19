@@ -1,7 +1,9 @@
 // Tables Repository
 // Source: FINAL/BACKEND/12-MODULE-TABLES.md, 08-repository.md
+// BLOCK 3 FIX: Replaced magic strings with enums, typed input parameters
 
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -11,6 +13,32 @@ import {
   TableWithFloor,
   TableReservation,
 } from './entities/tables.entity';
+import { TableStatus, ReservationStatus } from '../../core/constants/enums';
+
+// Type aliases for repository input types
+type CreateFloorInput = {
+  name: string;
+  nameAr: string;
+  displayOrder: number;
+  isActive?: boolean;
+};
+
+type UpdateFloorInput = Partial<CreateFloorInput>;
+
+type CreateReservationInput = {
+  tableId: string;
+  customerId?: string;
+  customerName: string;
+  customerPhone: string;
+  reservedFor: Date;
+  partySize: number;
+  duration?: number;
+  specialRequests?: string;
+  status?: string;
+  createdBy?: string;
+};
+
+type UpdateReservationInput = Partial<CreateReservationInput>;
 
 @Injectable()
 export class TablesRepository extends BaseRepository<Table> {
@@ -49,11 +77,11 @@ export class TablesRepository extends BaseRepository<Table> {
     });
   }
 
-  async createFloor(data: any): Promise<Floor> {
+  async createFloor(data: CreateFloorInput): Promise<Floor> {
     return (this.prisma as any).floor.create({ data });
   }
 
-  async updateFloor(id: string, data: any): Promise<Floor> {
+  async updateFloor(id: string, data: UpdateFloorInput): Promise<Floor> {
     return (this.prisma as any).floor.update({
       where: { id },
       data,
@@ -70,7 +98,7 @@ export class TablesRepository extends BaseRepository<Table> {
   }
 
   async findAvailable(floorId?: string): Promise<Table[]> {
-    const where: any = { status: 'AVAILABLE', isActive: true };
+    const where: { status: string; isActive: boolean; floorId?: string } = { status: TableStatus.AVAILABLE, isActive: true };
     if (floorId) {
       where.floorId = floorId;
     }
@@ -82,7 +110,7 @@ export class TablesRepository extends BaseRepository<Table> {
   }
 
   async findOccupied(floorId?: string): Promise<Table[]> {
-    const where: any = { status: 'OCCUPIED', isActive: true };
+    const where: { status: string; isActive: boolean; floorId?: string } = { status: TableStatus.OCCUPIED, isActive: true };
     if (floorId) {
       where.floorId = floorId;
     }
@@ -123,7 +151,7 @@ export class TablesRepository extends BaseRepository<Table> {
     return (this.prisma as any).tableReservation.findMany({
       where: {
         reservedFor: { gte: today, lt: tomorrow },
-        status: { in: ['PENDING', 'CONFIRMED'] },
+        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
       },
       include: { table: true },
       orderBy: { reservedFor: 'asc' },
@@ -143,17 +171,17 @@ export class TablesRepository extends BaseRepository<Table> {
       where: {
         tableId,
         reservedFor: { gte: startOfDay, lte: endOfDay },
-        status: { in: ['PENDING', 'CONFIRMED'] },
+        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
       },
       orderBy: { reservedFor: 'asc' },
     });
   }
 
-  async createReservation(data: any): Promise<TableReservation> {
+  async createReservation(data: CreateReservationInput): Promise<TableReservation> {
     return (this.prisma as any).tableReservation.create({ data });
   }
 
-  async updateReservation(id: string, data: any): Promise<TableReservation> {
+  async updateReservation(id: string, data: UpdateReservationInput): Promise<TableReservation> {
     return (this.prisma as any).tableReservation.update({
       where: { id },
       data,
@@ -170,7 +198,7 @@ export class TablesRepository extends BaseRepository<Table> {
     return (this.prisma as any).tableReservation.findMany({
       where: {
         tableId,
-        status: { in: ['PENDING', 'CONFIRMED'] },
+        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
         OR: [
           {
             reservedFor: { lte: reservedFor },

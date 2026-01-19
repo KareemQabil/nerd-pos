@@ -2,6 +2,7 @@
 // Source: FINAL/BACKEND/05-MODULE-SALES.md, 01-create-module workflow
 // Aligned with: prisma/schema.prisma
 // Sprint 4: Added optional transaction client support for ACID compliance
+// BLOCK 3 FIX: Replaced magic strings with OrderStatus enum
 
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -14,6 +15,7 @@ import {
   CreateOrderData,
   CreateOrderItemData,
 } from './entities/sales.entity';
+import { OrderStatus, KitchenItemStatus } from '../../core/constants/enums';
 
 // Type alias for transaction client
 type TxClient = Prisma.TransactionClient;
@@ -127,7 +129,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
             lineTotal: item.lineTotal,
             modifiersAmount: item.modifiersAmount || 0,
             notes: item.notes,
-            status: item.status || 'NEW',
+            status: item.status || KitchenItemStatus.PENDING,
           })),
         },
       },
@@ -196,7 +198,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
 
     const result = await (this.prisma as any).salesOrder.aggregate({
       where: {
-        status: 'COMPLETED',
+        status: OrderStatus.COMPLETED,
         completedAt: { gte: startOfDay, lte: endOfDay },
       },
       _sum: { grandTotal: true },
@@ -213,7 +215,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
 
     return (this.prisma as any).salesOrder.count({
       where: {
-        status: { not: 'CANCELLED' },
+        status: { not: OrderStatus.CANCELLED },
         orderDate: { gte: startOfDay, lte: endOfDay },
       },
     });

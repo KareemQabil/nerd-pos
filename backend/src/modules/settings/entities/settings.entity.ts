@@ -1,6 +1,14 @@
 // Settings Entities
 // Source: FINAL/BACKEND/11-MODULE-SETTINGS.md
 // Aligned with: prisma/schema.prisma
+// BLOCK 3 FIX: Replaced any types with proper interfaces
+
+import {
+  OpeningHours,
+  PrinterConfig,
+  CustomerDisplayConfig,
+  ModuleConfig,
+} from '../interfaces/settings.interfaces';
 
 // ==================== STORE SETTINGS ====================
 
@@ -29,7 +37,7 @@ export interface StoreSettings {
   website?: string | null; // Not in schema
   city?: string; // Not in schema
   country?: string; // Not in schema
-  openingHours?: any; // Not in schema
+  openingHours?: OpeningHours | null; // Not in schema
   primaryColor?: string; // Not in schema
   currencySymbol?: string; // Not in schema
 }
@@ -63,11 +71,11 @@ export interface POSTerminal {
   code: string;
   ipAddress?: string | null;
   macAddress?: string | null;
-  receiptPrinter?: any;
-  kitchenPrinter?: any;
-  labelPrinter?: any;
+  receiptPrinter?: PrinterConfig | null;
+  kitchenPrinter?: PrinterConfig | null;
+  labelPrinter?: PrinterConfig | null;
   cashDrawerPort?: string | null;
-  customerDisplay?: any;
+  customerDisplay?: CustomerDisplayConfig | null;
   autoOpenDrawer: boolean;
   printReceipt: boolean;
   printKitchen: boolean;
@@ -84,6 +92,6 @@ export interface POSTerminal {
 export interface ModuleSetting {
   id: string;
   module: string;
-  config: any;
+  config: ModuleConfig;
   updatedAt: Date;
 }

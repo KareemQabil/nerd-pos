@@ -24,9 +24,13 @@ export class CreateFloorDto {
 
   @IsNumber()
   displayOrder: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
-export class UpdateFloorDto extends PartialType(CreateFloorDto) {}
+export class UpdateFloorDto extends PartialType(CreateFloorDto) { }
 
 // ==================== TABLE ====================
 
@@ -56,7 +60,7 @@ export class CreateTableDto {
   positionY?: number;
 }
 
-export class UpdateTableDto extends PartialType(CreateTableDto) {}
+export class UpdateTableDto extends PartialType(CreateTableDto) { }
 
 // ==================== TABLE TRANSFER ====================
 
@@ -104,6 +108,14 @@ export class CreateReservationDto {
 
   @IsString()
   userId: string;
+
+  @IsOptional()
+  @IsString()
+  createdBy?: string;
+
+  @IsOptional()
+  @IsIn(['PENDING', 'CONFIRMED', 'SEATED', 'CANCELLED', 'NO_SHOW'])
+  status?: 'PENDING' | 'CONFIRMED' | 'SEATED' | 'CANCELLED' | 'NO_SHOW';
 }
 
 export class UpdateReservationStatusDto {

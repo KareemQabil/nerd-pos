@@ -30,7 +30,7 @@ export class SettingsService {
   constructor(
     private readonly repo: SettingsRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   // ==================== STORE SETTINGS ====================
 
@@ -97,7 +97,7 @@ export class SettingsService {
     id: string,
     dto: UpdateTaxSettingDto,
   ): Promise<TaxSetting> {
-    const updateData: any = { ...dto };
+    const updateData: Partial<UpdateTaxSettingDto> & { rate?: number } = { ...dto };
     if (dto.rate !== undefined) {
       updateData.rate = new Decimal(dto.rate).toNumber();
     }
@@ -181,21 +181,21 @@ export class SettingsService {
 
   // ==================== MODULE SETTINGS ====================
 
-  async getModuleSettings(module: string): Promise<any> {
+  async getModuleSettings(module: string): Promise<Record<string, unknown>> {
     const settings = await this.repo.findModuleSetting(module);
     if (!settings) {
       return this.getDefaultModuleSettings(module);
     }
-    return settings.config;
+    return settings.config as Record<string, unknown>;
   }
 
-  async updateModuleSettings(module: string, config: any): Promise<any> {
+  async updateModuleSettings(module: string, config: Record<string, unknown>): Promise<Record<string, unknown>> {
     await this.repo.upsertModuleSetting(module, config);
     return config;
   }
 
-  private getDefaultModuleSettings(module: string): any {
-    const defaults: Record<string, any> = {
+  private getDefaultModuleSettings(module: string): Record<string, unknown> {
+    const defaults: Record<string, Record<string, unknown>> = {
       // Existing documented defaults
       inventory: {
         lowStockThreshold: 10,

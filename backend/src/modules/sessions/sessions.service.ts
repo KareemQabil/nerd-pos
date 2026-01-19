@@ -2,6 +2,7 @@
 // Source: FINAL/BACKEND/07-MODULE-SESSIONS.md
 // Handles: Open/Close sessions, Blind close, Denomination count, Variance tracking
 // BLOCK 1 FIX: Added $transaction for atomic session close
+// BLOCK 3 FIX: Replaced magic strings with SessionStatus enum
 
 import {
   Injectable,
@@ -19,6 +20,7 @@ import {
   SessionVarianceAlertEvent,
 } from './events/sessions.events';
 import { Session, Denomination } from './entities/sessions.entity';
+import { SessionStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 
 @Injectable()
@@ -30,7 +32,7 @@ export class SessionsService {
     private readonly repo: SessionsRepository,
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   // ==================== OPEN SESSION ====================
 
@@ -50,7 +52,7 @@ export class SessionsService {
       sessionNumber,
       userId: dto.userId,
       openingBalance: openingBalance.toNumber(),
-      status: 'OPEN',
+      status: SessionStatus.OPEN,
       openedAt: new Date(),
       totalSales: 0,
       totalCash: 0,
@@ -76,7 +78,7 @@ export class SessionsService {
       throw new NotFoundException(`Session ${dto.sessionId} not found`);
     }
 
-    if (session.status === 'CLOSED') {
+    if (session.status === SessionStatus.CLOSED) {
       throw new BadRequestException('Session already closed');
     }
 
@@ -115,7 +117,7 @@ export class SessionsService {
         const updated = await (tx as any).registerSession.update({
           where: { id: session.id },
           data: {
-            status: 'CLOSED',
+            status: SessionStatus.CLOSED,
             closedAt: new Date(),
             actualClosingBalance: total.toNumber(),
             discrepancy: variance.toNumber(),
@@ -169,7 +171,7 @@ export class SessionsService {
 
       await this.repo.createDenomination({
         sessionId,
-        value: value.toNumber(),
+        denomination: value.toNumber(),
         count,
         total: denominationTotal.toNumber(),
       });
@@ -227,7 +229,7 @@ export class SessionsService {
     cardAmount: number,
   ): Promise<void> {
     const session = await this.repo.findById(sessionId);
-    if (!session || session.status !== 'OPEN') return;
+    if (!session || session.status !== SessionStatus.OPEN) return;
 
     await this.repo.update(sessionId, {
       totalSales: new Decimal(session.totalSales || 0)
@@ -248,7 +250,7 @@ export class SessionsService {
     refundAmount: number,
   ): Promise<void> {
     const session = await this.repo.findById(sessionId);
-    if (!session || session.status !== 'OPEN') return;
+    if (!session || session.status !== SessionStatus.OPEN) return;
 
     await this.repo.update(sessionId, {
       totalRefunds: new Decimal(session.totalRefunds)

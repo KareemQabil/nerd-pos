@@ -41,3 +41,19 @@ export class CloseSessionDto {
   @Type(() => DenominationDto)
   denominations: DenominationDto[];
 }
+
+// ==================== CREATE DENOMINATION (Repository) ====================
+
+export class CreateDenominationDto {
+  @IsString()
+  sessionId: string;
+
+  @IsNumber()
+  denomination: number;
+
+  @IsNumber()
+  count: number;
+
+  @IsNumber()
+  total: number;
+}

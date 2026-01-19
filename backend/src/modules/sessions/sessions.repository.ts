@@ -1,5 +1,7 @@
 // Sessions Repository
 // Source: FINAL/BACKEND/07-MODULE-SESSIONS.md, 08-repository.md
+// BLOCK 3 FIX: Replaced magic strings with SessionStatus enum
+// BLOCK 3 FIX: Added proper DTO types to replace any
 
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../core/repository/base.repository';
@@ -9,6 +11,8 @@ import {
   SessionWithDetails,
   Denomination,
 } from './entities/sessions.entity';
+import { SessionStatus } from '../../core/constants/enums';
+import { CreateDenominationDto } from './dto';
 
 @Injectable()
 export class SessionsRepository extends BaseRepository<Session> {
@@ -24,7 +28,7 @@ export class SessionsRepository extends BaseRepository<Session> {
 
   async findOpenSession(userId: string): Promise<Session | null> {
     return (this.prisma as any).session.findFirst({
-      where: { userId, status: 'OPEN' },
+      where: { userId, status: SessionStatus.OPEN },
     });
   }
 
@@ -60,7 +64,7 @@ export class SessionsRepository extends BaseRepository<Session> {
 
   // ==================== DENOMINATION ====================
 
-  async createDenomination(data: any): Promise<Denomination> {
+  async createDenomination(data: CreateDenominationDto): Promise<Denomination> {
     return (this.prisma as any).denomination.create({ data });
   }
 
@@ -76,7 +80,7 @@ export class SessionsRepository extends BaseRepository<Session> {
   async getVarianceReport(startDate: Date, endDate: Date): Promise<any[]> {
     return (this.prisma as any).session.findMany({
       where: {
-        status: 'CLOSED',
+        status: SessionStatus.CLOSED,
         closedAt: { gte: startDate, lte: endDate },
       },
       select: {

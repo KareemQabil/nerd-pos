@@ -119,7 +119,7 @@ export class SettingsController {
   @Put('modules/:module')
   async updateModuleSettings(
     @Param('module') module: string,
-    @Body() config: any,
+    @Body() config: Record<string, unknown>,
   ) {
     return this.service.updateModuleSettings(module, config);
   }
