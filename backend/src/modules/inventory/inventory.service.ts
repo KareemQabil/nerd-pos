@@ -44,7 +44,7 @@ export class InventoryService {
     private readonly prisma: PrismaService, // 🆕 For $transaction
     private readonly fifoStrategy: FIFOStrategy,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   // ==================== WAREHOUSE ====================
 
@@ -155,7 +155,7 @@ export class InventoryService {
         type: 'OUT',
         productId,
         warehouseId,
-        batchId: deduction.batchId,
+        batchId: deduction.batchId || undefined,
         quantity: -deduction.quantity, // Negative for OUT
         unitCost: deduction.unitCost,
         totalValue: deduction.totalCost,

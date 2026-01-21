@@ -13,6 +13,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { SessionsRepository } from './sessions.repository';
+import { SalesRepository } from '../sales/sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { SessionStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
@@ -63,14 +64,23 @@ function createMockPrismaService() {
   return mockPrisma;
 }
 
+// Mock SalesRepository
+function createMockSalesRepository() {
+  return {
+    findBySessionAndStatus: jest.fn(),
+  };
+}
+
 describe('SessionsService', () => {
   let service: SessionsService;
   let repo: ReturnType<typeof createMockRepository>;
+  let salesRepo: ReturnType<typeof createMockSalesRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
   let prisma: ReturnType<typeof createMockPrismaService>;
 
   beforeEach(async () => {
     repo = createMockRepository();
+    salesRepo = createMockSalesRepository();
     eventBus = createMockEventBus();
     prisma = createMockPrismaService();
 
@@ -78,6 +88,7 @@ describe('SessionsService', () => {
       providers: [
         SessionsService,
         { provide: SessionsRepository, useValue: repo },
+        { provide: SalesRepository, useValue: salesRepo },
         { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
       ],
@@ -175,6 +186,8 @@ describe('SessionsService', () => {
       };
 
       repo.findById.mockResolvedValue(mockSession);
+      // Mock salesRepo
+      salesRepo.findBySessionAndStatus.mockResolvedValue([]);
       // Mock prisma operations inside $transaction
       prisma.denominationCount.create.mockResolvedValue({});
       prisma.registerSession.update.mockResolvedValue(closedSession);
@@ -233,6 +246,7 @@ describe('SessionsService', () => {
       };
 
       repo.findById.mockResolvedValue(mockSession);
+      salesRepo.findBySessionAndStatus.mockResolvedValue([]);
       repo.createDenomination.mockResolvedValue({});
       repo.update.mockResolvedValue({
         ...mockSession,

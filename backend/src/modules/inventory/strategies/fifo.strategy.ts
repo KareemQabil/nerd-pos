@@ -9,7 +9,7 @@ import Decimal from 'decimal.js';
 
 @Injectable()
 export class FIFOStrategy {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async deduct(
     productId: string,
@@ -64,9 +64,26 @@ export class FIFOStrategy {
     }
 
     if (remaining.gt(0)) {
-      throw new BadRequestException(
-        `Insufficient stock for product ${productId}. Short by ${remaining.toNumber()} units.`,
-      );
+      // FORENSIC AUDIT FIX: Check if product allows negative stock
+      const product = await (this.prisma as any).product.findUnique({
+        where: { id: productId },
+        select: { allowNegativeStock: true },
+      });
+
+      if (product?.allowNegativeStock) {
+        // Allow negative stock - create virtual negative deduction
+        deductions.push({
+          batchId: null,
+          quantity: remaining.toNumber(),
+          unitCost: 0, // Will be resolved when stock is added (FIFO)
+          totalCost: 0,
+          isVirtual: true,
+        });
+      } else {
+        throw new BadRequestException(
+          `Insufficient stock for product ${productId}. Short by ${remaining.toNumber()} units.`,
+        );
+      }
     }
 
     // Update inventory item total

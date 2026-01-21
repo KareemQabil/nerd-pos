@@ -6,9 +6,12 @@ import { SessionsController } from './sessions.controller';
 import { SessionsService } from './sessions.service';
 import { SessionsRepository } from './sessions.repository';
 
+import { SalesModule } from '../sales/sales.module';
+
 @Module({
+  imports: [SalesModule],
   controllers: [SessionsController],
   providers: [SessionsService, SessionsRepository],
   exports: [SessionsService],
 })
-export class SessionsModule {}
+export class SessionsModule { }

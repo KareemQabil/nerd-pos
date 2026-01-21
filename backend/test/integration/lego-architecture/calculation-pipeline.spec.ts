@@ -49,6 +49,7 @@ function createContext(
     serviceChargePercent: new Decimal(0),
     deliveryCharge: new Decimal(0),
     subtotalBeforeTax: new Decimal(0),
+    // discountedSubtotal: undefined (optional),
     taxAmount: new Decimal(0),
     taxPercent: new Decimal(0),
     discountAmount: new Decimal(0),
@@ -275,21 +276,23 @@ describe('Calculation Pipeline Integration (Category C)', () => {
     });
   });
 
-  // C11: Discount PERCENTAGE
+  // C11: Discount PERCENTAGE (ZATCA: applied BEFORE tax)
   describe('C11: Discount PERCENTAGE', () => {
-    it('should apply percentage discount', async () => {
+    it('should apply percentage discount BEFORE tax (ZATCA compliance)', async () => {
       const discountStep = new DiscountStep();
 
-      // DiscountStep uses (subtotalBeforeTax + taxAmount) as base
+      // ZATCA FIX: DiscountStep now uses subtotalBeforeTax only (before tax)
       const context = createContext({
-        subtotalBeforeTax: new Decimal('100'),
-        taxAmount: new Decimal('15'), // Total: 115
-        discount: { type: 'PERCENTAGE', value: 10 }, // 10% of 115 = 11.5
+        subtotalBeforeTax: new Decimal('100'), // Discount base
+        taxAmount: new Decimal('0'), // Tax will be calculated AFTER discount
+        discount: { type: 'PERCENTAGE', value: 10 }, // 10% of 100 = 10
       });
 
       const result = await discountStep.execute(context);
 
-      expect(result.discountAmount.equals(new Decimal('11.5'))).toBe(true);
+      expect(result.discountAmount.equals(new Decimal('10'))).toBe(true);
+      // ZATCA: discountedSubtotal should be set for tax calculation
+      expect(result.discountedSubtotal!.equals(new Decimal('90'))).toBe(true);
     });
   });
 
@@ -326,23 +329,24 @@ describe('Calculation Pipeline Integration (Category C)', () => {
     });
   });
 
-  // C14: GrandTotal combines all
+  // C14: GrandTotal combines all (ZATCA: discount applied before tax)
   describe('C14: GrandTotal Combines All', () => {
-    it('should calculate grandTotal = subtotalBeforeTax + taxAmount - discountAmount', async () => {
+    it('should calculate grandTotal = discountedSubtotal + taxAmount (ZATCA)', async () => {
       const grandTotalStep = new GrandTotalStep();
 
-      // GrandTotal formula: subtotalBeforeTax + taxAmount - discountAmount
-      // (serviceCharge and deliveryCharge are already in subtotalBeforeTax)
+      // ZATCA FIX: GrandTotal formula is now: discountedSubtotal + taxAmount
+      // Discount is already subtracted from subtotalBeforeTax in discountedSubtotal
       const context = createContext({
-        subtotalBeforeTax: new Decimal('112'), // 100 + 12 service
-        taxAmount: new Decimal('16.80'),
+        subtotalBeforeTax: new Decimal('112'), // Original subtotal (100 + 12 service)
+        discountedSubtotal: new Decimal('102'), // After 10 SAR discount
+        taxAmount: new Decimal('15.30'), // 15% of 102
         discountAmount: new Decimal('10'),
       });
 
       const result = await grandTotalStep.execute(context);
 
-      // 112 + 16.80 - 10 = 118.80
-      expect(result.grandTotal.equals(new Decimal('118.80'))).toBe(true);
+      // 102 (discounted subtotal) + 15.30 (tax) = 117.30
+      expect(result.grandTotal.equals(new Decimal('117.30'))).toBe(true);
     });
   });
 

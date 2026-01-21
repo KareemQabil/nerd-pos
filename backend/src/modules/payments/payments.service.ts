@@ -38,12 +38,18 @@ export class PaymentsService {
     private readonly repo: PaymentsRepository,
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   // ==================== SINGLE PAYMENT ====================
 
   async createPayment(dto: CreatePaymentDto): Promise<Payment> {
     const amount = new Decimal(dto.amount);
+
+    // FORENSIC AUDIT FIX: Validate positive amount
+    if (amount.lte(0)) {
+      throw new BadRequestException('Payment amount must be greater than 0');
+    }
+
     let changeAmount = new Decimal(0);
 
     // Calculate change for cash payments
@@ -107,6 +113,7 @@ export class PaymentsService {
       for (const paymentDto of dto.payments) {
         const payment = await this.createPaymentWithTx(tx, {
           orderId: dto.orderId,
+          sessionId: dto.sessionId,
           method: paymentDto.method,
           amount: paymentDto.amount,
           receivedAmount: paymentDto.receivedAmount,
@@ -120,7 +127,19 @@ export class PaymentsService {
       return results;
     });
 
-    // Event emission AFTER transaction commits
+    // FORENSIC AUDIT FIX: Events emitted AFTER transaction commits (not inside)
+    for (const payment of payments) {
+      await this.eventBus.publish(
+        'PaymentCreated',
+        new PaymentCreatedEvent(
+          payment.id,
+          dto.orderId,
+          payment.method || 'UNKNOWN',
+          payment.amount,
+        ),
+      );
+    }
+
     await this.eventBus.publish(
       'PaymentCompleted',
       new PaymentCompletedEvent(
@@ -174,16 +193,8 @@ export class PaymentsService {
       },
     });
 
-    // Individual PaymentCreated events still useful for tracking
-    await this.eventBus.publish(
-      'PaymentCreated',
-      new PaymentCreatedEvent(
-        payment.id,
-        dto.orderId,
-        dto.method,
-        amount.toNumber(),
-      ),
-    );
+    // FORENSIC AUDIT FIX: Removed event emission from inside transaction
+    // Events are now emitted AFTER transaction commits in processSplitPayment
 
     return payment;
   }

@@ -1,6 +1,7 @@
 // Step 7: Grand Total (order: 70)
 // Source: FINAL/BACKEND/05-MODULE-SALES.md
-// Final calculation: subtotalBeforeTax + taxAmount - discountAmount
+// ZATCA Compliance: Grand Total = Discounted Subtotal + Tax
+// Forensic Audit Fix: Updated formula to use discountedSubtotal
 
 import { Injectable } from '@nestjs/common';
 import {
@@ -14,10 +15,13 @@ export class GrandTotalStep implements ICalculationStep {
   order = 70;
 
   async execute(ctx: CalculationContext): Promise<CalculationContext> {
-    ctx.grandTotal = ctx.subtotalBeforeTax
+    // ZATCA FIX: Grand Total = Discounted Subtotal + Tax
+    // (discount already subtracted from subtotalBeforeTax)
+    const base = ctx.discountedSubtotal || ctx.subtotalBeforeTax;
+
+    ctx.grandTotal = base
       .plus(ctx.taxAmount)
-      .minus(ctx.discountAmount)
-      .toDecimalPlaces(2);
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
     // Ensure non-negative
     if (ctx.grandTotal.lessThan(0)) {

@@ -148,6 +148,7 @@ describe('Workflow 9: Payments & Refunds', () => {
 
       const result = await service.processSplitPayment({
         orderId: 'order-1',
+        sessionId: 'session-1',
         userId: 'cashier-1',
         payments: [
           { method: 'CASH', amount: 50, receivedAmount: 50 },

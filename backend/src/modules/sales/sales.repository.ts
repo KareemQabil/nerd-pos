@@ -16,6 +16,10 @@ import {
   CreateOrderItemData,
 } from './entities/sales.entity';
 import { OrderStatus, KitchenItemStatus } from '../../core/constants/enums';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../../core/interfaces/pagination.interface';
 
 // Type alias for transaction client
 type TxClient = Prisma.TransactionClient;
@@ -65,6 +69,16 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
     });
   }
 
+  // FORENSIC AUDIT FIX: Used by SessionsService to check for pending DRAFT orders
+  async findBySessionAndStatus(
+    sessionId: string,
+    status: OrderStatus,
+  ): Promise<SalesOrder[]> {
+    return (this.prisma as any).salesOrder.findMany({
+      where: { sessionId, status },
+    });
+  }
+
   async findByCustomer(customerId: string): Promise<SalesOrder[]> {
     return (this.prisma as any).salesOrder.findMany({
       where: { customerId },
@@ -87,6 +101,39 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
       },
       orderBy: { orderDate: 'desc' },
     });
+  }
+
+  // FORENSIC AUDIT FIX: Paginated date range for reports
+  async findByDateRangePaginated(
+    start: Date,
+    end: Date,
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<SalesOrder>> {
+    const page = options.page || 1;
+    const limit = options.limit || 50;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      orderDate: { gte: start, lte: end },
+    };
+
+    const [data, total] = await Promise.all([
+      (this.prisma as any).salesOrder.findMany({
+        where,
+        orderBy: { orderDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+      (this.prisma as any).salesOrder.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async countByPrefix(prefix: string): Promise<number> {

@@ -1,6 +1,7 @@
 // Step 5: Tax Amount (order: 50)
 // Source: FINAL/BACKEND/05-MODULE-SALES.md
-// Applies 15% VAT on subtotalBeforeTax
+// ZATCA Compliance: Uses ROUND_HALF_UP and calculates tax on discounted subtotal
+// Forensic Audit Fix: Added ROUND_HALF_UP, use discountedSubtotal as base
 
 import { Injectable } from '@nestjs/common';
 import {
@@ -16,10 +17,16 @@ export class TaxStep implements ICalculationStep {
   async execute(ctx: CalculationContext): Promise<CalculationContext> {
     // 15% VAT (Saudi Arabia standard)
     ctx.taxPercent = new Decimal(15);
-    ctx.taxAmount = ctx.subtotalBeforeTax
+
+    // ZATCA FIX: Use discountedSubtotal (after discount) as tax base
+    // Falls back to subtotalBeforeTax if no discount was applied
+    const taxBase = ctx.discountedSubtotal || ctx.subtotalBeforeTax;
+
+    ctx.taxAmount = taxBase
       .times(ctx.taxPercent)
       .dividedBy(100)
-      .toDecimalPlaces(2);
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP); // ZATCA FIX: Use ROUND_HALF_UP
+
     return ctx;
   }
 }

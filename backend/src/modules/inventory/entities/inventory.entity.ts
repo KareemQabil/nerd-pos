@@ -67,10 +67,11 @@ export interface RecipeWithIngredients extends Recipe {
 
 // FIFO Deduction Result
 export interface DeductionResult {
-  batchId: string;
+  batchId: string | null; // Null for virtual deductions (allow negative stock)
   quantity: number;
   unitCost: number;
   totalCost: number;
+  isVirtual?: boolean;
 }
 
 // Movement entity for tracking all stock changes (internal type, may need to add to schema)

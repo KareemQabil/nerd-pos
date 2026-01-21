@@ -11,6 +11,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { SessionsRepository } from './sessions.repository';
+import { SalesRepository } from '../sales/sales.repository'; // BLOCK 2 FIX
 import { PrismaService } from '../../core/prisma/prisma.service'; // BLOCK 1
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import { OpenSessionDto, CloseSessionDto, DenominationDto } from './dto';
@@ -20,7 +21,7 @@ import {
   SessionVarianceAlertEvent,
 } from './events/sessions.events';
 import { Session, Denomination } from './entities/sessions.entity';
-import { SessionStatus } from '../../core/constants/enums';
+import { SessionStatus, OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 
 @Injectable()
@@ -31,6 +32,7 @@ export class SessionsService {
   constructor(
     private readonly repo: SessionsRepository,
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
+    private readonly salesRepo: SalesRepository, // BLOCK 2 FIX: Added for pending order check
     @Inject('IEventBus') private readonly eventBus: IEventBus,
   ) { }
 
@@ -80,6 +82,19 @@ export class SessionsService {
 
     if (session.status === SessionStatus.CLOSED) {
       throw new BadRequestException('Session already closed');
+    }
+
+    // FORENSIC AUDIT FIX: Check for pending DRAFT orders
+    const draftOrders = await this.salesRepo.findBySessionAndStatus(
+      dto.sessionId,
+      OrderStatus.DRAFT,
+    );
+
+    if (draftOrders.length > 0) {
+      throw new BadRequestException(
+        `Cannot close session: ${draftOrders.length} draft order(s) pending. ` +
+        `Order numbers: ${draftOrders.map((o) => o.orderNumber).join(', ')}`,
+      );
     }
 
     // Calculate expected balance from session data (outside transaction - read only)

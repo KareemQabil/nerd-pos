@@ -31,6 +31,6 @@ import {
     DiscountStep,
     GrandTotalStep,
   ],
-  exports: [SalesService],
+  exports: [SalesService, SalesRepository],
 })
-export class SalesModule {}
+export class SalesModule { }

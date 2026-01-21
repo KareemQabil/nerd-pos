@@ -3,10 +3,14 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../interfaces/pagination.interface';
 
 @Injectable()
 export abstract class BaseRepository<T> {
-  constructor(protected readonly prisma: PrismaClient) {}
+  constructor(protected readonly prisma: PrismaClient) { }
 
   protected abstract get model(): string;
 
@@ -17,6 +21,31 @@ export abstract class BaseRepository<T> {
 
   async findAll(): Promise<T[]> {
     return this.delegate.findMany();
+  }
+
+  // FORENSIC AUDIT FIX: Generic pagination
+  async findAllPaginated(
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<T>> {
+    const page = options.page || 1;
+    const limit = options.limit || 50;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.delegate.findMany({
+        skip,
+        take: limit,
+      }),
+      this.delegate.count(),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findById(id: string): Promise<T | null> {

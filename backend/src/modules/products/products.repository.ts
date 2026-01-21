@@ -14,6 +14,10 @@ import {
   CategoryWithProducts,
   ModifierGroupWithOptions,
 } from './entities/product.entity';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../../core/interfaces/pagination.interface';
 
 @Injectable()
 export class ProductsRepository extends BaseRepository<Product> {
@@ -82,6 +86,34 @@ export class ProductsRepository extends BaseRepository<Product> {
       include: { category: true },
       orderBy: { nameEn: 'asc' },
     });
+  }
+
+  // FORENSIC AUDIT FIX: Paginated version to prevent unbounded queries
+  async findActivePaginated(
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<Product>> {
+    const page = options.page || 1;
+    const limit = options.limit || 50;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      (this.prisma as any).product.findMany({
+        where: { isActive: true },
+        include: { category: true },
+        orderBy: { nameEn: 'asc' },
+        skip,
+        take: limit,
+      }),
+      (this.prisma as any).product.count({ where: { isActive: true } }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async searchByName(query: string): Promise<Product[]> {

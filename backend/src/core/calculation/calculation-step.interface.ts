@@ -33,6 +33,7 @@ export interface CalculationContext {
   serviceChargePercent: Decimal;
   deliveryCharge: Decimal;
   subtotalBeforeTax: Decimal;
+  discountedSubtotal?: Decimal; // ZATCA FIX: Subtotal after discount, before tax
   taxAmount: Decimal;
   taxPercent: Decimal;
   discountAmount: Decimal;

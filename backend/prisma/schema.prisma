@@ -244,6 +244,7 @@ model SalesOrder {
   serviceChargeAmount Decimal  @default(0) @map("service_charge_amount") @db.Decimal(12, 3)
   deliveryCharge      Decimal  @default(0) @map("delivery_charge") @db.Decimal(12, 3)
   subtotalBeforeTax   Decimal  @default(0) @map("subtotal_before_tax") @db.Decimal(12, 3)
+  discountedSubtotal  Decimal  @default(0) @map("discounted_subtotal") @db.Decimal(12, 3) // ZATCA: Subtotal after discount
   taxRate             Decimal  @map("tax_rate") @db.Decimal(5, 4)
   taxAmount           Decimal  @default(0) @map("tax_amount") @db.Decimal(12, 3)
   discountAmount      Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 3)
@@ -261,6 +262,8 @@ model SalesOrder {
   metadata            Json?
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
+  sessionId           String   @map("session_id")
+  session             RegisterSession @relation(fields: [sessionId], references: [id])
 
   items OrderItem[]
 
@@ -269,6 +272,7 @@ model SalesOrder {
   @@index([status])
   @@index([businessDate])
   @@index([orderDate])
+  @@index([sessionId, status]) // FORENSIC AUDIT FIX: Optimize session close check
   @@map("sales_orders")
 }
 
@@ -375,6 +379,7 @@ model RegisterSession {
 
   cashMovements      CashMovement[]
   denominationCounts DenominationCount[]
+  salesOrders        SalesOrder[]
 
   @@index([terminalId])
   @@index([userId])

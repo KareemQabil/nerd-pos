@@ -10,6 +10,10 @@ import {
   CustomerAddress,
   LoyaltyTier,
 } from './entities/customers.entity';
+import {
+  CreateCustomerAddressData,
+  CreateLoyaltyTierData,
+} from './dto/repository.dto';
 
 @Injectable()
 export class CustomersRepository extends BaseRepository<Customer> {
@@ -79,7 +83,7 @@ export class CustomersRepository extends BaseRepository<Customer> {
     });
   }
 
-  async addAddress(data: any): Promise<CustomerAddress> {
+  async addAddress(data: CreateCustomerAddressData): Promise<CustomerAddress> {
     // If setting as default, unset other defaults first
     if (data.isDefault) {
       await (this.prisma as any).customerAddress.updateMany({
@@ -90,7 +94,10 @@ export class CustomersRepository extends BaseRepository<Customer> {
     return (this.prisma as any).customerAddress.create({ data });
   }
 
-  async updateAddress(id: string, data: any): Promise<CustomerAddress> {
+  async updateAddress(
+    id: string,
+    data: Partial<CreateCustomerAddressData>,
+  ): Promise<CustomerAddress> {
     return (this.prisma as any).customerAddress.update({
       where: { id },
       data,
@@ -118,11 +125,14 @@ export class CustomersRepository extends BaseRepository<Customer> {
     });
   }
 
-  async createTier(data: any): Promise<LoyaltyTier> {
+  async createTier(data: CreateLoyaltyTierData): Promise<LoyaltyTier> {
     return (this.prisma as any).loyaltyTier.create({ data });
   }
 
-  async updateTier(id: string, data: any): Promise<LoyaltyTier> {
+  async updateTier(
+    id: string,
+    data: Partial<CreateLoyaltyTierData>,
+  ): Promise<LoyaltyTier> {
     return (this.prisma as any).loyaltyTier.update({
       where: { id },
       data,

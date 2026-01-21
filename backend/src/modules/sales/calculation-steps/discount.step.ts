@@ -1,6 +1,7 @@
-// Step 6: Discount Amount (order: 60)
+// Step 4.5: Discount Amount (order: 45) - ZATCA FIX: BEFORE TAX
 // Source: FINAL/BACKEND/05-MODULE-SALES.md
-// Applies discount (percentage or fixed)
+// ZATCA Compliance: Discount applied BEFORE tax calculation
+// Forensic Audit Fix: Changed order from 60 to 45
 
 import { Injectable } from '@nestjs/common';
 import {
@@ -11,28 +12,34 @@ import Decimal from 'decimal.js';
 
 @Injectable()
 export class DiscountStep implements ICalculationStep {
-  order = 60;
+  // ZATCA FIX: Changed from 60 to 45 (before tax at 50)
+  order = 45;
 
   async execute(ctx: CalculationContext): Promise<CalculationContext> {
     if (ctx.discount) {
-      const totalBeforeDiscount = ctx.subtotalBeforeTax.plus(ctx.taxAmount);
+      // ZATCA FIX: Apply discount to subtotal BEFORE tax (was subtotalBeforeTax + taxAmount)
+      const discountBase = ctx.subtotalBeforeTax;
 
       if (ctx.discount.type === 'PERCENTAGE') {
-        ctx.discountAmount = totalBeforeDiscount
+        ctx.discountAmount = discountBase
           .times(ctx.discount.value)
           .dividedBy(100)
-          .toDecimalPlaces(2);
+          .toDecimalPlaces(2, Decimal.ROUND_HALF_UP); // ZATCA: Use ROUND_HALF_UP
       } else {
         // FIXED discount
         ctx.discountAmount = new Decimal(ctx.discount.value);
       }
 
-      // Ensure discount doesn't exceed total
-      if (ctx.discountAmount.greaterThan(totalBeforeDiscount)) {
-        ctx.discountAmount = totalBeforeDiscount;
+      // Ensure discount doesn't exceed subtotal
+      if (ctx.discountAmount.greaterThan(discountBase)) {
+        ctx.discountAmount = discountBase;
       }
+
+      // ZATCA FIX: Calculate discounted subtotal for tax calculation
+      ctx.discountedSubtotal = discountBase.minus(ctx.discountAmount);
     } else {
       ctx.discountAmount = new Decimal(0);
+      ctx.discountedSubtotal = ctx.subtotalBeforeTax;
     }
     return ctx;
   }

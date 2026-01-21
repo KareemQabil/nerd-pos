@@ -66,6 +66,7 @@ describe('Workflow 15: Split Check', () => {
 
       const result = await service.processSplitPayment({
         orderId: 'order-1',
+        sessionId: 'session-1',
         userId: 'cashier-1',
         payments: [
           { method: 'CASH', amount: 75, receivedAmount: 75 },
@@ -94,6 +95,7 @@ describe('Workflow 15: Split Check', () => {
 
       await service.processSplitPayment({
         orderId: 'order-1',
+        sessionId: 'session-1',
         userId: 'cashier-1',
         payments: [
           { method: 'CASH', amount: 50 },

@@ -40,6 +40,7 @@ import {
 } from './entities/sales.entity';
 import { OrderStatus, KitchenItemStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
+import { isValidTransition, getAllowedTransitions } from './constants/order-state-machine';
 
 // Import calculation steps
 import {
@@ -86,6 +87,11 @@ export class SalesService {
     dto: CreateOrderDto,
     createdBy: string,
   ): Promise<OrderWithItems> {
+    // FORENSIC AUDIT FIX: Validate non-empty items
+    if (!dto.items || dto.items.length === 0) {
+      throw new BadRequestException('Order must have at least one item');
+    }
+
     // 1. Build calculation context (Outside TX - pure computation)
     const context = this.buildCalculationContext(dto);
 
@@ -204,7 +210,17 @@ export class SalesService {
     dto: UpdateOrderStatusDto,
   ): Promise<Order> {
     const order = await this.findOrderById(orderId);
-    const previousStatus = order.status;
+    const previousStatus = order.status as OrderStatus;
+    const newStatus = dto.status as OrderStatus;
+
+    // FORENSIC AUDIT FIX: Validate state machine transition
+    if (!isValidTransition(previousStatus, newStatus)) {
+      const allowedNext = getAllowedTransitions(previousStatus);
+      throw new BadRequestException(
+        `Invalid order status transition: ${previousStatus} → ${newStatus}. ` +
+        `Allowed transitions from ${previousStatus}: ${allowedNext.length > 0 ? allowedNext.join(', ') : 'none (terminal state)'}`
+      );
+    }
 
     const updated = await this.repo.update(orderId, {
       status: dto.status,
@@ -383,6 +399,7 @@ export class SalesService {
       serviceChargePercent: new Decimal(0),
       deliveryCharge: new Decimal(0),
       subtotalBeforeTax: new Decimal(0),
+      // discountedSubtotal: undefined (optional),
       taxAmount: new Decimal(0),
       taxPercent: new Decimal(15),
       discountAmount: new Decimal(0),
@@ -432,6 +449,7 @@ export class SalesService {
       serviceChargePercent: new Decimal(0),
       deliveryCharge: new Decimal(0),
       subtotalBeforeTax: new Decimal(0),
+      // discountedSubtotal: undefined (optional),
       taxAmount: new Decimal(0),
       taxPercent: new Decimal(15),
       discountAmount: new Decimal(0),

@@ -204,6 +204,32 @@ describe('PaymentsService', () => {
     });
   });
 
+  it('should NOT emit events on transaction failure', async () => {
+    const dto = {
+      orderId: 'order-fail',
+      payments: [
+        { method: 'CASH' as const, amount: 50.0, receivedAmount: 50.0 },
+      ],
+      userId: 'user-1',
+    };
+
+    // Simulate transaction failure
+    prisma.$transaction.mockRejectedValue(new Error('Transaction failed'));
+
+    await expect(service.processSplitPayment(dto)).rejects.toThrow(
+      'Transaction failed',
+    );
+
+    expect(eventBus.publish).not.toHaveBeenCalledWith(
+      'PaymentCreated',
+      expect.anything(),
+    );
+    expect(eventBus.publish).not.toHaveBeenCalledWith(
+      'PaymentCompleted',
+      expect.anything(),
+    );
+  });
+
   // ==================== REFUND TESTS (BR-002) ====================
 
   describe('processRefund', () => {

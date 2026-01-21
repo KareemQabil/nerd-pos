@@ -10,6 +10,8 @@ import {
   IsEnum,
   IsArray,
   ValidateNested,
+  IsPositive,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -19,14 +21,20 @@ export class CreatePaymentDto {
   @IsUUID()
   orderId: string;
 
+  @IsUUID()
+  sessionId: string;
+
   @IsEnum(['CASH', 'CARD', 'MADA', 'WALLET'])
   method: 'CASH' | 'CARD' | 'MADA' | 'WALLET';
 
   @IsNumber()
+  @IsPositive()
+  @Max(999999)
   amount: number;
 
   @IsOptional()
   @IsNumber()
+  @IsPositive()
   receivedAmount?: number; // For cash
 
   @IsOptional()
@@ -74,6 +82,9 @@ export class PaymentItemDto {
 export class SplitPaymentDto {
   @IsUUID()
   orderId: string;
+
+  @IsUUID()
+  sessionId: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -137,4 +148,4 @@ export class CreatePaymentMethodDto {
 import { PartialType } from '@nestjs/mapped-types';
 export class UpdatePaymentMethodDto extends PartialType(
   CreatePaymentMethodDto,
-) {}
+) { }

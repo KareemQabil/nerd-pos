@@ -13,6 +13,7 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
+import { RequestWithUser } from '../auth/interfaces/request.interface';
 import { UsersService } from './users.service';
 import {
   LoginDto,
@@ -74,10 +75,10 @@ export class UsersController {
    */
   @Permissions(PERMISSIONS.USERS_VIEW) // 🔒 Manager+ (or self via ownership check)
   @Get(':id')
-  async findById(@Param('id') id: string, @Request() req: any) {
+  async findById(@Param('id') id: string, @Request() req: RequestWithUser) {
     // Self-ownership check: user can only view their own profile
-    const userId = req.user?.sub;
-    const userRole = req.user?.role;
+    const userId = req.user.sub;
+    const userRole = req.user.role;
 
     // Allow if viewing own profile or if ADMIN/MANAGER
     if (userId !== id && !['ADMIN', 'MANAGER'].includes(userRole)) {
@@ -95,10 +96,10 @@ export class UsersController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @Request() req: any,
+    @Request() req: RequestWithUser,
   ) {
-    const userId = req.user?.sub;
-    const userRole = req.user?.role;
+    const userId = req.user.sub;
+    const userRole = req.user.role;
 
     // Self-ownership check
     if (userId !== id && !['ADMIN', 'MANAGER'].includes(userRole)) {
