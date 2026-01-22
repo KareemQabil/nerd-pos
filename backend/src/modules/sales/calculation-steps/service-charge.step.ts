@@ -19,7 +19,7 @@ export class ServiceChargeStep implements ICalculationStep {
       ctx.serviceCharge = ctx.itemSubtotal
         .times(ctx.serviceChargePercent)
         .dividedBy(100)
-        .toDecimalPlaces(2);
+        .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
     } else {
       ctx.serviceChargePercent = new Decimal(0);
       ctx.serviceCharge = new Decimal(0);

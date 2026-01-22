@@ -4,6 +4,7 @@
 
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { KitchenRepository } from './kitchen.repository';
+import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import { KitchenGateway } from './kitchen.gateway';
 import { CreateKitchenStationDto, UpdateKitchenStationDto } from './dto';
@@ -24,9 +25,10 @@ import {
 export class KitchenService {
   constructor(
     private readonly repo: KitchenRepository,
+    private readonly prisma: PrismaService,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
     private readonly websocketGateway: KitchenGateway,
-  ) {}
+  ) { }
 
   // ==================== TICKET ROUTING ====================
 
@@ -43,55 +45,65 @@ export class KitchenService {
     }>,
     orderType: string,
   ): Promise<KitchenTicket[]> {
-    // Group items by station based on category
+    // Group items by station based on category (read-only, outside TX)
     const itemsByStation = await this.groupItemsByStation(items);
 
-    const tickets: KitchenTicket[] = [];
+    // AUDIT FIX: Wrap all DB writes in transaction for ACID atomicity
+    const tickets = await this.prisma.$transaction(async (tx) => {
+      const createdTickets: KitchenTicket[] = [];
 
-    for (const [stationId, stationItems] of itemsByStation.entries()) {
-      const ticketNumber = await this.generateTicketNumber();
+      for (const [stationId, stationItems] of itemsByStation.entries()) {
+        const ticketNumber = await this.generateTicketNumber();
+        const priority = this.calculatePriority(orderType);
 
-      // Calculate priority
-      const priority = this.calculatePriority(orderType);
-
-      const ticket = await this.repo.create({
-        ticketNumber,
-        orderId,
-        stationId,
-        priority,
-        status: 'NEW',
-        receivedAt: new Date(),
-      });
-
-      // Add items to ticket
-      for (const item of stationItems) {
-        await this.repo.addItem(ticket.id, {
-          productId: item.productId,
-          productName: item.productName,
-          productNameAr: item.productNameAr,
-          quantity: item.quantity,
-          notes: item.notes,
-          modifiers: item.modifiers,
-          status: 'NEW',
+        // Create ticket using transaction client
+        const ticket = await (tx as any).kitchenTicket.create({
+          data: {
+            ticketNumber,
+            orderId,
+            stationId,
+            priority,
+            status: 'NEW',
+            receivedAt: new Date(),
+          },
         });
+
+        // Add items to ticket atomically
+        for (const item of stationItems) {
+          await (tx as any).kitchenTicketItem.create({
+            data: {
+              ticketId: ticket.id,
+              productId: item.productId,
+              productName: item.productName,
+              productNameAr: item.productNameAr,
+              quantity: item.quantity,
+              notes: item.notes,
+              modifiers: item.modifiers || [],
+              status: 'NEW',
+            },
+          });
+        }
+
+        createdTickets.push(ticket);
       }
 
-      // Emit to KDS screens via WebSocket
-      this.websocketGateway.emitToStation(stationId, 'newTicket', ticket);
+      return createdTickets;
+    });
 
+    // Emit events AFTER transaction commits (side effects outside TX)
+    for (const ticket of tickets) {
+      this.websocketGateway.emitToStation(ticket.stationId, 'newTicket', ticket);
       await this.eventBus.publish(
         'TicketCreated',
-        new TicketCreatedEvent(ticket.id, stationId, orderId),
+        new TicketCreatedEvent(ticket.id, ticket.stationId, orderId),
       );
-
-      tickets.push(ticket);
     }
 
     return tickets;
   }
 
   private async groupItemsByStation(
-    items: Array<{ categoryId: string; [key: string]: any }>,
+    items: Array<{ categoryId: string;[key: string]: any }>,
   ): Promise<Map<string, any[]>> {
     const grouped = new Map<string, any[]>();
 

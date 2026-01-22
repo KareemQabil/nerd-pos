@@ -30,6 +30,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
+import { HealthModule } from './common/health/health.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
     EventEmitterModule.forRoot(), // Enable @OnEvent handlers
     PrismaModule,
     EventBusModule,
+    HealthModule,
     // Feature Modules
     ProductsModule,
     InventoryModule,
@@ -76,4 +78,4 @@ import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

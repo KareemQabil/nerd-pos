@@ -104,22 +104,26 @@ export class SalesService {
     // 4. Build HARDENED item data with ?? fallbacks
     // Map DTO fields to Prisma OrderItem schema fields with SAFE defaults
     const itemsWithSubtotals = dto.items.map((item) => {
-      const modifierTotal = (item.modifiers ?? []).reduce(
-        (sum, mod) => sum + (mod.price ?? 0),
-        0,
+      // AUDIT FIX: Use Decimal.js for precision-safe financial math
+      const modifierTotalDecimal = (item.modifiers ?? []).reduce(
+        (sum, mod) => sum.plus(new Decimal(mod.price ?? 0)),
+        new Decimal(0),
       );
-      const unitPrice = item.price ?? 0;
-      const quantity = item.quantity ?? 1;
-      const lineTotal = (unitPrice + modifierTotal) * quantity;
+      const unitPriceDecimal = new Decimal(item.price ?? 0);
+      const quantityDecimal = new Decimal(item.quantity ?? 1);
+      const lineTotalDecimal = unitPriceDecimal
+        .plus(modifierTotalDecimal)
+        .times(quantityDecimal)
+        .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
       return {
         productId: item.productId,
         productNameEn: item.name ?? 'Unknown',
         productNameAr: item.nameAr ?? 'غير معروف',
-        unitPrice: unitPrice,
-        quantity: quantity,
-        lineTotal: lineTotal,
-        modifiersAmount: modifierTotal,
+        unitPrice: unitPriceDecimal.toNumber(),
+        quantity: quantityDecimal.toNumber(),
+        lineTotal: lineTotalDecimal.toNumber(),
+        modifiersAmount: modifierTotalDecimal.toNumber(),
         notes: item.notes ?? null,
         status: KitchenItemStatus.PENDING,
       };
@@ -284,12 +288,16 @@ export class SalesService {
       throw new BadRequestException('Can only add items to DRAFT orders');
     }
 
-    // Calculate subtotal
+    // AUDIT FIX: Use Decimal.js for precision-safe financial math
     const modifierTotal = (dto.modifiers || []).reduce(
-      (sum, mod) => sum + mod.price,
-      0,
+      (sum, mod) => sum.plus(new Decimal(mod.price)),
+      new Decimal(0),
     );
-    const subtotal = (dto.price + modifierTotal) * dto.quantity;
+    const subtotal = new Decimal(dto.price)
+      .plus(modifierTotal)
+      .times(dto.quantity)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber();
 
     const item = await this.repo.addItem(orderId, {
       ...dto,

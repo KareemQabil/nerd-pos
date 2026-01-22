@@ -7,6 +7,7 @@ import {
   ICalculationStep,
   CalculationContext,
 } from '../../../core/calculation/calculation-step.interface';
+import Decimal from 'decimal.js';
 
 @Injectable()
 export class SubtotalBeforeTaxStep implements ICalculationStep {
@@ -16,7 +17,7 @@ export class SubtotalBeforeTaxStep implements ICalculationStep {
     ctx.subtotalBeforeTax = ctx.itemSubtotal
       .plus(ctx.serviceCharge)
       .plus(ctx.deliveryCharge)
-      .toDecimalPlaces(2);
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
     return ctx;
   }
 }

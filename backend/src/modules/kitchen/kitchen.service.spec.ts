@@ -14,6 +14,7 @@ import { NotFoundException } from '@nestjs/common';
 import { KitchenService } from './kitchen.service';
 import { KitchenRepository } from './kitchen.repository';
 import { KitchenGateway } from './kitchen.gateway';
+import { PrismaService } from '../../core/prisma/prisma.service';
 
 // Mock Repository - verified from kitchen.repository.ts
 function createMockRepository() {
@@ -49,21 +50,34 @@ function createMockGateway() {
   };
 }
 
+// PrismaService mock for transaction support
+function createMockPrismaService() {
+  return {
+    $transaction: jest.fn((callback) => callback({
+      kitchenTicket: { create: jest.fn().mockResolvedValue({ id: 'ticket-mock', stationId: 'station-1' }) },
+      kitchenTicketItem: { create: jest.fn().mockResolvedValue({ id: 'item-mock' }) },
+    })),
+  };
+}
+
 describe('KitchenService', () => {
   let service: KitchenService;
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
   let gateway: ReturnType<typeof createMockGateway>;
+  let prisma: ReturnType<typeof createMockPrismaService>;
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
     gateway = createMockGateway();
+    prisma = createMockPrismaService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         KitchenService,
         { provide: KitchenRepository, useValue: repo },
+        { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
         { provide: KitchenGateway, useValue: gateway },
       ],
