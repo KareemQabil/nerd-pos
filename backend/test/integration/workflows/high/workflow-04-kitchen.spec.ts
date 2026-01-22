@@ -17,6 +17,8 @@ import { NotFoundException } from '@nestjs/common';
 import { KitchenService } from '../../../../src/modules/kitchen/kitchen.service';
 import { KitchenRepository } from '../../../../src/modules/kitchen/kitchen.repository';
 import { KitchenGateway } from '../../../../src/modules/kitchen/kitchen.gateway';
+import { PrismaService } from '../../../../src/core/prisma/prisma.service';
+import { createMockPrismaService } from '../../../helpers/prisma.mock';
 
 // Mock Repository - verified from kitchen.repository.ts
 function createMockRepository() {
@@ -57,16 +59,19 @@ describe('Workflow 4: Kitchen Preparation', () => {
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
   let gateway: ReturnType<typeof createMockGateway>;
+  let prisma: ReturnType<typeof createMockPrismaService>;
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
     gateway = createMockGateway();
+    prisma = createMockPrismaService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         KitchenService,
         { provide: KitchenRepository, useValue: repo },
+        { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
         { provide: KitchenGateway, useValue: gateway },
       ],

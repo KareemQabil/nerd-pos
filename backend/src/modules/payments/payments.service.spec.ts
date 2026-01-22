@@ -110,6 +110,7 @@ describe('PaymentsService', () => {
         amount: 75.0,
         receivedAmount: 100.0,
         createdBy: 'user-1',
+        sessionId: 'session-1',
       };
 
       const mockPayment = {
@@ -141,6 +142,7 @@ describe('PaymentsService', () => {
         amount: 100.0,
         receivedAmount: 50.0,
         createdBy: 'user-1',
+        sessionId: 'session-1',
       };
 
       await expect(service.createPayment(dto)).rejects.toThrow(
@@ -157,6 +159,7 @@ describe('PaymentsService', () => {
         cardType: 'VISA',
         transactionId: 'txn-123',
         createdBy: 'user-1',
+        sessionId: 'session-1',
       };
 
       const mockPayment = {
@@ -186,6 +189,7 @@ describe('PaymentsService', () => {
           { method: 'CARD' as const, amount: 100.0, cardLast4: '1234' },
         ],
         userId: 'user-1',
+        sessionId: 'session-1',
       };
 
       // Mock prisma.payment.create used by createPaymentWithTx
@@ -211,6 +215,7 @@ describe('PaymentsService', () => {
         { method: 'CASH' as const, amount: 50.0, receivedAmount: 50.0 },
       ],
       userId: 'user-1',
+      sessionId: 'session-1',
     };
 
     // Simulate transaction failure
