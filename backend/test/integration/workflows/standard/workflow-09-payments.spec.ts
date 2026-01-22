@@ -14,6 +14,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PaymentsService } from '../../../../src/modules/payments/payments.service';
 import { PaymentsRepository } from '../../../../src/modules/payments/payments.repository';
+import { PrismaService } from '../../../../src/core/prisma/prisma.service';
+import { createMockPrismaService } from '../../../helpers/prisma.mock';
 import Decimal from 'decimal.js';
 
 // Mock Repository
@@ -42,15 +44,18 @@ describe('Workflow 9: Payments & Refunds', () => {
   let service: PaymentsService;
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
+  let prisma: ReturnType<typeof createMockPrismaService>;
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
+    prisma = createMockPrismaService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentsService,
         { provide: PaymentsRepository, useValue: repo },
+        { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
       ],
     }).compile();
@@ -80,6 +85,7 @@ describe('Workflow 9: Payments & Refunds', () => {
         amount: 100,
         receivedAmount: 150,
         createdBy: 'cashier-1',
+        sessionId: 'session-1',
       });
 
       expect(result.changeAmount).toBe(50);
@@ -98,6 +104,7 @@ describe('Workflow 9: Payments & Refunds', () => {
           amount: 100,
           receivedAmount: 80,
           createdBy: 'cashier-1',
+          sessionId: 'session-1',
         }),
       ).rejects.toThrow(BadRequestException);
     });
@@ -123,6 +130,7 @@ describe('Workflow 9: Payments & Refunds', () => {
         cardType: 'VISA',
         transactionId: 'tx-123',
         createdBy: 'cashier-1',
+        sessionId: 'session-1',
       });
 
       expect(result.cardLast4).toBe('1234');
