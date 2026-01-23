@@ -143,8 +143,18 @@ export class CategoriesController {
 
   @Permissions(PERMISSIONS.CATEGORIES_VIEW) // All roles
   @Get()
-  async findAllCategories() {
-    return this.service.findAllCategories();
+  async findAllCategories(@Query() pagination: PaginationDto) {
+    const result = await this.service.findAllCategoriesPaginated({
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+
+    return new PaginatedResponseDto(
+      result.data,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 
   @Permissions(PERMISSIONS.CATEGORIES_VIEW) // All roles
@@ -196,8 +206,18 @@ export class ModifierGroupsController {
 
   @Permissions(PERMISSIONS.MODIFIERS_VIEW) // All roles
   @Get()
-  async findAllModifierGroups() {
-    return this.service.findAllModifierGroups();
+  async findAllModifierGroups(@Query() pagination: PaginationDto) {
+    const result = await this.service.findAllModifierGroupsPaginated({
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+
+    return new PaginatedResponseDto(
+      result.data,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 
   @Permissions(PERMISSIONS.MODIFIERS_VIEW) // All roles

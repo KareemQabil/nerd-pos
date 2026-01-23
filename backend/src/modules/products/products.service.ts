@@ -38,7 +38,7 @@ export class ProductsService {
   constructor(
     private readonly repo: ProductsRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   // ==================== PRODUCT ====================
 
@@ -168,6 +168,17 @@ export class ProductsService {
     return this.repo.findAllCategories();
   }
 
+  // Paginated version for API endpoints
+  async findAllCategoriesPaginated(options: { page?: number; limit?: number }): Promise<{
+    data: Category[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    return this.repo.findAllCategoriesPaginated(options);
+  }
+
   async findCategoryById(id: string): Promise<Category> {
     const category = await this.repo.findCategoryById(id);
     if (!category) {
@@ -201,6 +212,17 @@ export class ProductsService {
 
   async findAllModifierGroups(): Promise<ModifierGroupWithOptions[]> {
     return this.repo.findAllModifierGroups();
+  }
+
+  // Paginated version for API endpoints
+  async findAllModifierGroupsPaginated(options: { page?: number; limit?: number }): Promise<{
+    data: ModifierGroupWithOptions[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    return this.repo.findAllModifierGroupsPaginated(options);
   }
 
   async findModifierGroupById(id: string): Promise<ModifierGroupWithOptions> {

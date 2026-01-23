@@ -143,6 +143,35 @@ export class ProductsRepository extends BaseRepository<Product> {
     });
   }
 
+  // PAGINATION FIX: Paginated version for API endpoints
+  async findAllCategoriesPaginated(
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<Category>> {
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where = { isActive: true };
+
+    const [data, total] = await Promise.all([
+      (this.prisma as any).category.findMany({
+        where,
+        orderBy: { sortOrder: 'asc' },
+        skip,
+        take: limit,
+      }),
+      (this.prisma as any).category.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findCategoryById(id: string): Promise<CategoryWithProducts | null> {
     return (this.prisma as any).category.findUnique({
       where: { id },
@@ -188,6 +217,36 @@ export class ProductsRepository extends BaseRepository<Product> {
       include: { options: { where: { isActive: true } } },
       orderBy: { sortOrder: 'asc' },
     });
+  }
+
+  // PAGINATION FIX: Paginated version for API endpoints
+  async findAllModifierGroupsPaginated(
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<ModifierGroupWithOptions>> {
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where = { isActive: true };
+
+    const [data, total] = await Promise.all([
+      (this.prisma as any).modifierGroup.findMany({
+        where,
+        include: { options: { where: { isActive: true } } },
+        orderBy: { sortOrder: 'asc' },
+        skip,
+        take: limit,
+      }),
+      (this.prisma as any).modifierGroup.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findModifierGroupById(
