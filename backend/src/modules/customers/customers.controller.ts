@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CustomersService } from './customers.service';
+import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
 import {
   CreateCustomerDto,
   UpdateCustomerDto,
@@ -40,8 +41,21 @@ export class CustomersController {
 
   @Permissions(PERMISSIONS.CUSTOMERS_VIEW) // Cashier+
   @Get('search')
-  async search(@Query('q') query: string) {
-    return this.service.search(query);
+  async search(
+    @Query('q') query: string,
+    @Query() pagination: PaginationDto,
+  ) {
+    const result = await this.service.searchPaginated(query || '', {
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+
+    return new PaginatedResponseDto(
+      result.data,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 
   @Permissions(PERMISSIONS.CUSTOMERS_VIEW) // Cashier+

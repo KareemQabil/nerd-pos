@@ -5,6 +5,10 @@ import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../../core/interfaces/pagination.interface';
+import {
   Customer,
   CustomerWithTier,
   CustomerAddress,
@@ -64,6 +68,41 @@ export class CustomersRepository extends BaseRepository<Customer> {
       },
       take: 20,
     });
+  }
+
+  // PAGINATION FIX: Paginated version for API endpoints
+  async searchPaginated(
+    query: string,
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<Customer>> {
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where = {
+      OR: [
+        { name: { contains: query, mode: 'insensitive' } },
+        { phone: { contains: query } },
+        { code: { contains: query } },
+      ],
+    };
+
+    const [data, total] = await Promise.all([
+      (this.prisma as any).customer.findMany({
+        where,
+        skip,
+        take: limit,
+      }),
+      (this.prisma as any).customer.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async countByPrefix(prefix: string): Promise<number> {

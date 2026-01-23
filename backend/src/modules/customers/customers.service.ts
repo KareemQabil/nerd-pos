@@ -40,7 +40,7 @@ export class CustomersService {
   constructor(
     private readonly repo: CustomersRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) {}
+  ) { }
 
   // ==================== CUSTOMER CRUD ====================
 
@@ -110,6 +110,20 @@ export class CustomersService {
 
   async search(query: string): Promise<Customer[]> {
     return this.repo.search(query);
+  }
+
+  // Paginated version for API endpoints
+  async searchPaginated(
+    query: string,
+    options: { page?: number; limit?: number },
+  ): Promise<{
+    data: Customer[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    return this.repo.searchPaginated(query, options);
   }
 
   // ==================== LOYALTY PROGRAM ====================

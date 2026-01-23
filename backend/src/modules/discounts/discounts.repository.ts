@@ -4,6 +4,10 @@
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../../core/interfaces/pagination.interface';
 import { Discount, DiscountUsage } from './entities/discounts.entity';
 
 @Injectable()
@@ -29,6 +33,35 @@ export class DiscountsRepository extends BaseRepository<Discount> {
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
+  }
+
+  // PAGINATION FIX: Paginated version for API endpoints
+  async findActivePaginated(
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<Discount>> {
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where = { isActive: true };
+
+    const [data, total] = await Promise.all([
+      (this.prisma as any).discount.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip,
+        take: limit,
+      }),
+      (this.prisma as any).discount.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findActiveByType(

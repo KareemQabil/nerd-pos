@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { DiscountsService } from './discounts.service';
+import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
 import {
   CreateDiscountDto,
   UpdateDiscountDto,
@@ -36,8 +37,18 @@ export class DiscountsController {
 
   @Permissions(PERMISSIONS.DISCOUNTS_VIEW) // Cashier+
   @Get()
-  async getAll() {
-    return this.service.getActiveDiscounts();
+  async getAll(@Query() pagination: PaginationDto) {
+    const result = await this.service.getActiveDiscountsPaginated({
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+
+    return new PaginatedResponseDto(
+      result.data,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 
   @Permissions(PERMISSIONS.DISCOUNTS_VIEW) // Cashier+
