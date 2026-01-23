@@ -5,6 +5,10 @@ import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
+  PaginationOptions,
+  PaginatedResult,
+} from '../../core/interfaces/pagination.interface';
+import {
   User,
   UserProfile,
   Role,
@@ -51,6 +55,36 @@ export class UsersRepository extends BaseRepository<User> {
       include: { userRole: true },
       orderBy: { nameEn: 'asc' },
     });
+  }
+
+  // PAGINATION FIX: Paginated version for API endpoints
+  async findActivePaginated(
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<User>> {
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where = { isActive: true };
+
+    const [data, total] = await Promise.all([
+      (this.prisma as any).user.findMany({
+        where,
+        include: { userRole: true },
+        orderBy: { nameEn: 'asc' },
+        skip,
+        take: limit,
+      }),
+      (this.prisma as any).user.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findByRoleLevel(level: number): Promise<User[]> {

@@ -9,12 +9,14 @@ import {
   Put,
   Body,
   Param,
+  Query,
   Request,
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
 import { RequestWithUser } from '../auth/interfaces/request.interface';
 import { UsersService } from './users.service';
+import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
 import {
   LoginDto,
   VerifyPinDto,
@@ -66,8 +68,18 @@ export class UsersController {
 
   @Permissions(PERMISSIONS.USERS_VIEW) // 🔒 Manager+
   @Get()
-  async getAll() {
-    return this.service.findAll();
+  async getAll(@Query() pagination: PaginationDto) {
+    const result = await this.service.findAllPaginated({
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+
+    return new PaginatedResponseDto(
+      result.data,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 
   /**

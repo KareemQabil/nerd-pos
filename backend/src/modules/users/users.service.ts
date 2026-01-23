@@ -230,6 +230,17 @@ export class UsersService {
     return this.repo.findActive();
   }
 
+  // Paginated version for API endpoints
+  async findAllPaginated(options: { page?: number; limit?: number }): Promise<{
+    data: User[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    return this.repo.findActivePaginated(options);
+  }
+
   async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
     const updateData: Partial<UpdateUserDto> & { passwordHash?: string } = { ...dto };
     if (dto.password) {
