@@ -23,7 +23,14 @@ async function bootstrap() {
   // AUDIT FIX: Register global error filter for standardized JSON responses
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  // API Prefix - MUST be set BEFORE Swagger for correct path documentation
+  // Exclude health (for K8s probes) and swagger paths
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health', 'api/docs', 'api/docs-json'],
+  });
+
   // AUDIT FIX: Swagger API Documentation
+  // Now configured AFTER global prefix so paths are correctly documented
   const config = new DocumentBuilder()
     .setTitle('NerdPOS API')
     .setDescription('Point of Sale System for Middle East Restaurants')
@@ -40,11 +47,6 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
-
-  // API Prefix - versioned endpoints (exclude health for K8s/Docker probes)
-  app.setGlobalPrefix('api/v1', {
-    exclude: ['health'],
-  });
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
