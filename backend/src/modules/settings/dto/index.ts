@@ -9,11 +9,23 @@ import {
   IsEmail,
 } from 'class-validator';
 import { PartialType } from '@nestjs/mapped-types';
+import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 
 export class UpdateStoreSettingsDto {
-  @IsOptional() @IsString() name?: string;
-  @IsOptional() @IsString() nameAr?: string;
-  @IsOptional() @IsString() vatNumber?: string;
+  @ApiPropertyOptional({ example: 'Nerd Restaurant' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'مطعم نير' })
+  @IsOptional()
+  @IsString()
+  nameAr?: string;
+
+  @ApiPropertyOptional({ example: '123456789012345' })
+  @IsOptional()
+  @IsString()
+  vatNumber?: string;
   @IsOptional() @IsString() crNumber?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsEmail() email?: string;
@@ -43,7 +55,7 @@ export class CreateTaxSettingDto {
   @IsNumber() displayOrder: number;
 }
 
-export class UpdateTaxSettingDto extends PartialType(CreateTaxSettingDto) {}
+export class UpdateTaxSettingDto extends PartialType(CreateTaxSettingDto) { }
 
 export class CreatePOSTerminalDto {
   @IsString() name: string;

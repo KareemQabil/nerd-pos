@@ -14,26 +14,33 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/mapped-types';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ==================== CREATE DISCOUNT ====================
 
 export class CreateDiscountDto {
+  @ApiProperty({ description: 'Discount code', example: 'RAMADAN2024' })
   @IsString()
   code: string;
 
+  @ApiProperty({ description: 'Discount name (English)', example: 'Ramadan Special' })
   @IsString()
   name: string;
 
+  @ApiProperty({ description: 'Discount name (Arabic)', example: 'عرض رمضان' })
   @IsString()
   nameAr: string;
 
+  @ApiPropertyOptional({ description: 'Description', example: '15% off all orders during Ramadan' })
   @IsOptional()
   @IsString()
   description?: string;
 
+  @ApiProperty({ description: 'Discount type', enum: ['PERCENTAGE', 'FIXED_AMOUNT'], example: 'PERCENTAGE' })
   @IsIn(['PERCENTAGE', 'FIXED_AMOUNT'])
   type: 'PERCENTAGE' | 'FIXED_AMOUNT';
 
+  @ApiProperty({ description: 'Discount value (% or SAR)', example: 15 })
   @IsNumber()
   value: number;
 
@@ -111,7 +118,7 @@ export class CreateDiscountDto {
   createdBy: string;
 }
 
-export class UpdateDiscountDto extends PartialType(CreateDiscountDto) {}
+export class UpdateDiscountDto extends PartialType(CreateDiscountDto) { }
 
 // ==================== VALIDATE DISCOUNT ====================
 
