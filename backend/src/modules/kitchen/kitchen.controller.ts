@@ -11,6 +11,7 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { KitchenService } from './kitchen.service';
 import { CreateKitchenStationDto, UpdateKitchenStationDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -18,6 +19,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Kitchen')
+@ApiBearerAuth('JWT')
 @Controller('kitchen')
 export class KitchenController {
   constructor(private readonly service: KitchenService) { }

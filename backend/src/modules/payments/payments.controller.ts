@@ -12,6 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import {
   CreatePaymentDto,
@@ -25,6 +26,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Payments')
+@ApiBearerAuth('JWT')
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly service: PaymentsService) { }

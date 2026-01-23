@@ -12,6 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DiscountsService } from './discounts.service';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
 import {
@@ -25,6 +26,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Discounts')
+@ApiBearerAuth('JWT')
 @Controller('discounts')
 export class DiscountsController {
   constructor(private readonly service: DiscountsService) { }

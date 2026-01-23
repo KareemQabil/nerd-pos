@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DeliveryService } from './delivery.service';
 import {
   CreateDeliveryDto,
@@ -25,6 +26,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Delivery')
+@ApiBearerAuth('JWT')
 @Controller('delivery')
 export class DeliveryController {
   constructor(private readonly service: DeliveryService) { }

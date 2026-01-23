@@ -12,6 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { TablesService } from './tables.service';
 import {
   CreateFloorDto,
@@ -27,6 +28,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Tables')
+@ApiBearerAuth('JWT')
 @Controller('tables')
 export class TablesController {
   constructor(private readonly service: TablesService) { }

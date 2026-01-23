@@ -2,12 +2,15 @@
 // Security: Block 2 - All endpoints secured with @Permissions
 
 import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Reports')
+@ApiBearerAuth('JWT')
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly service: ReportsService) { }

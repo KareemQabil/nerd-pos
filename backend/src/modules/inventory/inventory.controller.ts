@@ -12,6 +12,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
 import {
   CreateWarehouseDto,
@@ -27,6 +28,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Inventory')
+@ApiBearerAuth('JWT')
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly service: InventoryService) { }

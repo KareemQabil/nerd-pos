@@ -14,6 +14,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
 import {
@@ -32,6 +33,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Products')
+@ApiBearerAuth('JWT')
 @Controller('products')
 export class ProductsController {
   constructor(private readonly service: ProductsService) { }
@@ -131,6 +134,8 @@ export class ProductsController {
 
 // ==================== CATEGORIES CONTROLLER ====================
 
+@ApiTags('Categories')
+@ApiBearerAuth('JWT')
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly service: ProductsService) { }
@@ -194,6 +199,8 @@ export class CategoriesController {
 
 // ==================== MODIFIER GROUPS CONTROLLER ====================
 
+@ApiTags('Modifier Groups')
+@ApiBearerAuth('JWT')
 @Controller('modifier-groups')
 export class ModifierGroupsController {
   constructor(private readonly service: ProductsService) { }

@@ -11,6 +11,7 @@ import {
   Param,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SettingsService } from './settings.service';
 import {
   UpdateStoreSettingsDto,
@@ -24,6 +25,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Settings')
+@ApiBearerAuth('JWT')
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly service: SettingsService) { }

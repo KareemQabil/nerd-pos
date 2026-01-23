@@ -14,6 +14,7 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RequestWithUser } from '../auth/interfaces/request.interface';
 import { UsersService } from './users.service';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
@@ -34,6 +35,8 @@ import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 
+@ApiTags('Users')
+@ApiBearerAuth('JWT')
 @Controller('users')
 export class UsersController {
   constructor(private readonly service: UsersService) { }
