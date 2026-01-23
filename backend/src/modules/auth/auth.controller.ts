@@ -15,15 +15,12 @@ import {
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
+import { LoginDto } from '../users/dto';
 
-export class LoginDto {
-  username: string;
-  password: string;
-}
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   /**
    * Login endpoint - public (no token required)
