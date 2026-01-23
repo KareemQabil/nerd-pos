@@ -107,6 +107,17 @@ export class ProductsService {
     return this.repo.findActive();
   }
 
+  // Paginated version for API endpoints - prevents unbounded queries
+  async findAllProductsPaginated(options: { page?: number; limit?: number }): Promise<{
+    data: Product[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    return this.repo.findActivePaginated(options);
+  }
+
   async findProductsByCategory(categoryId: string): Promise<Product[]> {
     return this.repo.findByCategory(categoryId);
   }

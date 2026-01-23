@@ -15,6 +15,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
+import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
 import {
   CreateProductDto,
   UpdateProductDto,
@@ -45,8 +46,18 @@ export class ProductsController {
 
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
   @Get()
-  async findAllProducts() {
-    return this.service.findAllProducts();
+  async findAllProducts(@Query() pagination: PaginationDto) {
+    const result = await this.service.findAllProductsPaginated({
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+
+    return new PaginatedResponseDto(
+      result.data,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
