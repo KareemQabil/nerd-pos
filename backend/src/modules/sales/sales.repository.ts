@@ -94,6 +94,36 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
     });
   }
 
+  // PAGINATION FIX: Paginated version for API endpoints
+  async findByStatusPaginated(
+    status: string,
+    options: PaginationOptions,
+  ): Promise<PaginatedResult<SalesOrder>> {
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where = status ? { status } : {};
+
+    const [data, total] = await Promise.all([
+      (this.prisma as any).salesOrder.findMany({
+        where,
+        orderBy: { orderDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+      (this.prisma as any).salesOrder.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findByDateRange(start: Date, end: Date): Promise<SalesOrder[]> {
     return (this.prisma as any).salesOrder.findMany({
       where: {

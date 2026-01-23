@@ -380,6 +380,20 @@ export class SalesService {
     return this.repo.findByStatus(status);
   }
 
+  // Paginated version for API endpoints
+  async findOrdersByStatusPaginated(
+    status: string | undefined,
+    options: { page?: number; limit?: number },
+  ): Promise<{
+    data: Order[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    return this.repo.findByStatusPaginated(status || '', options);
+  }
+
   async findOrdersByCustomer(customerId: string): Promise<Order[]> {
     return this.repo.findByCustomer(customerId);
   }

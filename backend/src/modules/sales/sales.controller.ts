@@ -14,6 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { SalesService } from './sales.service';
+import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
 import {
   CreateOrderDto,
   UpdateOrderStatusDto,
@@ -43,12 +44,21 @@ export class SalesController {
 
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @Get()
-  async findOrders(@Query('status') status?: string) {
-    if (status) {
-      return this.service.findOrdersByStatus(status);
-    }
-    // Return recent orders by default
-    return this.service.findOrdersByStatus('DRAFT');
+  async findOrders(
+    @Query() pagination: PaginationDto,
+    @Query('status') status?: string,
+  ) {
+    const result = await this.service.findOrdersByStatusPaginated(status, {
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+
+    return new PaginatedResponseDto(
+      result.data,
+      result.total,
+      result.page,
+      result.limit,
+    );
   }
 
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
