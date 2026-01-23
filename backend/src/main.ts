@@ -30,11 +30,59 @@ async function bootstrap() {
   });
 
   // AUDIT FIX: Swagger API Documentation
-  // Now configured AFTER global prefix so paths are correctly documented
+  // Production Cleanup 2026-01-23: Enhanced with full description and servers
   const config = new DocumentBuilder()
     .setTitle('NerdPOS API')
-    .setDescription('Point of Sale System for Middle East Restaurants')
-    .setVersion('1.0')
+    .setDescription(`
+# NerdPOS API Documentation
+
+Point of Sale & ERP System for MENA Region (Saudi Arabia & Egypt)
+
+## Features
+- 🍽️ Dine-In, Takeout, Delivery orders
+- 💰 Multi-payment methods (Cash, Card, Digital Wallet)
+- 🧾 ZATCA-compliant invoicing (Saudi Arabia)
+- 👨‍🍳 Kitchen management with ticket routing
+- 📊 Real-time reporting and analytics
+- 🌐 Arabic-first design (RTL support)
+
+## Response Format
+All successful responses follow this structure:
+\`\`\`json
+{
+  "success": true,
+  "message": "Request successful",
+  "data": { ... },
+  "timestamp": "2026-01-23T10:00:00.000Z",
+  "path": "/api/v1/...",
+  "requestId": "uuid"
+}
+\`\`\`
+
+All errors follow RFC 9457 Problem Details format.
+
+## Authentication
+Most endpoints require a Bearer token obtained from \`POST /auth/login\`
+    `)
+    .setVersion('1.0.0')
+    .setContact(
+      'NerdPOS Support',
+      'https://nerdpos.com',
+      'support@nerdpos.com',
+    )
+    .addServer('http://localhost:3001', 'Local Development')
+    .addServer('https://api-staging.nerdpos.com', 'Staging')
+    .addServer('https://api.nerdpos.com', 'Production')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Enter JWT token obtained from POST /auth/login',
+      },
+      'JWT',
+    )
+    .addTag('Lookup - Reference Data', 'Dropdown data for frontend forms')
     .addTag('Products', 'Product catalog and modifiers')
     .addTag('Sales', 'Orders and transactions')
     .addTag('Payments', 'Payment processing')
@@ -42,11 +90,20 @@ async function bootstrap() {
     .addTag('Kitchen', 'KDS integration')
     .addTag('Customers', 'Customer management')
     .addTag('Compliance', 'ZATCA/ETA invoicing')
-    .addBearerAuth()
+    .addTag('Tables', 'Table and floor management')
+    .addTag('Inventory', 'Stock management')
+    .addTag('Users', 'User management and RBAC')
+    .addTag('Settings', 'Store configuration')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+  });
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);

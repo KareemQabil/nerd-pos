@@ -1,15 +1,17 @@
 // Main Application Module
 // Registers core modules: Prisma, EventBus, DecimalTransformInterceptor, and feature modules
+// Production Cleanup 2026-01-23: Added middleware registration
 
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { EventBusModule } from './core/event-bus/event-bus.module';
 import { DecimalTransformInterceptor } from './common/interceptors/decimal-transform.interceptor';
+import { RequestIdMiddleware, ResponseHeadersMiddleware } from './common/middleware';
 
 // Feature Modules
 import { ProductsModule } from './modules/products/products.module';
@@ -31,6 +33,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
 import { HealthModule } from './common/health/health.module';
+import { LookupModule } from './modules/lookup/lookup.module';
 
 @Module({
   imports: [
@@ -58,13 +61,15 @@ import { HealthModule } from './common/health/health.module';
     AuditModule,
     SettingsModule,
     AuthModule,
+    LookupModule, // Production Cleanup 2026-01-23
   ],
   controllers: [AppController],
   providers: [
     AppService,
     {
       provide: APP_INTERCEPTOR,
-      useClass: DecimalTransformInterceptor,
+      useFactory: (reflector: Reflector) => new DecimalTransformInterceptor(reflector),
+      inject: [Reflector],
     },
     // Global JWT Guard - all routes protected by default
     {
@@ -78,4 +83,11 @@ import { HealthModule } from './common/health/health.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(RequestIdMiddleware, ResponseHeadersMiddleware)
+      .forRoutes('*');
+  }
+}
+
