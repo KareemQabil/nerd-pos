@@ -89,7 +89,19 @@ export class DecimalTransformInterceptor implements NestInterceptor {
 
     // Check for Decimal.js instances or Prisma Decimal (by constructor name)
     if (obj instanceof Decimal || obj.constructor?.name === 'Decimal') {
-      return obj.toString(); // Convert to string for precision
+      return obj.toString();
+    }
+
+    // Duck typing for serialized Decimal objects (s, e, d)
+    if (
+      obj &&
+      typeof obj === 'object' &&
+      's' in obj &&
+      'e' in obj &&
+      'd' in obj &&
+      Array.isArray(obj.d)
+    ) {
+      return new Decimal(obj).toString();
     }
 
     // Handle arrays
