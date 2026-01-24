@@ -1,0 +1,8 @@
+{
+    "name": "Test Customer",
+    "nameAr": "عميل تجربة",
+    "phone": "+966599999999",
+    "email": "test.customer@example.com",
+    "preferredLanguage": "en",
+    "notes": "Created via automated verification"
+}

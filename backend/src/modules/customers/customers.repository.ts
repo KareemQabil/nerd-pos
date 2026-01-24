@@ -32,7 +32,7 @@ export class CustomersRepository extends BaseRepository<Customer> {
   // ==================== CUSTOMER ====================
 
   async findByPhone(phone: string): Promise<Customer | null> {
-    return (this.prisma as any).customer.findUnique({
+    return (this.prisma as any).customer.findFirst({
       where: { phone },
     });
   }

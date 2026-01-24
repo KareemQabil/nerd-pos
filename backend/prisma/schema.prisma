@@ -428,6 +428,8 @@ model Customer {
   nameEn        String    @map("name_en") @db.VarChar(255)
   phone         String?   @db.VarChar(20)
   email         String?   @db.VarChar(255)
+  preferredLanguage String @default("en") @map("preferred_language") @db.VarChar(10)
+  notes         String?   @db.Text
   loyaltyPoints Int       @default(0) @map("loyalty_points")
   loyaltyTier   String    @default("BRONZE") @map("loyalty_tier") @db.VarChar(20)
   totalSpent    Decimal   @default(0) @map("total_spent") @db.Decimal(12, 3)

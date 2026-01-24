@@ -61,9 +61,13 @@ export class CustomersController {
         message: 'Customer created successfully',
         data: {
           id: 'cust_123456789',
-          name: 'Ahmed Mohamed',
+          code: 'CUS20260100001',
+          nameEn: 'Ahmed Mohamed',
+          nameAr: 'أحمد محمد',
           phone: '+966501234567',
           email: 'ahmed@example.com',
+          preferredLanguage: 'ar',
+          notes: 'VIP customer',
           loyaltyPoints: 0,
           tier: 'BRONZE',
         },
@@ -95,7 +99,8 @@ export class CustomersController {
         data: [
           {
             id: 'cust_123',
-            name: 'Ahmed Mohamed',
+            nameEn: 'Ahmed Mohamed',
+            nameAr: 'أحمد محمد',
             phone: '+966501234567',
             tier: 'GOLD',
           },
@@ -140,7 +145,8 @@ export class CustomersController {
         message: 'Request successful',
         data: {
           id: 'cust_123',
-          name: 'Ahmed Mohamed',
+          nameEn: 'Ahmed Mohamed',
+          nameAr: 'أحمد محمد',
           phone: '+966501234567',
         },
         timestamp: '2026-01-23T12:00:00Z',
@@ -175,7 +181,8 @@ export class CustomersController {
         message: 'Request successful',
         data: {
           id: 'cust_123',
-          name: 'Ahmed Mohamed',
+          nameEn: 'Ahmed Mohamed',
+          nameAr: 'أحمد محمد',
           tier: 'GOLD',
           tierProgress: 75,
           nextTier: 'PLATINUM',

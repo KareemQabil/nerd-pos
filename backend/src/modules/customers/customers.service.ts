@@ -40,7 +40,7 @@ export class CustomersService {
   constructor(
     private readonly repo: CustomersRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) { }
+  ) { } // Force restart for Prisma Client update
 
   // ==================== CUSTOMER CRUD ====================
 
@@ -57,7 +57,7 @@ export class CustomersService {
 
     const customer = await this.repo.create({
       code,
-      name: dto.name,
+      nameEn: dto.name,
       nameAr: dto.nameAr,
       phone: dto.phone,
       email: dto.email,
@@ -65,7 +65,7 @@ export class CustomersService {
       notes: dto.notes,
       loyaltyPoints: 0,
       totalSpent: 0,
-      orderCount: 0,
+      visitsCount: 0,
       isActive: true,
     });
 

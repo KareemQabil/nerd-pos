@@ -1,0 +1,103 @@
+﻿
+ΓòöΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòù
+Γòæ                                                                    Γòæ
+Γòæ[1m[36m       ≡ƒº¬ NERDPOS WORKFLOW TEST SUITE ≡ƒº¬[0m                            Γòæ
+Γòæ                                                                    Γòæ
+Γòæ[37m    Detailed Workflow Testing Based on WORKFLOWS.md[0m                 Γòæ
+Γòæ                                                                    Γòæ
+ΓòÜΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓò¥
+
+[36m≡ƒÜÇ API Target: http://localhost:3001/api/v1[0m
+[36m≡ƒôà Timestamp: 1769237018019
+[0m
+
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+[36m[1mWORKFLOW 1: Quick Sale (Cash, No Table)[0m[0m
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+[36m
+≡ƒôï Scenario: Customer walks in, orders, pays cash, and leaves[0m
+[36m   Preconditions:[0m
+[36m   - Session is open[0m
+[36m   - Products exist in inventory[0m
+[36m   - Sufficient stock available
+[0m
+[36m
+≡ƒôª Setting up test environment...[0m
+[32m  Γ£ô Admin authenticated[0m
+[32m  Γ£ô Warehouse: undefined[0m
+[32m  Γ£ô Terminal: N/A (will skip terminal-required tests)[0m
+[32m  Γ£ô Tax Rate: 15%[0m
+[34m
+[Step 1] Create Test Product[0m
+[31m
+Γ¥î FATAL ERROR: Expected status 201, got 400
+Response: {
+  "success": false,
+  "type": "https://httpstatuses.com/400",
+  "title": "Validation Error",
+  "status": 400,
+  "detail": "One or more validation errors occurred",
+  "instance": "/api/v1/products",
+  "timestamp": "2026-01-24T06:43:57.540Z",
+  "requestId": "1343a8b2-594c-4bd4-968f-1419d9f59351",
+  "errors": [
+    {
+      "field": "unknown",
+      "message": "categoryId must be a UUID"
+    }
+  ],
+  "stack": "BadRequestException: Bad Request Exception\n    at ValidationPipe.exceptionFactory (K:\\nerdREF\\nerdPOS\\backend\\node_modules\\@nestjs\\common\\pipes\\validation.pipe.js:107:20)\n    at ValidationPipe.transform (K:\\nerdREF\\nerdPOS\\backend\\node_modules\\@nestjs\\common\\pipes\\validation.pipe.js:74:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async resolveParamValue (K:\\nerdREF\\nerdPOS\\backend\\node_modules\\@nestjs\\core\\router\\router-execution-context.js:148:23)\n    at async Promise.all (index 0)\n    at async pipesFn (K:\\nerdREF\\nerdPOS\\backend\\node_modules\\@nestjs\\core\\router\\router-execution-context.js:151:13)\n    at async K:\\nerdREF\\nerdPOS\\backend\\node_modules\\@nestjs\\core\\router\\router-execution-context.js:37:30"
+}[0m
+node.exe : Error: Expected status 201, got 400
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Error: Ex 
+   pected status 201, got 400:String) [], RemoteExcep  
+  tion
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Response: {
+  "success": false,
+  "type": "https://httpstatuses.com/400",
+  "title": "Validation Error",
+  "status": 400,
+  "detail": "One or more validation errors occurred",
+  "instance": "/api/v1/products",
+  "timestamp": "2026-01-24T06:43:57.540Z",
+  "requestId": "1343a8b2-594c-4bd4-968f-1419d9f59351",
+  "errors": [
+    {
+      "field": "unknown",
+      "message": "categoryId must be a UUID"
+    }
+  ],
+  "stack": "BadRequestException: Bad Request 
+Exception\n    at ValidationPipe.exceptionFactory (K:\\
+nerdREF\\nerdPOS\\backend\\node_modules\\@nestjs\\commo
+n\\pipes\\validation.pipe.js:107:20)\n    at 
+ValidationPipe.transform (K:\\nerdREF\\nerdPOS\\backend
+\\node_modules\\@nestjs\\common\\pipes\\validation.pipe
+.js:74:30)\n    at process.processTicksAndRejections 
+(node:internal/process/task_queues:105:5)\n    at 
+async resolveParamValue (K:\\nerdREF\\nerdPOS\\backend\
+\node_modules\\@nestjs\\core\\router\\router-execution-
+context.js:148:23)\n    at async Promise.all (index 
+0)\n    at async pipesFn (K:\\nerdREF\\nerdPOS\\backend
+\\node_modules\\@nestjs\\core\\router\\router-execution
+-context.js:151:13)\n    at async K:\\nerdREF\\nerdPOS\
+\backend\\node_modules\\@nestjs\\core\\router\\router-e
+xecution-context.js:37:30"
+}
+    at assertStatus (K:\nerdREF\nerdPOS\backend\scripts
+\workflow-tests.ts:88:11)
+    at workflow1_QuickSale (K:\nerdREF\nerdPOS\backend\
+scripts\workflow-tests.ts:279:3)
+    at processTicksAndRejections 
+(node:internal/process/task_queues:105:5)
+    at async runWorkflow (K:\nerdREF\nerdPOS\backend\sc
+ripts\workflow-tests.ts:1409:12)
+    at async main (K:\nerdREF\nerdPOS\backend\scripts\w
+orkflow-tests.ts:1428:21)
