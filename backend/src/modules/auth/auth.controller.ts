@@ -1,7 +1,8 @@
 /**
  * Auth Controller
  *
- * Handles authentication endpoints: login, profile.
+ * Handles authentication endpoints: login, logout, profile.
+ * Login sets JWT in HTTP-only cookie for seamless Swagger testing.
  * Login is marked @Public() - no authentication required.
  */
 
@@ -10,9 +11,11 @@ import {
   Post,
   Get,
   Body,
+  Res,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
@@ -26,20 +29,52 @@ export class AuthController {
 
   /**
    * Login endpoint - public (no token required)
+   * Sets JWT in HTTP cookie for seamless Swagger testing
    * POST /auth/login
    */
   @Public()
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
+  @ApiOperation({ summary: 'Login and set auth cookie' })
+  @ApiResponse({ status: 200, description: 'Login successful, cookie set' })
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     try {
       const user = await this.authService.validateUser(
         loginDto.username,
         loginDto.password,
       );
-      return this.authService.login(user);
+      const result = await this.authService.login(user);
+
+      // Set JWT in HTTP cookie (works with Swagger UI!)
+      res.cookie('access_token', result.access_token, {
+        httpOnly: false, // Allow Swagger to read for display
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/',
+      });
+
+      return {
+        ...result,
+        message: '✅ Login successful! Cookie set. All endpoints will now work.',
+      };
     } catch {
       throw new UnauthorizedException('Invalid credentials');
     }
+  }
+
+  /**
+   * Logout endpoint - clears the auth cookie
+   * POST /auth/logout
+   */
+  @Public()
+  @Post('logout')
+  @ApiOperation({ summary: 'Logout and clear auth cookie' })
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token', { path: '/' });
+    return { message: 'Logged out successfully' };
   }
 
   /**
@@ -47,6 +82,7 @@ export class AuthController {
    * GET /auth/profile
    */
   @Get('profile')
+  @ApiOperation({ summary: 'Get current user profile' })
   async getProfile(@CurrentUser() user: JwtPayload) {
     return {
       id: user.sub,
@@ -56,3 +92,4 @@ export class AuthController {
     };
   }
 }
+

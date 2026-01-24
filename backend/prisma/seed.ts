@@ -59,6 +59,7 @@ async function main() {
             email: 'admin@nerdpos.com',
             phone: '+966500000001',
             role: 'ADMIN',
+            roleId: 'role-admin',
             isActive: true,
         },
         {
@@ -70,6 +71,7 @@ async function main() {
             email: 'manager@nerdpos.com',
             phone: '+966500000002',
             role: 'MANAGER',
+            roleId: 'role-manager',
             isActive: true,
         },
         {
@@ -81,6 +83,7 @@ async function main() {
             email: 'cashier1@nerdpos.com',
             phone: '+966500000003',
             role: 'CASHIER',
+            roleId: 'role-cashier',
             isActive: true,
         },
         {
@@ -92,6 +95,7 @@ async function main() {
             email: null,
             phone: '+966500000004',
             role: 'WAITER',
+            roleId: 'role-waiter',
             isActive: true,
         },
         {
@@ -103,15 +107,18 @@ async function main() {
             email: null,
             phone: '+966500000005',
             role: 'KITCHEN',
+            roleId: 'role-kitchen',
             isActive: true,
         },
     ];
 
     for (const user of users) {
+        // Create user without roleId first (roles don't exist yet)
+        const { roleId, ...userWithoutRole } = user;
         await prisma.user.upsert({
             where: { username: user.username },
-            update: {},
-            create: user,
+            update: {}, // Don't update anything for existing users
+            create: userWithoutRole,
         });
     }
 
@@ -137,19 +144,16 @@ async function main() {
         });
     }
 
-    // Create Permissions (50+ codes organized by module)
+    // Create Permissions (50+ codes organized by module - matches PERMISSIONS constants)
     const permissions = [
-        // Sales Module (10)
-        { code: 'orders.create', name: 'Create Orders', nameAr: 'إنشاء طلب', module: 'sales', section: 'orders' },
-        { code: 'orders.view', name: 'View Orders', nameAr: 'عرض الطلبات', module: 'sales', section: 'orders' },
-        { code: 'orders.update', name: 'Update Orders', nameAr: 'تعديل طلب', module: 'sales', section: 'orders' },
-        { code: 'orders.cancel', name: 'Cancel Orders', nameAr: 'إلغاء طلب', module: 'sales', section: 'orders' },
-        { code: 'orders.refund', name: 'Refund Orders', nameAr: 'استرجاع طلب', module: 'sales', section: 'orders' },
-        { code: 'orders.discount', name: 'Apply Discounts', nameAr: 'تطبيق خصم', module: 'sales', section: 'orders' },
-        { code: 'orders.void', name: 'Void Orders', nameAr: 'إلغاء طلب', module: 'sales', section: 'orders' },
-        { code: 'orders.reprint', name: 'Reprint Receipt', nameAr: 'إعادة طباعة', module: 'sales', section: 'orders' },
-        { code: 'orders.hold', name: 'Hold Orders', nameAr: 'تعليق طلب', module: 'sales', section: 'orders' },
-        { code: 'orders.split', name: 'Split Bills', nameAr: 'تقسيم فاتورة', module: 'sales', section: 'orders' },
+        // Sales Module (matches sales.controller.ts requirements)
+        { code: 'sales.create', name: 'Create Sales/Orders', nameAr: 'إنشاء طلب', module: 'sales', section: 'orders' },
+        { code: 'sales.view', name: 'View Sales/Orders', nameAr: 'عرض الطلبات', module: 'sales', section: 'orders' },
+        { code: 'sales.update', name: 'Update Sales/Orders', nameAr: 'تعديل طلب', module: 'sales', section: 'orders' },
+        { code: 'sales.confirm', name: 'Confirm Orders', nameAr: 'تأكيد طلب', module: 'sales', section: 'orders' },
+        { code: 'sales.cancel', name: 'Cancel Orders', nameAr: 'إلغاء طلب', module: 'sales', section: 'orders' },
+        { code: 'sales.delete', name: 'Delete Sales', nameAr: 'حذف طلب', module: 'sales', section: 'orders' },
+        { code: 'sales.view.all', name: 'View All Sales', nameAr: 'عرض جميع الطلبات', module: 'sales', section: 'orders' },
         // Inventory Module (6)
         { code: 'inventory.view', name: 'View Inventory', nameAr: 'عرض المخزون', module: 'inventory', section: 'stock' },
         { code: 'inventory.receive', name: 'Receive Stock', nameAr: 'استلام بضاعة', module: 'inventory', section: 'stock' },
@@ -163,49 +167,104 @@ async function main() {
         { code: 'products.update', name: 'Update Product', nameAr: 'تعديل منتج', module: 'products', section: 'catalog' },
         { code: 'products.delete', name: 'Delete Product', nameAr: 'حذف منتج', module: 'products', section: 'catalog' },
         { code: 'products.price', name: 'Change Prices', nameAr: 'تغيير الأسعار', module: 'products', section: 'catalog' },
-        { code: 'categories.manage', name: 'Manage Categories', nameAr: 'إدارة الفئات', module: 'products', section: 'catalog' },
-        // Payments Module (6)
-        { code: 'payments.process', name: 'Process Payments', nameAr: 'معالجة دفع', module: 'payments', section: 'transactions' },
-        { code: 'payments.refund', name: 'Process Refunds', nameAr: 'معالجة استرجاع', module: 'payments', section: 'transactions' },
-        { code: 'payments.void', name: 'Void Payments', nameAr: 'إلغاء دفع', module: 'payments', section: 'transactions' },
-        { code: 'payments.split', name: 'Split Payments', nameAr: 'تقسيم دفع', module: 'payments', section: 'transactions' },
+        // Categories Module (4)
+        { code: 'categories.view', name: 'View Categories', nameAr: 'عرض الفئات', module: 'products', section: 'catalog' },
+        { code: 'categories.create', name: 'Create Category', nameAr: 'إنشاء فئة', module: 'products', section: 'catalog' },
+        { code: 'categories.update', name: 'Update Category', nameAr: 'تعديل فئة', module: 'products', section: 'catalog' },
+        { code: 'categories.delete', name: 'Delete Category', nameAr: 'حذف فئة', module: 'products', section: 'catalog' },
+        // Modifiers Module (4)
+        { code: 'modifiers.view', name: 'View Modifiers', nameAr: 'عرض المعدلات', module: 'products', section: 'catalog' },
+        { code: 'modifiers.create', name: 'Create Modifier', nameAr: 'إنشاء معدل', module: 'products', section: 'catalog' },
+        { code: 'modifiers.update', name: 'Update Modifier', nameAr: 'تعديل معدل', module: 'products', section: 'catalog' },
+        { code: 'modifiers.delete', name: 'Delete Modifier', nameAr: 'حذف معدل', module: 'products', section: 'catalog' },
+        // Payments Module (matches payments.controller.ts)
         { code: 'payments.view', name: 'View Payments', nameAr: 'عرض المدفوعات', module: 'payments', section: 'transactions' },
-        { code: 'payments.tips', name: 'Add Tips', nameAr: 'إضافة إكرامية', module: 'payments', section: 'transactions' },
-        // Sessions Module (4)
+        { code: 'payments.create', name: 'Create Payments', nameAr: 'إنشاء دفع', module: 'payments', section: 'transactions' },
+        { code: 'payments.split', name: 'Split Payments', nameAr: 'تقسيم دفع', module: 'payments', section: 'transactions' },
+        { code: 'payments.approve-refund', name: 'Approve Refunds', nameAr: 'موافقة استرجاع', module: 'payments', section: 'transactions' },
+        { code: 'payments.void', name: 'Void Payments', nameAr: 'إلغاء دفع', module: 'payments', section: 'transactions' },
+        { code: 'payments.view.all', name: 'View All Payments', nameAr: 'عرض جميع المدفوعات', module: 'payments', section: 'transactions' },
+        // Sessions Module (matches sessions.controller.ts)
         { code: 'sessions.open', name: 'Open Session', nameAr: 'فتح وردية', module: 'sessions', section: 'register' },
         { code: 'sessions.close', name: 'Close Session', nameAr: 'إغلاق وردية', module: 'sessions', section: 'register' },
         { code: 'sessions.view', name: 'View Sessions', nameAr: 'عرض الورديات', module: 'sessions', section: 'register' },
-        { code: 'sessions.cash', name: 'Cash In/Out', nameAr: 'إيداع/سحب نقدي', module: 'sessions', section: 'register' },
-        // Kitchen Module (4)
+        { code: 'sessions.view.all', name: 'View All Sessions', nameAr: 'عرض جميع الورديات', module: 'sessions', section: 'register' },
+        { code: 'sessions.reconcile', name: 'Reconcile Sessions', nameAr: 'مطابقة وردية', module: 'sessions', section: 'register' },
+        // Kitchen Module (matches kitchen.controller.ts)
         { code: 'kitchen.view', name: 'View Kitchen', nameAr: 'عرض المطبخ', module: 'kitchen', section: 'prep' },
-        { code: 'kitchen.bump', name: 'Bump Items', nameAr: 'تجهيز طلب', module: 'kitchen', section: 'prep' },
-        { code: 'kitchen.stations', name: 'Manage Stations', nameAr: 'إدارة المحطات', module: 'kitchen', section: 'prep' },
-        { code: 'kitchen.priority', name: 'Set Priority', nameAr: 'تحديد أولوية', module: 'kitchen', section: 'prep' },
-        // Customers Module (4)
+        { code: 'kitchen.update', name: 'Update Kitchen Status', nameAr: 'تحديث حالة المطبخ', module: 'kitchen', section: 'prep' },
+        { code: 'kitchen.station.create', name: 'Create Kitchen Station', nameAr: 'إنشاء محطة', module: 'kitchen', section: 'prep' },
+        { code: 'kitchen.station.update', name: 'Update Kitchen Station', nameAr: 'تحديث محطة', module: 'kitchen', section: 'prep' },
+        { code: 'kitchen.station.delete', name: 'Delete Kitchen Station', nameAr: 'حذف محطة', module: 'kitchen', section: 'prep' },
+        // Customers Module (matches customers.controller.ts)
         { code: 'customers.view', name: 'View Customers', nameAr: 'عرض العملاء', module: 'customers', section: 'crm' },
         { code: 'customers.create', name: 'Create Customer', nameAr: 'إنشاء عميل', module: 'customers', section: 'crm' },
         { code: 'customers.update', name: 'Update Customer', nameAr: 'تعديل عميل', module: 'customers', section: 'crm' },
-        { code: 'customers.loyalty', name: 'Manage Loyalty', nameAr: 'إدارة الولاء', module: 'customers', section: 'crm' },
-        // Tables Module (4)
+        { code: 'customers.delete', name: 'Delete Customer', nameAr: 'حذف عميل', module: 'customers', section: 'crm' },
+        { code: 'customers.loyalty.view', name: 'View Loyalty', nameAr: 'عرض الولاء', module: 'customers', section: 'crm' },
+        { code: 'customers.loyalty.adjust', name: 'Adjust Loyalty', nameAr: 'تعديل الولاء', module: 'customers', section: 'crm' },
+        // Tables Module (matches tables.controller.ts)
         { code: 'tables.view', name: 'View Tables', nameAr: 'عرض الطاولات', module: 'tables', section: 'floor' },
+        { code: 'tables.create', name: 'Create Tables', nameAr: 'إنشاء طاولة', module: 'tables', section: 'floor' },
+        { code: 'tables.update', name: 'Update Tables', nameAr: 'تحديث طاولة', module: 'tables', section: 'floor' },
+        { code: 'tables.delete', name: 'Delete Tables', nameAr: 'حذف طاولة', module: 'tables', section: 'floor' },
         { code: 'tables.assign', name: 'Assign Tables', nameAr: 'تخصيص طاولة', module: 'tables', section: 'floor' },
         { code: 'tables.transfer', name: 'Transfer Tables', nameAr: 'نقل طاولة', module: 'tables', section: 'floor' },
-        { code: 'tables.manage', name: 'Manage Floor', nameAr: 'إدارة الصالة', module: 'tables', section: 'floor' },
-        // Reports Module (4)
+        { code: 'tables.clean', name: 'Clean Tables', nameAr: 'تنظيف طاولة', module: 'tables', section: 'floor' },
+        { code: 'tables.floor.manage', name: 'Manage Floor Plan', nameAr: 'إدارة الصالة', module: 'tables', section: 'floor' },
+        { code: 'tables.reservation.view', name: 'View Reservations', nameAr: 'عرض الحجوزات', module: 'tables', section: 'floor' },
+        { code: 'tables.reservation.manage', name: 'Manage Reservations', nameAr: 'إدارة الحجوزات', module: 'tables', section: 'floor' },
+        // Reports Module (matches reports.controller.ts)
         { code: 'reports.view', name: 'View Reports', nameAr: 'عرض التقارير', module: 'reports', section: 'analytics' },
         { code: 'reports.export', name: 'Export Reports', nameAr: 'تصدير تقارير', module: 'reports', section: 'analytics' },
-        { code: 'reports.sales', name: 'Sales Reports', nameAr: 'تقارير المبيعات', module: 'reports', section: 'analytics' },
-        { code: 'reports.inventory', name: 'Inventory Reports', nameAr: 'تقارير المخزون', module: 'reports', section: 'analytics' },
-        // Settings Module (4)
+        { code: 'reports.sales.view', name: 'Sales Reports', nameAr: 'تقارير المبيعات', module: 'reports', section: 'analytics' },
+        { code: 'reports.inventory.view', name: 'Inventory Reports', nameAr: 'تقارير المخزون', module: 'reports', section: 'analytics' },
+        { code: 'reports.financial.view', name: 'Financial Reports', nameAr: 'التقارير المالية', module: 'reports', section: 'analytics' },
+        // Settings Module (matches settings.controller.ts)
         { code: 'settings.view', name: 'View Settings', nameAr: 'عرض الإعدادات', module: 'settings', section: 'config' },
         { code: 'settings.update', name: 'Update Settings', nameAr: 'تعديل الإعدادات', module: 'settings', section: 'config' },
-        { code: 'settings.tax', name: 'Tax Settings', nameAr: 'إعدادات الضريبة', module: 'settings', section: 'config' },
-        { code: 'settings.printers', name: 'Printer Settings', nameAr: 'إعدادات الطابعات', module: 'settings', section: 'config' },
-        // Users Module (4)
+        { code: 'settings.tax.view', name: 'View Tax Settings', nameAr: 'عرض إعدادات الضريبة', module: 'settings', section: 'config' },
+        { code: 'settings.tax.manage', name: 'Manage Tax Settings', nameAr: 'إدارة إعدادات الضريبة', module: 'settings', section: 'config' },
+        { code: 'settings.terminal.view', name: 'View Terminal Settings', nameAr: 'عرض إعدادات الطرفية', module: 'settings', section: 'config' },
+        { code: 'settings.terminal.manage', name: 'Manage Terminal Settings', nameAr: 'إدارة إعدادات الطرفية', module: 'settings', section: 'config' },
+        { code: 'settings.module.view', name: 'View Module Settings', nameAr: 'عرض إعدادات الوحدة', module: 'settings', section: 'config' },
+        { code: 'settings.module.manage', name: 'Manage Module Settings', nameAr: 'إدارة إعدادات الوحدة', module: 'settings', section: 'config' },
+        // Users Module (matches users.controller.ts)
         { code: 'users.view', name: 'View Users', nameAr: 'عرض المستخدمين', module: 'users', section: 'admin' },
         { code: 'users.create', name: 'Create Users', nameAr: 'إنشاء مستخدم', module: 'users', section: 'admin' },
         { code: 'users.update', name: 'Update Users', nameAr: 'تعديل مستخدم', module: 'users', section: 'admin' },
+        { code: 'users.delete', name: 'Delete Users', nameAr: 'حذف مستخدم', module: 'users', section: 'admin' },
+        { code: 'users.pin.update', name: 'Update User PIN', nameAr: 'تحديث رمز المستخدم', module: 'users', section: 'admin' },
+        { code: 'users.password.change', name: 'Change Password', nameAr: 'تغيير كلمة المرور', module: 'users', section: 'admin' },
+        { code: 'roles.view', name: 'View Roles', nameAr: 'عرض الأدوار', module: 'users', section: 'admin' },
         { code: 'roles.manage', name: 'Manage Roles', nameAr: 'إدارة الأدوار', module: 'users', section: 'admin' },
+        { code: 'permissions.view', name: 'View Permissions', nameAr: 'عرض الصلاحيات', module: 'users', section: 'admin' },
+        { code: 'permissions.assign', name: 'Assign Permissions', nameAr: 'تعيين الصلاحيات', module: 'users', section: 'admin' },
+        // Delivery Module
+        { code: 'delivery.view', name: 'View Delivery', nameAr: 'عرض التوصيل', module: 'delivery', section: 'delivery' },
+        { code: 'delivery.create', name: 'Create Delivery', nameAr: 'إنشاء توصيل', module: 'delivery', section: 'delivery' },
+        { code: 'delivery.update', name: 'Update Delivery', nameAr: 'تحديث توصيل', module: 'delivery', section: 'delivery' },
+        { code: 'delivery.assign', name: 'Assign Delivery', nameAr: 'تعيين توصيل', module: 'delivery', section: 'delivery' },
+        { code: 'delivery.zone.manage', name: 'Manage Delivery Zones', nameAr: 'إدارة مناطق التوصيل', module: 'delivery', section: 'delivery' },
+        { code: 'delivery.partner.manage', name: 'Manage Delivery Partners', nameAr: 'إدارة شركاء التوصيل', module: 'delivery', section: 'delivery' },
+        // Discounts Module
+        { code: 'discounts.view', name: 'View Discounts', nameAr: 'عرض الخصومات', module: 'discounts', section: 'pricing' },
+        { code: 'discounts.apply', name: 'Apply Discounts', nameAr: 'تطبيق خصم', module: 'discounts', section: 'pricing' },
+        { code: 'discounts.create', name: 'Create Discounts', nameAr: 'إنشاء خصم', module: 'discounts', section: 'pricing' },
+        { code: 'discounts.update', name: 'Update Discounts', nameAr: 'تحديث خصم', module: 'discounts', section: 'pricing' },
+        { code: 'discounts.delete', name: 'Delete Discounts', nameAr: 'حذف خصم', module: 'discounts', section: 'pricing' },
+        // Compliance Module
+        { code: 'compliance.view', name: 'View Compliance', nameAr: 'عرض الامتثال', module: 'compliance', section: 'compliance' },
+        { code: 'compliance.generate', name: 'Generate Compliance Docs', nameAr: 'إنشاء وثائق الامتثال', module: 'compliance', section: 'compliance' },
+        { code: 'compliance.export', name: 'Export Compliance', nameAr: 'تصدير الامتثال', module: 'compliance', section: 'compliance' },
+        { code: 'compliance.settings', name: 'Compliance Settings', nameAr: 'إعدادات الامتثال', module: 'compliance', section: 'compliance' },
+        // Audit Module
+        { code: 'audit.view', name: 'View Audit', nameAr: 'عرض التدقيق', module: 'audit', section: 'audit' },
+        { code: 'audit.export', name: 'Export Audit', nameAr: 'تصدير التدقيق', module: 'audit', section: 'audit' },
+        // Inventory Recipe
+        { code: 'inventory.recipe.view', name: 'View Recipes', nameAr: 'عرض الوصفات', module: 'inventory', section: 'stock' },
+        { code: 'inventory.recipe.manage', name: 'Manage Recipes', nameAr: 'إدارة الوصفات', module: 'inventory', section: 'stock' },
+        { code: 'inventory.delete', name: 'Delete Inventory', nameAr: 'حذف مخزون', module: 'inventory', section: 'stock' },
     ];
 
     for (const perm of permissions) {
@@ -230,6 +289,15 @@ async function main() {
     }
 
     console.log(`✅ Seeded ${roles.length} roles and ${permissions.length} permissions`);
+
+    // Update users with roleId (now that roles exist)
+    for (const user of users) {
+        await prisma.user.update({
+            where: { username: user.username },
+            data: { roleId: user.roleId },
+        });
+    }
+    console.log(`✅ Updated ${users.length} users with role assignments`);
 
     // ============================================================================
     // 3. PAYMENT METHODS (4: CASH, CARD, WALLET, BANK_TRANSFER)

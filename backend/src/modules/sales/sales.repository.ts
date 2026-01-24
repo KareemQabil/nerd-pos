@@ -186,6 +186,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
         orderType: data.orderType,
         businessDate: data.businessDate,
         taxRate: data.taxRate || 0.15,
+        sessionId: data.sessionId, // REQUIRED: Link to RegisterSession
         // SalesOrder optional fields with defaults:
         itemSubtotal: data.itemSubtotal || 0,
         serviceChargeRate: data.serviceChargeRate || 0,

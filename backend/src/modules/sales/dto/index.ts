@@ -157,9 +157,10 @@ export class CreateOrderDto {
   @IsString()
   discountCode?: string;
 
-  @ApiPropertyOptional({
-    description: 'Session UUID to associate with',
+  @ApiProperty({
+    description: 'Session UUID to associate with (optional - for audit trail)',
     example: 's23e4567-e89b-12d3-a456-426614174013',
+    required: false,
   })
   @IsOptional()
   @IsUUID()

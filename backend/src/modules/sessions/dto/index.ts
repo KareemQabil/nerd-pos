@@ -15,11 +15,11 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class OpenSessionDto {
   @ApiProperty({
-    description: 'User UUID opening the session',
-    example: 'u23e4567-e89b-12d3-a456-426614174020',
+    description: 'Terminal ID for the session',
+    example: 'term-001',
   })
   @IsString()
-  userId: string;
+  terminalId: string;
 
   @ApiProperty({
     description: 'Opening cash balance (SAR)',

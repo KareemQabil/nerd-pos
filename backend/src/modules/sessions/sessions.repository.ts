@@ -21,26 +21,26 @@ export class SessionsRepository extends BaseRepository<Session> {
   }
 
   protected get model() {
-    return 'session';
+    return 'registerSession';
   }
 
   // ==================== SESSION ====================
 
   async findOpenSession(userId: string): Promise<Session | null> {
-    return (this.prisma as any).session.findFirst({
+    return (this.prisma as any).registerSession.findFirst({
       where: { userId, status: SessionStatus.OPEN },
     });
   }
 
   async findWithDetails(id: string): Promise<SessionWithDetails | null> {
-    return (this.prisma as any).session.findUnique({
+    return (this.prisma as any).registerSession.findUnique({
       where: { id },
-      include: { denominations: true },
+      include: { denominationCounts: true },
     });
   }
 
   async findByUser(userId: string): Promise<Session[]> {
-    return (this.prisma as any).session.findMany({
+    return (this.prisma as any).registerSession.findMany({
       where: { userId },
       orderBy: { openedAt: 'desc' },
       take: 50,
@@ -48,7 +48,7 @@ export class SessionsRepository extends BaseRepository<Session> {
   }
 
   async findByDateRange(start: Date, end: Date): Promise<Session[]> {
-    return (this.prisma as any).session.findMany({
+    return (this.prisma as any).registerSession.findMany({
       where: {
         openedAt: { gte: start, lte: end },
       },
@@ -56,40 +56,37 @@ export class SessionsRepository extends BaseRepository<Session> {
     });
   }
 
-  async countByPrefix(prefix: string): Promise<number> {
-    return (this.prisma as any).session.count({
-      where: { sessionNumber: { startsWith: prefix } },
-    });
-  }
+
 
   // ==================== DENOMINATION ====================
 
   async createDenomination(data: CreateDenominationDto): Promise<Denomination> {
-    return (this.prisma as any).denomination.create({ data });
+    return (this.prisma as any).denominationCount.create({ data });
   }
 
   async findDenominationsBySession(sessionId: string): Promise<Denomination[]> {
-    return (this.prisma as any).denomination.findMany({
+    return (this.prisma as any).denominationCount.findMany({
       where: { sessionId },
-      orderBy: { value: 'desc' },
+      orderBy: { denomination: 'desc' },
     });
   }
 
   // ==================== STATISTICS ====================
 
   async getVarianceReport(startDate: Date, endDate: Date): Promise<any[]> {
-    return (this.prisma as any).session.findMany({
+    return (this.prisma as any).registerSession.findMany({
       where: {
         status: SessionStatus.CLOSED,
         closedAt: { gte: startDate, lte: endDate },
       },
       select: {
-        sessionNumber: true,
+        id: true,
         userId: true,
+        terminalId: true,
         closedAt: true,
-        expectedBalance: true,
-        closingBalance: true,
-        variance: true,
+        expectedCash: true,
+        actualClosingBalance: true,
+        discrepancy: true,
       },
       orderBy: { closedAt: 'desc' },
     });

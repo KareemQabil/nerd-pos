@@ -2,8 +2,18 @@
 // Source: FINAL/BACKEND/07-MODULE-SESSIONS.md
 // Security: Block 2 - All endpoints secured with @Permissions
 
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBadRequestResponse,
+  ApiNotFoundResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+} from '@nestjs/swagger';
 import { SessionsService } from './sessions.service';
 import { OpenSessionDto, CloseSessionDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -13,45 +23,72 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 
 @ApiTags('Sessions')
 @ApiBearerAuth('JWT')
+@ApiUnauthorizedResponse({ description: 'Not authenticated' })
+@ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('sessions')
 export class SessionsController {
   constructor(private readonly service: SessionsService) { }
 
   // ==================== SESSION MANAGEMENT ====================
 
-  @Permissions(PERMISSIONS.SESSIONS_OPEN) // Cashier+
   @Post('open')
-  async openSession(@Body() dto: OpenSessionDto) {
-    return this.service.openSession(dto);
+  @Permissions(PERMISSIONS.SESSIONS_OPEN) // Cashier+
+  @ApiOperation({ summary: 'Open session', description: 'Opens a new cashier session with opening balance' })
+  @ApiResponse({ status: 201, description: 'Session opened successfully' })
+  @ApiBadRequestResponse({ description: 'User already has an open session' })
+  async openSession(@Body() dto: OpenSessionDto, @Request() req: any) {
+    // Extract userId from authenticated JWT token (not from request body)
+    const userId: string = req.user?.id || req.user?.sub;
+    return this.service.openSession(dto, userId);
   }
 
-  @Permissions(PERMISSIONS.SESSIONS_CLOSE) // 🔒 Manager only
   @Post('close')
+  @Permissions(PERMISSIONS.SESSIONS_CLOSE) // 🔒 Manager only
+  @ApiOperation({ summary: 'Close session', description: 'Closes session with closing balance and calculates variance. Manager only.' })
+  @ApiResponse({ status: 200, description: 'Session closed successfully' })
+  @ApiNotFoundResponse({ description: 'Session not found' })
+  @ApiBadRequestResponse({ description: 'Session already closed' })
   async closeSession(@Body() dto: CloseSessionDto) {
     return this.service.closeSession(dto);
   }
 
-  @Permissions(PERMISSIONS.SESSIONS_VIEW) // Cashier+ (own session)
   @Get('current/:userId')
+  @Permissions(PERMISSIONS.SESSIONS_VIEW) // Cashier+ (own session)
+  @ApiOperation({ summary: 'Get current session', description: 'Returns active session for user' })
+  @ApiParam({ name: 'userId', description: 'User UUID' })
+  @ApiResponse({ status: 200, description: 'Current session retrieved' })
+  @ApiNotFoundResponse({ description: 'No active session for user' })
   async getCurrentSession(@Param('userId') userId: string) {
     return this.service.getCurrentSession(userId);
   }
 
-  @Permissions(PERMISSIONS.SESSIONS_VIEW) // Cashier+ (own session)
   @Get(':id')
+  @Permissions(PERMISSIONS.SESSIONS_VIEW) // Cashier+ (own session)
+  @ApiOperation({ summary: 'Get session by ID', description: 'Returns session details' })
+  @ApiParam({ name: 'id', description: 'Session UUID' })
+  @ApiResponse({ status: 200, description: 'Session found' })
+  @ApiNotFoundResponse({ description: 'Session not found' })
   async getSession(@Param('id') id: string) {
     return this.service.findById(id);
   }
 
-  @Permissions(PERMISSIONS.SESSIONS_VIEW_ALL) // 🔒 Manager+
   @Get(':id/details')
+  @Permissions(PERMISSIONS.SESSIONS_VIEW_ALL) // 🔒 Manager+
+  @ApiOperation({ summary: 'Get session with details', description: 'Returns session with orders and payments. Manager+ required.' })
+  @ApiParam({ name: 'id', description: 'Session UUID' })
+  @ApiResponse({ status: 200, description: 'Session with details' })
+  @ApiNotFoundResponse({ description: 'Session not found' })
   async getSessionWithDetails(@Param('id') id: string) {
     return this.service.findByIdWithDetails(id);
   }
 
-  @Permissions(PERMISSIONS.SESSIONS_VIEW_ALL) // 🔒 Manager+
   @Get('user/:userId')
+  @Permissions(PERMISSIONS.SESSIONS_VIEW_ALL) // 🔒 Manager+
+  @ApiOperation({ summary: 'Get sessions by user', description: 'Returns session history for user. Manager+ required.' })
+  @ApiParam({ name: 'userId', description: 'User UUID' })
+  @ApiResponse({ status: 200, description: 'User sessions retrieved' })
   async getSessionsByUser(@Param('userId') userId: string) {
     return this.service.findByUser(userId);
   }
 }
+

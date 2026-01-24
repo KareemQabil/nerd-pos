@@ -2,7 +2,8 @@
  * JWT Strategy
  *
  * Passport strategy for validating JWT tokens.
- * Extracts token from Authorization header (Bearer token).
+ * Extracts token from cookies (primary) OR Authorization header (fallback).
+ * Cookie-based auth enables seamless Swagger testing.
  *
  * Source: FINAL/BACKEND/14-MODULE-USERS-ROLES.md
  */
@@ -10,13 +11,28 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Request } from 'express';
 import { JwtPayload } from '../decorators/current-user.decorator';
+
+// Custom extractor: try cookie first, then Bearer header
+const cookieOrBearerExtractor = (req: Request): string | null => {
+  // Try cookie first (for Swagger/browser)
+  if (req?.cookies?.access_token) {
+    return req.cookies.access_token;
+  }
+  // Fallback to Authorization header (for API clients)
+  const authHeader = req?.headers?.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  return null;
+};
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: cookieOrBearerExtractor,
       ignoreExpiration: false,
       secretOrKey:
         process.env.JWT_SECRET || 'nerdpos-secret-change-in-production-2026',
@@ -40,3 +56,4 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
+

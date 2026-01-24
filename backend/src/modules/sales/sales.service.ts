@@ -151,6 +151,7 @@ export class SalesService {
       orderType: dto.type ?? 'DINE_IN', // HARDENED: fallback to DINE_IN
       businessDate: new Date(), // HARDENED: always set to now
       status: OrderStatus.DRAFT, // HARDENED: explicit status
+      sessionId: dto.sessionId, // REQUIRED: Link order to session
       // Calculated values with SAFE fallbacks
       itemSubtotal: safeToNumber(calculated.itemSubtotal, 0),
       serviceChargeRate: safeDivide100(calculated.serviceChargePercent, 0),

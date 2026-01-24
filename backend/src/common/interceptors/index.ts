@@ -3,4 +3,4 @@
 
 export * from './decimal-transform.interceptor';
 export * from './logging.interceptor';
-export * from './transform.interceptor';
+// Note: transform.interceptor functionality is merged into decimal-transform.interceptor

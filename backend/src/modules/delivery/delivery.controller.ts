@@ -11,7 +11,18 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiQuery,
+  ApiBadRequestResponse,
+  ApiNotFoundResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+} from '@nestjs/swagger';
 import { DeliveryService } from './delivery.service';
 import {
   CreateDeliveryDto,
@@ -28,30 +39,46 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 
 @ApiTags('Delivery')
 @ApiBearerAuth('JWT')
+@ApiUnauthorizedResponse({ description: 'Not authenticated' })
+@ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('delivery')
 export class DeliveryController {
   constructor(private readonly service: DeliveryService) { }
 
-  @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @Get('active')
+  @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
+  @ApiOperation({ summary: 'Get active deliveries', description: 'Returns deliveries in progress' })
+  @ApiQuery({ name: 'driverId', required: false, description: 'Filter by driver UUID' })
+  @ApiResponse({ status: 200, description: 'Active deliveries retrieved' })
   async getActive(@Query('driverId') driverId?: string) {
     return this.service.getActiveDeliveries(driverId);
   }
 
-  @Permissions(PERMISSIONS.DELIVERY_CREATE) // Cashier+
   @Post()
+  @Permissions(PERMISSIONS.DELIVERY_CREATE) // Cashier+
+  @ApiOperation({ summary: 'Create delivery', description: 'Creates a new delivery order' })
+  @ApiResponse({ status: 201, description: 'Delivery created' })
+  @ApiBadRequestResponse({ description: 'Validation error or district not in delivery zone' })
   async create(@Body() dto: CreateDeliveryDto & { district: string }) {
     return this.service.createDelivery(dto, dto.district);
   }
 
-  @Permissions(PERMISSIONS.DELIVERY_ASSIGN) // 🔒 Manager+
   @Post(':id/assign')
+  @Permissions(PERMISSIONS.DELIVERY_ASSIGN) // 🔒 Manager+
+  @ApiOperation({ summary: 'Assign driver', description: 'Assigns a driver to delivery. Manager+ required.' })
+  @ApiParam({ name: 'id', description: 'Delivery UUID' })
+  @ApiResponse({ status: 200, description: 'Driver assigned' })
+  @ApiNotFoundResponse({ description: 'Delivery or driver not found' })
   async assign(@Param('id') id: string, @Body() dto: AssignDriverDto) {
     return this.service.assignDriver(id, dto.driverId);
   }
 
-  @Permissions(PERMISSIONS.DELIVERY_UPDATE) // Cashier+
   @Put(':id/status')
+  @Permissions(PERMISSIONS.DELIVERY_UPDATE) // Cashier+
+  @ApiOperation({ summary: 'Update delivery status', description: 'Updates delivery status (PICKED_UP, DELIVERED, etc.)' })
+  @ApiParam({ name: 'id', description: 'Delivery UUID' })
+  @ApiResponse({ status: 200, description: 'Delivery status updated' })
+  @ApiNotFoundResponse({ description: 'Delivery not found' })
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateDeliveryStatusDto & { driverId?: string },
@@ -60,39 +87,55 @@ export class DeliveryController {
   }
 
   // Zones
-  @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @Get('zones')
+  @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
+  @ApiOperation({ summary: 'Get delivery zones', description: 'Returns all delivery zones with fees' })
+  @ApiResponse({ status: 200, description: 'Delivery zones retrieved' })
   async getZones() {
     return this.service.getAllZones();
   }
 
-  @Permissions(PERMISSIONS.DELIVERY_ZONE_MANAGE) // 🔒 Admin only
   @Post('zones')
+  @Permissions(PERMISSIONS.DELIVERY_ZONE_MANAGE) // 🔒 Admin only
+  @ApiOperation({ summary: 'Create delivery zone', description: 'Creates a new delivery zone. Admin only.' })
+  @ApiResponse({ status: 201, description: 'Delivery zone created' })
+  @ApiBadRequestResponse({ description: 'Validation error or duplicate zone name' })
   async createZone(@Body() dto: CreateDeliveryZoneDto) {
     return this.service.createZone(dto);
   }
 
   // Drivers
-  @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @Get('drivers')
+  @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
+  @ApiOperation({ summary: 'Get all drivers', description: 'Returns all delivery drivers' })
+  @ApiResponse({ status: 200, description: 'Drivers retrieved' })
   async getDrivers() {
     return this.service.getAllDrivers();
   }
 
-  @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @Get('drivers/available')
+  @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
+  @ApiOperation({ summary: 'Get available drivers', description: 'Returns drivers not currently on delivery' })
+  @ApiResponse({ status: 200, description: 'Available drivers retrieved' })
   async getAvailableDrivers() {
     return this.service.getAvailableDrivers();
   }
 
-  @Permissions(PERMISSIONS.DELIVERY_PARTNER_MANAGE) // 🔒 Admin only
   @Post('drivers')
+  @Permissions(PERMISSIONS.DELIVERY_PARTNER_MANAGE) // 🔒 Admin only
+  @ApiOperation({ summary: 'Create driver', description: 'Registers a new delivery driver. Admin only.' })
+  @ApiResponse({ status: 201, description: 'Driver created' })
+  @ApiBadRequestResponse({ description: 'Validation error or phone already registered' })
   async createDriver(@Body() dto: CreateDriverDto) {
     return this.service.createDriver(dto);
   }
 
-  @Permissions(PERMISSIONS.DELIVERY_UPDATE) // Cashier+ (driver location update)
   @Put('drivers/:id/location')
+  @Permissions(PERMISSIONS.DELIVERY_UPDATE) // Cashier+ (driver location update)
+  @ApiOperation({ summary: 'Update driver location', description: 'Updates driver GPS coordinates' })
+  @ApiParam({ name: 'id', description: 'Driver UUID' })
+  @ApiResponse({ status: 200, description: 'Location updated' })
+  @ApiNotFoundResponse({ description: 'Driver not found' })
   async updateLocation(
     @Param('id') id: string,
     @Body() dto: UpdateDriverLocationDto,
@@ -100,3 +143,4 @@ export class DeliveryController {
     return this.service.updateDriverLocation(id, dto.latitude, dto.longitude);
   }
 }
+

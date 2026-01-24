@@ -38,34 +38,41 @@ export class SessionsService {
 
   // ==================== OPEN SESSION ====================
 
-  async openSession(dto: OpenSessionDto): Promise<Session> {
+  async openSession(dto: OpenSessionDto, userId: string): Promise<Session> {
+    // Validate userId is provided
+    if (!userId) {
+      throw new BadRequestException('User ID is required from authentication token');
+    }
+
     // Check for existing open session
-    const existingSession = await this.repo.findOpenSession(dto.userId);
+    const existingSession = await this.repo.findOpenSession(userId);
     if (existingSession) {
       throw new BadRequestException(
-        `User already has an open session: ${existingSession.sessionNumber}`,
+        `User already has an open session (ID: ${existingSession.id})`,
       );
     }
 
-    const sessionNumber = await this.generateSessionNumber();
     const openingBalance = new Decimal(dto.openingBalance);
 
     const session = await this.repo.create({
-      sessionNumber,
-      userId: dto.userId,
+      terminalId: dto.terminalId,
+      userId: userId,
+      businessDate: new Date(),
       openingBalance: openingBalance.toNumber(),
       status: SessionStatus.OPEN,
       openedAt: new Date(),
-      totalSales: 0,
-      totalCash: 0,
-      totalCard: 0,
+      totalCashSales: 0,
+      totalCardSales: 0,
+      totalOtherSales: 0,
+      totalDrops: 0,
+      totalPettyCash: 0,
       totalRefunds: 0,
-      orderCount: 0,
+      ordersCount: 0,
     });
 
     await this.eventBus.publish(
       'SessionOpened',
-      new SessionOpenedEvent(session.id, dto.userId, openingBalance.toNumber()),
+      new SessionOpenedEvent(session.id, userId, openingBalance.toNumber()),
     );
 
     return session;
@@ -223,17 +230,6 @@ export class SessionsService {
     return this.repo.findByUser(userId);
   }
 
-  // ==================== SESSION NUMBER GENERATION ====================
-
-  private async generateSessionNumber(): Promise<string> {
-    const date = new Date();
-    const prefix = `SES${date.getFullYear()}${(date.getMonth() + 1)
-      .toString()
-      .padStart(2, '0')}`;
-    const count = await this.repo.countByPrefix(prefix);
-    return `${prefix}${(count + 1).toString().padStart(4, '0')}`;
-  }
-
   // ==================== SESSION STATS UPDATE ====================
   // Called by event handlers when payments/sales occur
 
@@ -247,16 +243,13 @@ export class SessionsService {
     if (!session || session.status !== SessionStatus.OPEN) return;
 
     await this.repo.update(sessionId, {
-      totalSales: new Decimal(session.totalSales || 0)
-        .plus(saleAmount)
-        .toNumber(),
-      totalCash: new Decimal(session.totalCash || 0)
+      totalCashSales: new Decimal(session.totalCashSales || 0)
         .plus(cashAmount)
         .toNumber(),
-      totalCard: new Decimal(session.totalCard || 0)
+      totalCardSales: new Decimal(session.totalCardSales || 0)
         .plus(cardAmount)
         .toNumber(),
-      orderCount: (session.orderCount || 0) + 1,
+      ordersCount: (session.ordersCount || 0) + 1,
     });
   }
 

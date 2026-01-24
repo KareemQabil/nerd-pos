@@ -17,18 +17,32 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   canActivate(context: ExecutionContext) {
-    // Check for @Public() decorator on handler or class
+    // 1. Check for @Public() decorator
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    // Skip authentication for public routes
     if (isPublic) {
       return true;
     }
 
-    // Proceed with JWT validation
+    // 2. Explicitly whitelist Swagger and Health paths
+    const request = context.switchToHttp().getRequest();
+    const path = request.path;
+    const whitelistedPaths = [
+      '/api/docs',
+      '/api/docs-json',
+      '/health',
+      '/favicon.ico'
+    ];
+
+    // Check if path starts with any whitelisted path
+    if (whitelistedPaths.some(p => path.startsWith(p))) {
+      return true;
+    }
+
+    // 3. Proceed with JWT validation
     return super.canActivate(context);
   }
 }
