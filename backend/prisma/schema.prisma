@@ -264,6 +264,7 @@ model SalesOrder {
   updatedAt           DateTime @updatedAt @map("updated_at")
   sessionId           String   @map("session_id")
   session             RegisterSession @relation(fields: [sessionId], references: [id])
+  payments            Payment[]
 
   items OrderItem[]
 
@@ -292,12 +293,27 @@ model OrderItem {
   status          String   @default("NEW") @db.VarChar(20)
   createdAt       DateTime @default(now()) @map("created_at")
 
-  order SalesOrder @relation(fields: [orderId], references: [id])
+  order     SalesOrder          @relation(fields: [orderId], references: [id])
+  modifiers OrderItemModifier[]
 
   @@index([orderId])
   @@index([productId])
   @@index([status])
   @@map("order_items")
+}
+
+model OrderItemModifier {
+  id          String  @id @default(uuid())
+  orderItemId String  @map("order_item_id")
+  modifierId  String  @map("modifier_id")
+  optionId    String  @map("option_id")
+  name        String  @db.VarChar(255)
+  price       Decimal @db.Decimal(12, 3)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([orderItemId])
+  @@map("order_item_modifiers")
 }
 
 // ============================================================================
@@ -329,6 +345,8 @@ model Payment {
   orderItemId         String?  @map("order_item_id")
   paymentMethod       String   @map("payment_method") @db.VarChar(30)
   amount              Decimal  @db.Decimal(12, 3)
+
+  order SalesOrder @relation(fields: [orderId], references: [id])
   amountReceived      Decimal? @map("amount_received") @db.Decimal(12, 3)
   changeGiven         Decimal? @map("change_given") @db.Decimal(12, 3)
   foreignCurrencyCode String?  @map("foreign_currency_code") @db.VarChar(3)

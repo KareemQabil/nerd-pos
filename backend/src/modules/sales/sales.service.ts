@@ -53,6 +53,9 @@ import {
   GrandTotalStep,
 } from './calculation-steps';
 
+import { SessionsService } from '../sessions/sessions.service';
+import { forwardRef } from '@nestjs/common';
+
 @Injectable()
 export class SalesService {
   private calculationSteps: ICalculationStep[];
@@ -68,6 +71,7 @@ export class SalesService {
     private readonly taxStep: TaxStep,
     private readonly discountStep: DiscountStep,
     private readonly grandTotalStep: GrandTotalStep,
+    @Inject(forwardRef(() => SessionsService)) private readonly sessionsService: SessionsService,
   ) {
     // Sort steps by order
     this.calculationSteps = [
@@ -90,6 +94,16 @@ export class SalesService {
     // FORENSIC AUDIT FIX: Validate non-empty items
     if (!dto.items || dto.items.length === 0) {
       throw new BadRequestException('Order must have at least one item');
+    }
+
+    // Resolve Session ID
+    let sessionId = dto.sessionId;
+    if (!sessionId) {
+      const session = await this.sessionsService.getCurrentSession(createdBy);
+      if (!session) {
+        throw new BadRequestException('No active session found for user');
+      }
+      sessionId = session.id;
     }
 
     // 1. Build calculation context (Outside TX - pure computation)
@@ -151,7 +165,7 @@ export class SalesService {
       orderType: dto.type ?? 'DINE_IN', // HARDENED: fallback to DINE_IN
       businessDate: new Date(), // HARDENED: always set to now
       status: OrderStatus.DRAFT, // HARDENED: explicit status
-      sessionId: dto.sessionId, // REQUIRED: Link order to session
+      sessionId: sessionId, // REQUIRED: Link order to session
       // Calculated values with SAFE fallbacks
       itemSubtotal: safeToNumber(calculated.itemSubtotal, 0),
       serviceChargeRate: safeDivide100(calculated.serviceChargePercent, 0),

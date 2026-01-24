@@ -1,7 +1,7 @@
 // Sales Module
 // Source: FINAL/BACKEND/05-MODULE-SALES.md, 01-create-module workflow
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
 import { SalesRepository } from './sales.repository';
@@ -17,7 +17,10 @@ import {
   GrandTotalStep,
 } from './calculation-steps';
 
+import { SessionsModule } from '../sessions/sessions.module';
+
 @Module({
+  imports: [forwardRef(() => SessionsModule)],
   controllers: [SalesController],
   providers: [
     SalesService,
