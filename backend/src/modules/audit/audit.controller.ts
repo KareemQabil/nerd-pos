@@ -32,7 +32,28 @@ export class AuditController {
   @ApiOperation({ summary: 'Get entity audit history', description: 'Returns change history for entity. Manager+ required.' })
   @ApiParam({ name: 'entity', description: 'Entity type (e.g., Order, Product)' })
   @ApiParam({ name: 'entityId', description: 'Entity UUID' })
-  @ApiResponse({ status: 200, description: 'Audit history retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Audit history retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'audit_1',
+            entity: 'Product',
+            entityId: 'prod_123',
+            action: 'UPDATE',
+            userId: 'usr_456',
+            changes: { price: { old: 10, new: 12 } },
+            timestamp: '2026-01-23T12:00:00Z',
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getEntityHistory(
     @Param('entity') entity: string,
     @Param('entityId') entityId: string,
@@ -46,7 +67,28 @@ export class AuditController {
   @ApiParam({ name: 'userId', description: 'User UUID' })
   @ApiQuery({ name: 'startDate', required: true, description: 'Start date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'endDate', required: true, description: 'End date (YYYY-MM-DD)' })
-  @ApiResponse({ status: 200, description: 'User activity retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'User activity retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'audit_2',
+            entity: 'Order',
+            entityId: 'ord_999',
+            action: 'CREATE',
+            userId: 'usr_123',
+            changes: null,
+            timestamp: '2026-01-23T12:05:00Z',
+          },
+        ],
+        timestamp: '2026-01-23T12:05:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Invalid date format' })
   async getUserActivity(
     @Param('userId') userId: string,
@@ -62,7 +104,27 @@ export class AuditController {
   @ApiParam({ name: 'module', description: 'Module name (e.g., products, sales)' })
   @ApiQuery({ name: 'startDate', required: true, description: 'Start date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'endDate', required: true, description: 'End date (YYYY-MM-DD)' })
-  @ApiResponse({ status: 200, description: 'Module activity retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Module activity retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'audit_3',
+            entity: 'Product',
+            entityId: 'prod_123',
+            action: 'DELETE',
+            userId: 'usr_admin',
+            timestamp: '2026-01-23T12:10:00Z',
+          },
+        ],
+        timestamp: '2026-01-23T12:10:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Invalid date format' })
   async getModuleActivity(
     @Param('module') module: string,

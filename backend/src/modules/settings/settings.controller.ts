@@ -48,7 +48,24 @@ export class SettingsController {
   @Get('store')
   @Permissions(PERMISSIONS.SETTINGS_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Get store settings', description: 'Returns store configuration. Manager+ required.' })
-  @ApiResponse({ status: 200, description: 'Store settings retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Store settings retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          id: 'store_1',
+          name: 'NerdBased Coffee',
+          vatNumber: '300000000000003',
+          address: 'Riyadh, KSA',
+          currency: 'SAR',
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getStoreSettings() {
     return this.service.getStoreSettings();
   }
@@ -56,7 +73,22 @@ export class SettingsController {
   @Put('store')
   @Permissions(PERMISSIONS.SETTINGS_UPDATE) // 🔒 Admin only
   @ApiOperation({ summary: 'Update store settings', description: 'Updates store configuration. Admin only.' })
-  @ApiResponse({ status: 200, description: 'Store settings updated' })
+  @ApiResponse({
+    status: 200,
+    description: 'Store settings updated',
+    schema: {
+      example: {
+        success: true,
+        message: 'Store settings updated',
+        data: {
+          id: 'store_1',
+          name: 'NerdBased Coffee Updated',
+          vatNumber: '300000000000003',
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Validation error' })
   async updateStoreSettings(@Body() dto: UpdateStoreSettingsDto) {
     return this.service.updateStoreSettings(dto);
@@ -67,7 +99,26 @@ export class SettingsController {
   @Get('taxes')
   @Permissions(PERMISSIONS.SETTINGS_TAX_VIEW) // Manager+
   @ApiOperation({ summary: 'Get tax settings', description: 'Returns all tax configurations. Manager+ required.' })
-  @ApiResponse({ status: 200, description: 'Tax settings retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tax settings retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'tax_vat',
+            name: 'VAT',
+            rate: 15.0,
+            isDefault: true,
+            code: 'VAT_SA',
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getTaxSettings() {
     return this.service.getTaxSettings();
   }
@@ -75,7 +126,22 @@ export class SettingsController {
   @Get('taxes/default')
   @Permissions(PERMISSIONS.SETTINGS_TAX_VIEW) // Manager+
   @ApiOperation({ summary: 'Get default tax', description: 'Returns the default tax rate. Manager+ required.' })
-  @ApiResponse({ status: 200, description: 'Default tax retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Default tax retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          id: 'tax_vat',
+          rate: 15.0,
+          code: 'VAT_SA',
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'No default tax configured' })
   async getDefaultTax() {
     return this.service.getDefaultTax();
@@ -108,7 +174,26 @@ export class SettingsController {
   @Get('terminals')
   @Permissions(PERMISSIONS.SETTINGS_TERMINAL_VIEW) // Manager+
   @ApiOperation({ summary: 'Get all terminals', description: 'Returns all POS terminals. Manager+ required.' })
-  @ApiResponse({ status: 200, description: 'Terminals retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Terminals retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'term_1',
+            code: 'POS-01',
+            name: 'Front Counter 1',
+            status: 'ONLINE',
+            lastSeen: '2026-01-23T12:00:00Z',
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getAllTerminals() {
     return this.service.getAllTerminals();
   }
@@ -161,7 +246,23 @@ export class SettingsController {
   @Permissions(PERMISSIONS.SETTINGS_MODULE_VIEW) // Manager+
   @ApiOperation({ summary: 'Get module settings', description: 'Returns configuration for specific module. Manager+ required.' })
   @ApiParam({ name: 'module', description: 'Module name (e.g., kitchen, delivery)' })
-  @ApiResponse({ status: 200, description: 'Module settings retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Module settings retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          kitchen: {
+            autoPrint: true,
+            alertSound: true,
+          },
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getModuleSettings(@Param('module') module: string) {
     return this.service.getModuleSettings(module);
   }

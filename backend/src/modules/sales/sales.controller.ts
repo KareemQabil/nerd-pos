@@ -52,7 +52,30 @@ export class SalesController {
   @Post()
   @Permissions(PERMISSIONS.SALES_CREATE) // Cashier+
   @ApiOperation({ summary: 'Create new order', description: 'Creates a new order (DINE_IN, TAKEAWAY, or DELIVERY)' })
-  @ApiResponse({ status: 201, description: 'Order created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Order created successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Order created successfully',
+        data: {
+          id: 'ord_123456789',
+          orderNumber: 'ORD-20260123-001',
+          status: 'DRAFT',
+          type: 'DINE_IN',
+          items: [],
+          subtotal: 0,
+          tax: 0,
+          total: 0,
+          createdAt: '2026-01-23T12:00:00Z',
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+        path: '/api/v1/orders',
+        requestId: 'req_123',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Validation error - invalid input data' })
   async createOrder(
     @Body() dto: CreateOrderDto,
@@ -65,7 +88,31 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get all orders', description: 'Returns paginated list of orders with optional status filter' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by order status (DRAFT, CONFIRMED, etc.)' })
-  @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Orders retrieved successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'ord_123',
+            orderNumber: 'ORD-001',
+            status: 'CONFIRMED',
+            total: 150.0,
+          },
+        ],
+        meta: {
+          total: 50,
+          page: 1,
+          limit: 10,
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+        path: '/api/v1/orders',
+      },
+    },
+  })
   async findOrders(
     @Query() pagination: PaginationDto,
     @Query('status') status?: string,
@@ -87,7 +134,34 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get order by ID', description: 'Returns order with all items and details' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({ status: 200, description: 'Order found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order found',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          id: 'ord_123',
+          orderNumber: 'ORD-001',
+          status: 'CONFIRMED',
+          type: 'DINE_IN',
+          subtotal: 100.0,
+          tax: 15.0,
+          total: 115.0,
+          items: [
+            {
+              id: 'item_1',
+              productName: 'Burger',
+              quantity: 2,
+              price: 50.0,
+            },
+          ],
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'Order not found' })
   async findOrderById(@Param('id') id: string) {
     return this.service.findOrderByIdWithItems(id);
@@ -97,7 +171,21 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get order by number', description: 'Returns order by human-readable order number' })
   @ApiParam({ name: 'orderNumber', description: 'Order number (e.g., ORD-20260123-001)' })
-  @ApiResponse({ status: 200, description: 'Order found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order found',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          id: 'ord_123',
+          orderNumber: 'ORD-20260123-001',
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'Order not found' })
   async findOrderByNumber(@Param('orderNumber') orderNumber: string) {
     return this.service.findOrderByNumber(orderNumber);
@@ -147,7 +235,23 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_UPDATE) // Cashier+
   @ApiOperation({ summary: 'Add item to order', description: 'Adds new item to existing order' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({ status: 201, description: 'Item added' })
+  @ApiResponse({
+    status: 201,
+    description: 'Item added',
+    schema: {
+      example: {
+        success: true,
+        message: 'Item added successfully',
+        data: {
+          id: 'item_1',
+          productId: 'prod_123',
+          quantity: 1,
+          price: 15.0,
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'Order not found' })
   async addItem(@Param('id') id: string, @Body() dto: AddOrderItemDto) {
     return this.service.addItem(id, dto);

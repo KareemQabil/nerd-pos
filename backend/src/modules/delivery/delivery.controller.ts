@@ -49,7 +49,27 @@ export class DeliveryController {
   @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get active deliveries', description: 'Returns deliveries in progress' })
   @ApiQuery({ name: 'driverId', required: false, description: 'Filter by driver UUID' })
-  @ApiResponse({ status: 200, description: 'Active deliveries retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Active deliveries retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'del_123',
+            orderId: 'ord_456',
+            status: 'OUT_FOR_DELIVERY',
+            driverId: 'drv_789',
+            address: '123 Main St, Riyadh',
+            estimatedTime: '25 mins',
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getActive(@Query('driverId') driverId?: string) {
     return this.service.getActiveDeliveries(driverId);
   }
@@ -57,7 +77,23 @@ export class DeliveryController {
   @Post()
   @Permissions(PERMISSIONS.DELIVERY_CREATE) // Cashier+
   @ApiOperation({ summary: 'Create delivery', description: 'Creates a new delivery order' })
-  @ApiResponse({ status: 201, description: 'Delivery created' })
+  @ApiResponse({
+    status: 201,
+    description: 'Delivery created',
+    schema: {
+      example: {
+        success: true,
+        message: 'Delivery created successfully',
+        data: {
+          id: 'del_124',
+          orderId: 'ord_457',
+          status: 'PENDING',
+          deliveryFee: 15.0,
+        },
+        timestamp: '2026-01-23T12:05:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Validation error or district not in delivery zone' })
   async create(@Body() dto: CreateDeliveryDto & { district: string }) {
     return this.service.createDelivery(dto, dto.district);
@@ -67,7 +103,22 @@ export class DeliveryController {
   @Permissions(PERMISSIONS.DELIVERY_ASSIGN) // 🔒 Manager+
   @ApiOperation({ summary: 'Assign driver', description: 'Assigns a driver to delivery. Manager+ required.' })
   @ApiParam({ name: 'id', description: 'Delivery UUID' })
-  @ApiResponse({ status: 200, description: 'Driver assigned' })
+  @ApiResponse({
+    status: 200,
+    description: 'Driver assigned',
+    schema: {
+      example: {
+        success: true,
+        message: 'Driver assigned successfully',
+        data: {
+          deliveryId: 'del_124',
+          driverId: 'drv_789',
+          status: 'ASSIGNED',
+        },
+        timestamp: '2026-01-23T12:10:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'Delivery or driver not found' })
   async assign(@Param('id') id: string, @Body() dto: AssignDriverDto) {
     return this.service.assignDriver(id, dto.driverId);
@@ -90,7 +141,25 @@ export class DeliveryController {
   @Get('zones')
   @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get delivery zones', description: 'Returns all delivery zones with fees' })
-  @ApiResponse({ status: 200, description: 'Delivery zones retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Delivery zones retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'zone_1',
+            name: 'Downtown',
+            fee: 10.0,
+            active: true,
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getZones() {
     return this.service.getAllZones();
   }
@@ -108,7 +177,26 @@ export class DeliveryController {
   @Get('drivers')
   @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get all drivers', description: 'Returns all delivery drivers' })
-  @ApiResponse({ status: 200, description: 'Drivers retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Drivers retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'drv_789',
+            name: 'John Doe',
+            phone: '+966501234567',
+            status: 'AVAILABLE',
+            currentLocation: { lat: 24.7136, lng: 46.6753 },
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getDrivers() {
     return this.service.getAllDrivers();
   }
@@ -116,7 +204,24 @@ export class DeliveryController {
   @Get('drivers/available')
   @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get available drivers', description: 'Returns drivers not currently on delivery' })
-  @ApiResponse({ status: 200, description: 'Available drivers retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Available drivers retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'drv_789',
+            name: 'John Doe',
+            status: 'AVAILABLE',
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getAvailableDrivers() {
     return this.service.getAvailableDrivers();
   }

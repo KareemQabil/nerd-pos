@@ -52,7 +52,25 @@ export class TablesController {
   @Get('floors')
   @Permissions(PERMISSIONS.TABLES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get all floors', description: 'Returns all floor/section layouts' })
-  @ApiResponse({ status: 200, description: 'Floors retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Floors retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'floor_1',
+            name: 'Main Hall',
+            tableCount: 10,
+            activeTables: 5,
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getAllFloors() {
     return this.service.getAllFloors();
   }
@@ -61,7 +79,24 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get floor with tables', description: 'Returns floor layout with all tables' })
   @ApiParam({ name: 'id', description: 'Floor UUID' })
-  @ApiResponse({ status: 200, description: 'Floor with tables' })
+  @ApiResponse({
+    status: 200,
+    description: 'Floor with tables',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          id: 'floor_1',
+          name: 'Main Hall',
+          tables: [
+            { id: 'tbl_1', number: 'T1', seats: 4, status: 'AVAILABLE', x: 10, y: 10 },
+          ],
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'Floor not found' })
   async getFloorWithTables(@Param('id') id: string) {
     return this.service.getFloorWithTables(id);

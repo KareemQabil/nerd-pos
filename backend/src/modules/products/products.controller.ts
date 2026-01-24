@@ -48,6 +48,8 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiBearerAuth('JWT')
 @ApiUnauthorizedResponse({ description: 'Not authenticated - JWT token missing or invalid' })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiTags('Products')
+@ApiBearerAuth()
 @Controller('products')
 export class ProductsController {
   constructor(private readonly service: ProductsService) { }
@@ -56,8 +58,28 @@ export class ProductsController {
 
   @Post()
   @Permissions(PERMISSIONS.PRODUCTS_CREATE) // Manager+
-  @ApiOperation({ summary: 'Create new product', description: 'Creates a new product in the catalog. Requires Manager+ role.' })
-  @ApiResponse({ status: 201, description: 'Product created successfully' })
+  @ApiOperation({ summary: 'Create a new product' })
+  @ApiResponse({
+    status: 201,
+    description: 'Product created successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Product created successfully',
+        data: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          nameEn: 'Cheeseburger',
+          nameAr: 'تشيز برجر',
+          sku: 'BRG-1001',
+          price: 25.0,
+          isActive: true,
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+        path: '/api/v1/products',
+        requestId: 'req_123456',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Validation error - invalid input data' })
   async createProduct(@Body() dto: CreateProductDto) {
     return this.service.createProduct(dto);
@@ -65,8 +87,32 @@ export class ProductsController {
 
   @Get()
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
-  @ApiOperation({ summary: 'Get all products', description: 'Returns paginated list of all products' })
-  @ApiResponse({ status: 200, description: 'Products retrieved successfully' })
+  @ApiOperation({ summary: 'Get all products (paginated)' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of products',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: '123e4567-e89b-12d3-a456-426614174000',
+            nameEn: 'Cheeseburger',
+            price: 25.0,
+          },
+        ],
+        meta: {
+          total: 100,
+          page: 1,
+          limit: 10,
+          totalPages: 10,
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+        path: '/api/v1/products',
+      },
+    },
+  })
   async findAllProducts(@Query() pagination: PaginationDto) {
     const result = await this.service.findAllProductsPaginated({
       page: pagination.page,
@@ -83,7 +129,7 @@ export class ProductsController {
 
   @Get('search')
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
-  @ApiOperation({ summary: 'Search products', description: 'Search products by name, SKU, or barcode' })
+  @ApiOperation({ summary: 'Search products' })
   @ApiQuery({ name: 'q', required: false, description: 'Search query' })
   @ApiResponse({ status: 200, description: 'Search results' })
   async searchProducts(@Query('q') query: string) {
@@ -92,7 +138,7 @@ export class ProductsController {
 
   @Get(':id')
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
-  @ApiOperation({ summary: 'Get product by ID', description: 'Returns single product with full details' })
+  @ApiOperation({ summary: 'Get product by ID' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
   @ApiResponse({ status: 200, description: 'Product found' })
   @ApiNotFoundResponse({ description: 'Product not found' })
@@ -102,7 +148,7 @@ export class ProductsController {
 
   @Get('sku/:sku')
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
-  @ApiOperation({ summary: 'Get product by SKU', description: 'Returns product by SKU code' })
+  @ApiOperation({ summary: 'Get product by SKU' })
   @ApiParam({ name: 'sku', description: 'Product SKU' })
   @ApiResponse({ status: 200, description: 'Product found' })
   @ApiNotFoundResponse({ description: 'Product not found' })
@@ -112,7 +158,7 @@ export class ProductsController {
 
   @Put(':id')
   @Permissions(PERMISSIONS.PRODUCTS_UPDATE) // Manager+
-  @ApiOperation({ summary: 'Update product', description: 'Updates product details. Requires Manager+ role.' })
+  @ApiOperation({ summary: 'Update product' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
   @ApiResponse({ status: 200, description: 'Product updated successfully' })
   @ApiNotFoundResponse({ description: 'Product not found' })
@@ -123,7 +169,7 @@ export class ProductsController {
 
   @Put(':id/deactivate')
   @Permissions(PERMISSIONS.PRODUCTS_UPDATE) // Manager+
-  @ApiOperation({ summary: 'Deactivate product', description: 'Soft-deletes product by setting active=false' })
+  @ApiOperation({ summary: 'Deactivate product' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
   @ApiResponse({ status: 200, description: 'Product deactivated' })
   @ApiNotFoundResponse({ description: 'Product not found' })
@@ -133,7 +179,7 @@ export class ProductsController {
 
   @Delete(':id')
   @Permissions(PERMISSIONS.PRODUCTS_DELETE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Delete product', description: 'Permanently deletes product. Admin only.' })
+  @ApiOperation({ summary: 'Delete product' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
   @ApiResponse({ status: 200, description: 'Product deleted' })
   @ApiNotFoundResponse({ description: 'Product not found' })
@@ -146,7 +192,7 @@ export class ProductsController {
 
   @Get(':id/modifier-groups')
   @Permissions(PERMISSIONS.MODIFIERS_VIEW) // All roles
-  @ApiOperation({ summary: 'Get product modifier groups', description: 'Returns all modifier groups assigned to this product' })
+  @ApiOperation({ summary: 'Get product modifier groups' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
   @ApiResponse({ status: 200, description: 'Modifier groups retrieved' })
   async getProductModifierGroups(@Param('id') id: string) {
@@ -155,7 +201,7 @@ export class ProductsController {
 
   @Post(':id/modifier-groups')
   @Permissions(PERMISSIONS.MODIFIERS_UPDATE) // Manager+
-  @ApiOperation({ summary: 'Assign modifier group to product', description: 'Links a modifier group to this product' })
+  @ApiOperation({ summary: 'Assign modifier group to product' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
   @ApiResponse({ status: 200, description: 'Modifier group assigned' })
   async assignModifierGroup(
@@ -171,7 +217,7 @@ export class ProductsController {
 
   @Delete(':productId/modifier-groups/:groupId')
   @Permissions(PERMISSIONS.MODIFIERS_UPDATE) // Manager+
-  @ApiOperation({ summary: 'Remove modifier group from product', description: 'Unlinks a modifier group from this product' })
+  @ApiOperation({ summary: 'Remove modifier group from product' })
   @ApiParam({ name: 'productId', description: 'Product UUID' })
   @ApiParam({ name: 'groupId', description: 'Modifier Group UUID' })
   @ApiResponse({ status: 200, description: 'Modifier group removed' })
@@ -196,8 +242,24 @@ export class CategoriesController {
 
   @Post()
   @Permissions(PERMISSIONS.CATEGORIES_CREATE) // Manager+
-  @ApiOperation({ summary: 'Create category', description: 'Creates a new product category. Manager+ role required.' })
-  @ApiResponse({ status: 201, description: 'Category created successfully' })
+  @ApiOperation({ summary: 'Create category' })
+  @ApiResponse({
+    status: 201,
+    description: 'Category created successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Category created successfully',
+        data: {
+          id: 'cat_123',
+          nameEn: 'Drinks',
+          nameAr: 'مشروبات',
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+        path: '/api/v1/categories',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Validation error' })
   async createCategory(@Body() dto: CreateCategoryDto) {
     return this.service.createCategory(dto);
@@ -223,7 +285,7 @@ export class CategoriesController {
 
   @Get('root')
   @Permissions(PERMISSIONS.CATEGORIES_VIEW) // All roles
-  @ApiOperation({ summary: 'Get root categories', description: 'Returns top-level categories (no parent)' })
+  @ApiOperation({ summary: 'Get root categories' })
   @ApiResponse({ status: 200, description: 'Root categories retrieved' })
   async findRootCategories() {
     return this.service.findRootCategories();
@@ -231,7 +293,7 @@ export class CategoriesController {
 
   @Get(':id')
   @Permissions(PERMISSIONS.CATEGORIES_VIEW) // All roles
-  @ApiOperation({ summary: 'Get category by ID', description: 'Returns single category with subcategories' })
+  @ApiOperation({ summary: 'Get category by ID' })
   @ApiParam({ name: 'id', description: 'Category UUID' })
   @ApiResponse({ status: 200, description: 'Category found' })
   @ApiNotFoundResponse({ description: 'Category not found' })
@@ -241,7 +303,7 @@ export class CategoriesController {
 
   @Get(':id/products')
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
-  @ApiOperation({ summary: 'Get products in category', description: 'Returns all products belonging to this category' })
+  @ApiOperation({ summary: 'Get products in category' })
   @ApiParam({ name: 'id', description: 'Category UUID' })
   @ApiResponse({ status: 200, description: 'Products retrieved' })
   async findProductsByCategory(@Param('id') id: string) {
@@ -250,7 +312,7 @@ export class CategoriesController {
 
   @Put(':id')
   @Permissions(PERMISSIONS.CATEGORIES_UPDATE) // Manager+
-  @ApiOperation({ summary: 'Update category', description: 'Updates category details. Manager+ role required.' })
+  @ApiOperation({ summary: 'Update category' })
   @ApiParam({ name: 'id', description: 'Category UUID' })
   @ApiResponse({ status: 200, description: 'Category updated' })
   @ApiNotFoundResponse({ description: 'Category not found' })
@@ -263,7 +325,7 @@ export class CategoriesController {
 
   @Delete(':id')
   @Permissions(PERMISSIONS.CATEGORIES_DELETE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Delete category', description: 'Deletes category. Admin only.' })
+  @ApiOperation({ summary: 'Delete category' })
   @ApiParam({ name: 'id', description: 'Category UUID' })
   @ApiResponse({ status: 200, description: 'Category deleted' })
   @ApiNotFoundResponse({ description: 'Category not found' })
@@ -285,7 +347,7 @@ export class ModifierGroupsController {
 
   @Post()
   @Permissions(PERMISSIONS.MODIFIERS_CREATE) // Manager+
-  @ApiOperation({ summary: 'Create modifier group', description: 'Creates a new modifier group (e.g., Size, Toppings)' })
+  @ApiOperation({ summary: 'Create modifier group' })
   @ApiResponse({ status: 201, description: 'Modifier group created' })
   @ApiBadRequestResponse({ description: 'Validation error' })
   async createModifierGroup(@Body() dto: CreateModifierGroupDto) {
@@ -312,7 +374,7 @@ export class ModifierGroupsController {
 
   @Get(':id')
   @Permissions(PERMISSIONS.MODIFIERS_VIEW) // All roles
-  @ApiOperation({ summary: 'Get modifier group by ID', description: 'Returns modifier group with all options' })
+  @ApiOperation({ summary: 'Get modifier group by ID' })
   @ApiParam({ name: 'id', description: 'Modifier Group UUID' })
   @ApiResponse({ status: 200, description: 'Modifier group found' })
   @ApiNotFoundResponse({ description: 'Modifier group not found' })
@@ -322,7 +384,7 @@ export class ModifierGroupsController {
 
   @Put(':id')
   @Permissions(PERMISSIONS.MODIFIERS_UPDATE) // Manager+
-  @ApiOperation({ summary: 'Update modifier group', description: 'Updates modifier group details' })
+  @ApiOperation({ summary: 'Update modifier group' })
   @ApiParam({ name: 'id', description: 'Modifier Group UUID' })
   @ApiResponse({ status: 200, description: 'Modifier group updated' })
   @ApiNotFoundResponse({ description: 'Modifier group not found' })
@@ -335,7 +397,7 @@ export class ModifierGroupsController {
 
   @Delete(':id')
   @Permissions(PERMISSIONS.MODIFIERS_DELETE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Delete modifier group', description: 'Deletes modifier group and all its options. Admin only.' })
+  @ApiOperation({ summary: 'Delete modifier group' })
   @ApiParam({ name: 'id', description: 'Modifier Group UUID' })
   @ApiResponse({ status: 200, description: 'Modifier group deleted' })
   @ApiNotFoundResponse({ description: 'Modifier group not found' })
@@ -348,7 +410,7 @@ export class ModifierGroupsController {
 
   @Post(':id/options')
   @Permissions(PERMISSIONS.MODIFIERS_CREATE) // Manager+
-  @ApiOperation({ summary: 'Create modifier option', description: 'Adds new option to modifier group' })
+  @ApiOperation({ summary: 'Add option to modifier group' })
   @ApiParam({ name: 'id', description: 'Modifier Group UUID' })
   @ApiResponse({ status: 201, description: 'Modifier option created' })
   @ApiBadRequestResponse({ description: 'Validation error' })
@@ -361,7 +423,7 @@ export class ModifierGroupsController {
 
   @Put('options/:id')
   @Permissions(PERMISSIONS.MODIFIERS_UPDATE) // Manager+
-  @ApiOperation({ summary: 'Update modifier option', description: 'Updates modifier option details' })
+  @ApiOperation({ summary: 'Update modifier option' })
   @ApiParam({ name: 'id', description: 'Modifier Option UUID' })
   @ApiResponse({ status: 200, description: 'Modifier option updated' })
   @ApiNotFoundResponse({ description: 'Modifier option not found' })
@@ -374,7 +436,7 @@ export class ModifierGroupsController {
 
   @Delete('options/:id')
   @Permissions(PERMISSIONS.MODIFIERS_DELETE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Delete modifier option', description: 'Deletes modifier option. Admin only.' })
+  @ApiOperation({ summary: 'Delete modifier option' })
   @ApiParam({ name: 'id', description: 'Modifier Option UUID' })
   @ApiResponse({ status: 200, description: 'Modifier option deleted' })
   @ApiNotFoundResponse({ description: 'Modifier option not found' })

@@ -59,7 +59,25 @@ export class UsersController {
   @Post('login')
   @Public()
   @ApiOperation({ summary: 'User login', description: 'Authenticates user with username and password. Returns JWT token.' })
-  @ApiResponse({ status: 200, description: 'Login successful, returns access token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful, returns access token',
+    schema: {
+      example: {
+        success: true,
+        message: 'Login successful',
+        data: {
+          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          user: {
+            id: 'usr_123',
+            username: 'admin',
+            role: 'ADMIN',
+          },
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Invalid credentials' })
   async login(@Body() dto: LoginDto) {
     return this.service.login(dto.username, dto.password);
@@ -68,7 +86,18 @@ export class UsersController {
   @Post('verify-pin')
   @Permissions(PERMISSIONS.SESSIONS_OPEN) // Required for any authenticated user
   @ApiOperation({ summary: 'Verify user PIN', description: 'Verifies 4-digit PIN for quick authentication' })
-  @ApiResponse({ status: 200, description: 'PIN verified successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'PIN verified successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'PIN verified',
+        data: { verified: true },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Invalid PIN' })
   async verifyPin(@Body() dto: VerifyPinDto & { userId: string }) {
     return this.service.verifyPin(dto.userId, dto.pin);
@@ -77,7 +106,18 @@ export class UsersController {
   @Post('manager-auth')
   @Permissions(PERMISSIONS.SESSIONS_CLOSE) // 🔒 Manager+ (manager auth required)
   @ApiOperation({ summary: 'Manager authentication', description: 'Verifies manager PIN for elevated operations. Manager+ required.' })
-  @ApiResponse({ status: 200, description: 'Manager PIN verified' })
+  @ApiResponse({
+    status: 200,
+    description: 'Manager PIN verified',
+    schema: {
+      example: {
+        success: true,
+        message: 'Manager authenticated',
+        data: { verified: true },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Invalid manager PIN' })
   async verifyManagerPin(@Body() dto: VerifyPinDto) {
     return this.service.verifyManagerPin(dto.pin);
@@ -88,7 +128,23 @@ export class UsersController {
   @Post()
   @Permissions(PERMISSIONS.USERS_CREATE) // 🔒 Admin only
   @ApiOperation({ summary: 'Create user', description: 'Creates a new user account. Admin only.' })
-  @ApiResponse({ status: 201, description: 'User created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'User created successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'User created successfully',
+        data: {
+          id: 'usr_456',
+          username: 'cashier1',
+          role: 'CASHIER',
+          isActive: true,
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Validation error or username already exists' })
   async create(@Body() dto: CreateUserDto) {
     return this.service.createUser(dto);
@@ -99,7 +155,31 @@ export class UsersController {
   @ApiOperation({ summary: 'Get all users', description: 'Returns paginated list of users. Manager+ required.' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
-  @ApiResponse({ status: 200, description: 'Users retrieved', type: PaginatedResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Users retrieved',
+    type: PaginatedResponseDto,
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'usr_123',
+            username: 'admin',
+            role: 'ADMIN',
+            isActive: true,
+          },
+        ],
+        meta: {
+          total: 5,
+          page: 1,
+          limit: 10,
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getAll(@Query() pagination: PaginationDto) {
     const result = await this.service.findAllPaginated({
       page: pagination.page,
@@ -121,7 +201,23 @@ export class UsersController {
   @Permissions(PERMISSIONS.USERS_VIEW) // 🔒 Manager+ (or self via ownership check)
   @ApiOperation({ summary: 'Get user by ID', description: 'Returns user details. Users can view own profile, Manager+ can view all.' })
   @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({ status: 200, description: 'User found' })
+  @ApiResponse({
+    status: 200,
+    description: 'User found',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          id: 'usr_123',
+          username: 'admin',
+          role: 'ADMIN',
+          permissions: ['*'],
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'User not found' })
   async findById(@Param('id') id: string, @Request() req: RequestWithUser) {
     // Self-ownership check: user can only view their own profile
@@ -204,7 +300,25 @@ export class UsersController {
   @Get('roles')
   @Permissions(PERMISSIONS.ROLES_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Get all roles', description: 'Returns all roles with permissions. Manager+ required.' })
-  @ApiResponse({ status: 200, description: 'Roles retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Roles retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'role_admin',
+            name: 'ADMIN',
+            description: 'Administrator with full access',
+            permissions: ['*'],
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getAllRoles() {
     return this.service.getAllRoles();
   }
@@ -233,7 +347,25 @@ export class UsersController {
   @Get('permissions')
   @Permissions(PERMISSIONS.PERMISSIONS_VIEW) // 🔒 Admin only
   @ApiOperation({ summary: 'Get all permissions', description: 'Returns all system permissions. Admin only.' })
-  @ApiResponse({ status: 200, description: 'Permissions retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Permissions retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'perm_1',
+            code: 'products.create',
+            description: 'Create products',
+            module: 'products',
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getAllPermissions() {
     return this.service.getAllPermissions();
   }

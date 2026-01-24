@@ -43,7 +43,27 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_VIEW) // Kitchen staff
   @ApiOperation({ summary: 'Get active tickets', description: 'Returns active kitchen tickets for station' })
   @ApiParam({ name: 'stationId', description: 'Kitchen Station UUID' })
-  @ApiResponse({ status: 200, description: 'Active tickets retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Active tickets retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'tkt_123',
+            orderId: 'ord_456',
+            orderNumber: 'ORD-001',
+            status: 'PENDING',
+            items: [],
+            createdAt: '2026-01-23T12:00:00Z',
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getActiveTickets(@Param('stationId') stationId: string) {
     return this.service.getActiveTickets(stationId);
   }
@@ -52,7 +72,25 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_VIEW) // Kitchen staff
   @ApiOperation({ summary: 'Get ticket by ID', description: 'Returns ticket with items' })
   @ApiParam({ name: 'id', description: 'Kitchen Ticket UUID' })
-  @ApiResponse({ status: 200, description: 'Ticket found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Ticket found',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          id: 'tkt_123',
+          orderNumber: 'ORD-001',
+          status: 'IN_PROGRESS',
+          items: [
+            { id: 'item_1', name: 'Burger', quantity: 2, status: 'PENDING' },
+          ],
+        },
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'Ticket not found' })
   async getTicket(@Param('id') id: string) {
     return this.service.getTicketWithItems(id);
@@ -62,7 +100,29 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_VIEW) // Kitchen staff
   @ApiOperation({ summary: 'Get tickets by order', description: 'Returns all kitchen tickets for order' })
   @ApiParam({ name: 'orderId', description: 'Order UUID' })
-  @ApiResponse({ status: 200, description: 'Order tickets retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Order tickets retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'tkt_123',
+            station: 'GRILL',
+            status: 'COMPLETED',
+          },
+          {
+            id: 'tkt_124',
+            station: 'SALAD',
+            status: 'PENDING',
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getTicketsByOrder(@Param('orderId') orderId: string) {
     return this.service.getTicketsByOrder(orderId);
   }
@@ -117,7 +177,25 @@ export class KitchenController {
   @Get('stations')
   @Permissions(PERMISSIONS.KITCHEN_VIEW) // Kitchen staff
   @ApiOperation({ summary: 'Get all stations', description: 'Returns all kitchen stations' })
-  @ApiResponse({ status: 200, description: 'Stations retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Stations retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'st_1',
+            name: 'Grill Station',
+            activeTickets: 3,
+            isOnline: true,
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getAllStations() {
     return this.service.getAllStations();
   }

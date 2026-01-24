@@ -49,7 +49,28 @@ export class PaymentsController {
   @Post()
   @Permissions(PERMISSIONS.PAYMENTS_CREATE) // Cashier+
   @ApiOperation({ summary: 'Process payment', description: 'Processes a payment for an order' })
-  @ApiResponse({ status: 201, description: 'Payment processed successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Payment processed successfully',
+    schema: {
+      example: {
+        success: true,
+        message: 'Payment processed successfully',
+        data: {
+          id: 'pay_123456789',
+          orderId: 'ord_123456789',
+          amount: 50.0,
+          method: 'CASH',
+          status: 'COMPLETED',
+          transactionId: 'tx_987654321',
+          createdAt: '2026-01-23T12:05:00Z',
+        },
+        timestamp: '2026-01-23T12:05:00Z',
+        path: '/api/v1/payments',
+        requestId: 'req_123',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Validation error or insufficient amount' })
   async createPayment(@Body() dto: CreatePaymentDto) {
     return this.service.createPayment(dto);
@@ -58,7 +79,25 @@ export class PaymentsController {
   @Post('split')
   @Permissions(PERMISSIONS.PAYMENTS_SPLIT) // Cashier+
   @ApiOperation({ summary: 'Process split payment', description: 'Processes multiple payment methods for one order' })
-  @ApiResponse({ status: 201, description: 'Split payment processed' })
+  @ApiResponse({
+    status: 201,
+    description: 'Split payment processed',
+    schema: {
+      example: {
+        success: true,
+        message: 'Split payment processed successfully',
+        data: {
+          orderId: 'ord_123456789',
+          totalPaid: 100.0,
+          payments: [
+            { method: 'CASH', amount: 50.0, status: 'COMPLETED' },
+            { method: 'CARD', amount: 50.0, status: 'COMPLETED' },
+          ],
+        },
+        timestamp: '2026-01-23T12:05:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Validation error or amounts do not match total' })
   async processSplitPayment(@Body() dto: SplitPaymentDto) {
     return this.service.processSplitPayment(dto);
@@ -68,7 +107,23 @@ export class PaymentsController {
   @Permissions(PERMISSIONS.PAYMENTS_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get payment by ID', description: 'Returns payment details' })
   @ApiParam({ name: 'id', description: 'Payment UUID' })
-  @ApiResponse({ status: 200, description: 'Payment found' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment found',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: {
+          id: 'pay_123',
+          amount: 50.0,
+          method: 'CARD',
+          status: 'COMPLETED',
+        },
+        timestamp: '2026-01-23T12:06:00Z',
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'Payment not found' })
   async findPaymentById(@Param('id') id: string) {
     return this.service.findPaymentById(id);
@@ -78,7 +133,25 @@ export class PaymentsController {
   @Permissions(PERMISSIONS.PAYMENTS_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get payments by order', description: 'Returns all payments for an order' })
   @ApiParam({ name: 'orderId', description: 'Order UUID' })
-  @ApiResponse({ status: 200, description: 'Payments retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payments retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'pay_123',
+            amount: 50.0,
+            method: 'CASH',
+            status: 'COMPLETED',
+          },
+        ],
+        timestamp: '2026-01-23T12:06:00Z',
+      },
+    },
+  })
   async getPaymentsByOrder(@Param('orderId') orderId: string) {
     return this.service.findByOrder(orderId);
   }
@@ -97,7 +170,24 @@ export class PaymentsController {
   @Post('refunds')
   @Permissions(PERMISSIONS.PAYMENTS_CREATE) // Cashier+ (create refund request)
   @ApiOperation({ summary: 'Create refund request', description: 'Creates a refund request for approval' })
-  @ApiResponse({ status: 201, description: 'Refund request created' })
+  @ApiResponse({
+    status: 201,
+    description: 'Refund request created',
+    schema: {
+      example: {
+        success: true,
+        message: 'Refund request created',
+        data: {
+          id: 'ref_123',
+          paymentId: 'pay_123',
+          amount: 50.0,
+          status: 'PENDING',
+          reason: 'Customer complaint',
+        },
+        timestamp: '2026-01-23T12:10:00Z',
+      },
+    },
+  })
   @ApiBadRequestResponse({ description: 'Invalid refund amount or payment not found' })
   async createRefund(@Body() dto: CreateRefundDto) {
     return this.service.processRefund(dto);
@@ -142,7 +232,26 @@ export class PaymentsController {
   @Get('methods')
   @Permissions(PERMISSIONS.PAYMENTS_VIEW) // Cashier+ (view methods)
   @ApiOperation({ summary: 'Get payment methods', description: 'Returns all available payment methods' })
-  @ApiResponse({ status: 200, description: 'Payment methods retrieved' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment methods retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          {
+            id: 'pm_1',
+            nameEn: 'Cash',
+            nameAr: 'نقدي',
+            type: 'CASH',
+            active: true,
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
   async getAllPaymentMethods() {
     return this.service.getAllPaymentMethods();
   }
