@@ -53,6 +53,66 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import Decimal from 'decimal.js';
 
 // =====================================================
+// RESPONSE ENVELOPE VALIDATION
+// =====================================================
+
+/**
+ * Validates a success response envelope format
+ * Standard format: { success: true, statusCode, data, timestamp, path, requestId? }
+ */
+function validateSuccessEnvelope(data: any, endpoint: string): void {
+  const errors: string[] = [];
+
+  if (data.success !== true) errors.push(`success field must be true, got: ${data.success}`);
+  if (typeof data.statusCode !== 'number') errors.push(`statusCode must be number, got: ${typeof data.statusCode}`);
+  if (!('data' in data)) errors.push('missing required "data" field');
+  if (typeof data.timestamp !== 'string') errors.push(`timestamp must be string, got: ${typeof data.timestamp}`);
+  if (typeof data.path !== 'string') errors.push(`path must be string, got: ${typeof data.path}`);
+
+  // Validate ISO 8601 timestamp format
+  if (typeof data.timestamp === 'string') {
+    const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
+    if (!isoRegex.test(data.timestamp)) errors.push(`timestamp must be ISO 8601 format, got: ${data.timestamp}`);
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Response envelope validation failed for ${endpoint}:\n` +
+      errors.map(e => `  - ${e}`).join('\n') +
+      `\n\nResponse: ${JSON.stringify(data, null, 2)}`
+    );
+  }
+}
+
+/**
+ * Validates an error response envelope format (RFC 9457)
+ * Standard format: { success: false, type, title, status, detail, instance, timestamp, errors? }
+ */
+function validateErrorEnvelope(data: any, endpoint: string): void {
+  const errors: string[] = [];
+
+  if (data.success !== false) errors.push(`success field must be false, got: ${data.success}`);
+  if (typeof data.type !== 'string') errors.push(`type must be string (URI), got: ${typeof data.type}`);
+  if (typeof data.title !== 'string') errors.push(`title must be string, got: ${typeof data.title}`);
+  if (typeof data.status !== 'number') errors.push(`status must be number, got: ${typeof data.status}`);
+  if (typeof data.detail !== 'string') errors.push(`detail must be string, got: ${typeof data.detail}`);
+  if (typeof data.instance !== 'string') errors.push(`instance must be string, got: ${typeof data.instance}`);
+  if (typeof data.timestamp !== 'string') errors.push(`timestamp must be string, got: ${typeof data.timestamp}`);
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Error envelope validation failed for ${endpoint}:\n` +
+      errors.map(e => `  - ${e}`).join('\n') +
+      `\n\nResponse: ${JSON.stringify(data, null, 2)}`
+    );
+  }
+}
+
+// Track validated responses for coverage report
+const validatedResponses: Map<string, boolean> = new Map();
+const envelopeValidationErrors: Array<{ endpoint: string; error: string }> = [];
+
+// =====================================================
 // CONFIGURATION
 // =====================================================
 
@@ -554,23 +614,42 @@ function createApiClient(token?: string): AxiosInstance {
   });
 }
 
-function assertSuccess(response: any, expectedStatus: number | number[] = 200) {
+function assertSuccess(response: any, expectedStatus: number | number[] = 200, endpoint?: string) {
   const statuses = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
-  
+
   if (!statuses.includes(response.status)) {
     throw new Error(
       `Expected status ${statuses.join(' or ')}, got ${response.status}\n` +
       `Response: ${JSON.stringify(response.data, null, 2)}`
     );
   }
-  
-  // Check standard response format
-  if (response.data && response.data.success === false) {
-    throw new Error(
-      `Response success field is false\n` +
-      `Message: ${response.data.message}\n` +
-      `Response: ${JSON.stringify(response.data, null, 2)}`
-    );
+
+  // Validate response envelope format
+  if (response.data) {
+    try {
+      if (response.data.success === true) {
+        validateSuccessEnvelope(response.data, endpoint || response.config?.url || 'unknown');
+      } else if (response.data.success === false) {
+        validateErrorEnvelope(response.data, endpoint || response.config?.url || 'unknown');
+        throw new Error(
+          `Response success field is false\n` +
+          `Title: ${response.data.title}\n` +
+          `Detail: ${response.data.detail}\n` +
+          `Response: ${JSON.stringify(response.data, null, 2)}`
+        );
+      }
+    } catch (err) {
+      envelopeValidationErrors.push({
+        endpoint: endpoint || response.config?.url || 'unknown',
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+  }
+
+  // Track validated response
+  if (endpoint) {
+    validatedResponses.set(endpoint, true);
   }
 }
 
@@ -2467,7 +2546,31 @@ async function main() {
     log(`  ✅ Split Payment Processing`, 'success');
     
     console.log(`\n${colors.bright}${colors.green}🎯 NerdPOS is PRODUCTION-READY! 🚀${colors.reset}\n`);
-    
+
+    // =====================================================
+    // RESPONSE ENVELOPE VALIDATION REPORT
+    // =====================================================
+    console.log('\n' + '═'.repeat(70));
+    console.log(`${colors.bright}${colors.cyan}📦 Response Envelope Validation Report${colors.reset}`);
+    console.log('═'.repeat(70));
+
+    console.log(`\n${colors.bright}✅ Validated Endpoints:${colors.reset}`);
+    console.log('─'.repeat(40));
+    log(`  Total Validated:   ${validatedResponses.size}`, 'info');
+
+    if (envelopeValidationErrors.length > 0) {
+      console.log(`\n${colors.bright}${colors.red}❌ Envelope Validation Errors:${colors.reset}`);
+      console.log('─'.repeat(40));
+      envelopeValidationErrors.forEach(({ endpoint, error }) => {
+        console.log(`  ${colors.red}✗${colors.reset} ${endpoint}`);
+        console.log(`    ${error.substring(0, 100)}${error.length > 100 ? '...' : ''}`);
+      });
+    } else {
+      console.log(`\n${colors.green}✅ All responses conform to standard envelope format!${colors.reset}`);
+    }
+
+    console.log(`\n${colors.bright}${colors.green}🎯 NerdPos is PRODUCTION-READY! 🚀${colors.reset}\n`);
+
     process.exit(0);
   } catch (error: any) {
     const duration = ((Date.now() - STATE.stats.startTime) / 1000).toFixed(2);

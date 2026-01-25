@@ -1,0 +1,60 @@
+# =============================================================================
+# NerdPOS - Docker Compose for Local Development
+# =============================================================================
+# Services: Backend API, PostgreSQL Database
+# Usage: docker-compose up -d
+
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: nerdpos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nerdpos
+      POSTGRES_PASSWORD: nerdpos_dev_password_change_in_production
+      POSTGRES_DB: nerdpos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nerdpos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: nerdpos-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://nerdpos:nerdpos_dev_password_change_in_production@postgres:5432/nerdpos?schema=public
+      JWT_SECRET: nerdpos-secret-change-in-production-2026
+      JWT_EXPIRY: 7d
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run start:dev
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  default:
+    name: nerdpos-network

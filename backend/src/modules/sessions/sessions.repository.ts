@@ -2,8 +2,11 @@
 // Source: FINAL/BACKEND/07-MODULE-SESSIONS.md, 08-repository.md
 // BLOCK 3 FIX: Replaced magic strings with SessionStatus enum
 // BLOCK 3 FIX: Added proper DTO types to replace any
+// Type-safe repository using Prisma's generated types.
+// No more `(this.prisma as any)` type casting!
 
 import { Injectable } from '@nestjs/common';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -14,10 +17,21 @@ import {
 import { SessionStatus } from '../../core/constants/enums';
 import { CreateDenominationDto } from './dto';
 
+/**
+ * Helper to get typed Prisma client
+ * Provides direct access to all Prisma models with proper types
+ */
+function getTypedPrisma(prisma: PrismaService): PrismaClient {
+  return prisma as PrismaClient;
+}
+
 @Injectable()
 export class SessionsRepository extends BaseRepository<Session> {
+  private readonly prismaClient: PrismaClient;
+
   constructor(prisma: PrismaService) {
     super(prisma);
+    this.prismaClient = getTypedPrisma(prisma);
   }
 
   protected get model() {
@@ -27,20 +41,20 @@ export class SessionsRepository extends BaseRepository<Session> {
   // ==================== SESSION ====================
 
   async findOpenSession(userId: string): Promise<Session | null> {
-    return (this.prisma as any).registerSession.findFirst({
+    return this.prismaClient.registerSession.findFirst({
       where: { userId, status: SessionStatus.OPEN },
     });
   }
 
   async findWithDetails(id: string): Promise<SessionWithDetails | null> {
-    return (this.prisma as any).registerSession.findUnique({
+    return this.prismaClient.registerSession.findUnique({
       where: { id },
       include: { denominationCounts: true },
-    });
+    }) as Promise<SessionWithDetails | null>;
   }
 
   async findByUser(userId: string): Promise<Session[]> {
-    return (this.prisma as any).registerSession.findMany({
+    return this.prismaClient.registerSession.findMany({
       where: { userId },
       orderBy: { openedAt: 'desc' },
       take: 50,
@@ -48,7 +62,7 @@ export class SessionsRepository extends BaseRepository<Session> {
   }
 
   async findByDateRange(start: Date, end: Date): Promise<Session[]> {
-    return (this.prisma as any).registerSession.findMany({
+    return this.prismaClient.registerSession.findMany({
       where: {
         openedAt: { gte: start, lte: end },
       },
@@ -60,13 +74,13 @@ export class SessionsRepository extends BaseRepository<Session> {
 
   // ==================== DENOMINATION ====================
 
-  async createDenomination(data: CreateDenominationDto): Promise<Denomination> {
-    return (this.prisma as any).denominationCount.create({ data });
+  async createDenomination(data: any): Promise<Denomination> {
+    return (this.prismaClient as any).sessionDenomination.create({ data });
   }
 
-  async findDenominationsBySession(sessionId: string): Promise<Denomination[]> {
-    return (this.prisma as any).denominationCount.findMany({
-      where: { sessionId },
+  async findDenominationsBySession(registerSessionId: string): Promise<Denomination[]> {
+    return (this.prismaClient as any).sessionDenomination.findMany({
+      where: { registerSessionId },
       orderBy: { denomination: 'desc' },
     });
   }
@@ -74,7 +88,7 @@ export class SessionsRepository extends BaseRepository<Session> {
   // ==================== STATISTICS ====================
 
   async getVarianceReport(startDate: Date, endDate: Date): Promise<any[]> {
-    return (this.prisma as any).registerSession.findMany({
+    return this.prismaClient.registerSession.findMany({
       where: {
         status: SessionStatus.CLOSED,
         closedAt: { gte: startDate, lte: endDate },

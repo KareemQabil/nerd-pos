@@ -20,6 +20,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { examples } from '../../common/fixtures/swagger-examples';
+import { ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Sessions')
 @ApiBearerAuth('JWT')
@@ -34,28 +36,10 @@ export class SessionsController {
   @Post('open')
   @Permissions(PERMISSIONS.SESSIONS_OPEN) // Cashier+
   @ApiOperation({ summary: 'Open session', description: 'Opens a new cashier session with opening balance' })
-  @ApiResponse({
-    status: 201,
-    description: 'Session opened successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'Session opened successfully',
-        data: {
-          id: 'sess_123456789',
-          userId: 'usr_123',
-          startTime: '2026-01-23T09:00:00Z',
-          status: 'OPEN',
-          openingBalance: 500.0,
-          deviceId: 'POS-01',
-        },
-        timestamp: '2026-01-23T09:00:00Z',
-        path: '/api/v1/sessions/open',
-        requestId: 'req_123',
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'User already has an open session' })
+  @ApiBody({ schema: { example: examples.session.openSessionRequest.value } })
+  @ApiResponse({ status: 201, description: 'Session opened successfully', content: { 'application/json': { example: examples.session.openSessionSuccess.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
   async openSession(@Body() dto: OpenSessionDto, @Request() req: any) {
     // Extract userId from authenticated JWT token (not from request body)
     const userId: string = req.user?.id || req.user?.sub;
@@ -65,29 +49,9 @@ export class SessionsController {
   @Post('close')
   @Permissions(PERMISSIONS.SESSIONS_CLOSE) // 🔒 Manager only
   @ApiOperation({ summary: 'Close session', description: 'Closes session with closing balance and calculates variance. Manager only.' })
-  @ApiResponse({
-    status: 200,
-    description: 'Session closed successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'Session closed successfully',
-        data: {
-          id: 'sess_123456789',
-          status: 'CLOSED',
-          endTime: '2026-01-23T18:00:00Z',
-          expectedCash: 1250.0,
-          actualCash: 1250.0,
-          variance: 0.0,
-          totalSales: 750.0,
-        },
-        timestamp: '2026-01-23T18:00:00Z',
-        path: '/api/v1/sessions/close',
-      },
-    },
-  })
-  @ApiNotFoundResponse({ description: 'Session not found' })
-  @ApiBadRequestResponse({ description: 'Session already closed' })
+  @ApiResponse({ status: 200, description: 'Session closed successfully', content: { 'application/json': { example: examples.session.closeSessionSuccess.value } } })
+  @ApiResponse({ status: 404, description: 'Session not found', content: { 'application/json': { example: examples.errors.notFoundError.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
   async closeSession(@Body() dto: CloseSessionDto) {
     return this.service.closeSession(dto);
   }

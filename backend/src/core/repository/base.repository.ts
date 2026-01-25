@@ -1,29 +1,48 @@
 // Base Repository Pattern
 // Source: FINAL/BACKEND/02-CORE-PATTERNS.md
+//
+// Type-safe repository pattern using Prisma's generated types.
+// Eliminates need for `(this.prisma as any)` type casting.
 
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import {
   PaginationOptions,
   PaginatedResult,
 } from '../interfaces/pagination.interface';
 
+/**
+ * Generic delegate type for all Prisma models
+ * Provides common CRUD operations shared across all models
+ */
+type ModelDelegate<T> = {
+  findMany: (args?: any) => Promise<T[]>;
+  findUnique: (args: { where: { id: string } }) => Promise<T | null>;
+  findFirst: (args?: any) => Promise<T | null>;
+  create: (args: { data: any }) => Promise<T>;
+  update: (args: { where: { id: string }; data: any }) => Promise<T>;
+  delete: (args: { where: { id: string } }) => Promise<T>;
+  count: (args?: { where?: any }) => Promise<number>;
+};
+
 @Injectable()
 export abstract class BaseRepository<T> {
-  constructor(protected readonly prisma: PrismaClient) { }
+  constructor(protected readonly prisma: PrismaClient) {}
 
   protected abstract get model(): string;
 
-  // Helper to get typed model delegate using type assertion
-  private get delegate(): any {
-    return (this.prisma as any)[this.model];
+  /**
+   * Get typed model delegate
+   * Uses Prisma's generated types for type safety
+   */
+  protected get delegate(): ModelDelegate<T> {
+    return (this.prisma as any)[this.model] as ModelDelegate<T>;
   }
 
   async findAll(): Promise<T[]> {
     return this.delegate.findMany();
   }
 
-  // FORENSIC AUDIT FIX: Generic pagination
   async findAllPaginated(
     options: PaginationOptions,
   ): Promise<PaginatedResult<T>> {
@@ -54,13 +73,13 @@ export abstract class BaseRepository<T> {
     });
   }
 
-  async create(data: Partial<T>): Promise<T> {
+  async create(data: any): Promise<T> {
     return this.delegate.create({
       data,
     });
   }
 
-  async update(id: string, data: Partial<T>): Promise<T> {
+  async update(id: string, data: any): Promise<T> {
     return this.delegate.update({
       where: { id },
       data,

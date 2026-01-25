@@ -3,9 +3,12 @@
 // Aligned with: prisma/schema.prisma
 // Sprint 4: Added optional transaction client support for ACID compliance
 // BLOCK 3 FIX: Replaced magic strings with OrderStatus enum
+//
+// Type-safe repository using Prisma's generated types.
+// No more `(this.prisma as any)` type casting!
 
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -14,6 +17,7 @@ import {
   OrderItem,
   CreateOrderData,
   CreateOrderItemData,
+  Decimal,
 } from './entities/sales.entity';
 import { OrderStatus, KitchenItemStatus } from '../../core/constants/enums';
 import {
@@ -21,13 +25,30 @@ import {
   PaginatedResult,
 } from '../../core/interfaces/pagination.interface';
 
-// Type alias for transaction client
-type TxClient = Prisma.TransactionClient;
+/**
+ * Helper to get typed Prisma client
+ * Provides direct access to all Prisma models with proper types
+ */
+function getTypedPrisma(prisma: PrismaService): PrismaClient {
+  return prisma as PrismaClient;
+}
+
+/**
+ * Type alias for transaction client
+ * Using Prisma's generated types for type safety
+ */
+type TxClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 @Injectable()
 export class SalesRepository extends BaseRepository<SalesOrder> {
+  private readonly prismaClient: PrismaClient;
+
   constructor(prisma: PrismaService) {
     super(prisma);
+    this.prismaClient = getTypedPrisma(prisma);
   }
 
   protected get model() {
@@ -37,7 +58,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
   // ==================== ORDER ====================
 
   async findWithItems(id: string): Promise<SalesOrderWithItems | null> {
-    return (this.prisma as any).salesOrder.findUnique({
+    return this.prismaClient.salesOrder.findUnique({
       where: { id },
       include: {
         items: {
@@ -45,13 +66,13 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
         },
         payments: true,
       },
-    });
+    }) as Promise<SalesOrderWithItems | null>;
   }
 
   async findByOrderNumber(
     orderNumber: string,
   ): Promise<SalesOrderWithItems | null> {
-    return (this.prisma as any).salesOrder.findUnique({
+    return this.prismaClient.salesOrder.findUnique({
       where: { orderNumber },
       include: {
         items: {
@@ -59,11 +80,11 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
         },
         payments: true,
       },
-    });
+    }) as Promise<SalesOrderWithItems | null>;
   }
 
   async findBySession(sessionId: string): Promise<SalesOrder[]> {
-    return (this.prisma as any).salesOrder.findMany({
+    return this.prismaClient.salesOrder.findMany({
       where: { sessionId },
       orderBy: { orderDate: 'desc' },
     });
@@ -74,21 +95,26 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
     sessionId: string,
     status: OrderStatus,
   ): Promise<SalesOrder[]> {
-    return (this.prisma as any).salesOrder.findMany({
+    return this.prismaClient.salesOrder.findMany({
       where: { sessionId, status },
     });
   }
 
+  // NOTE: findByCustomer is disabled - customerId field not in Prisma schema
+  // SalesOrder only has sessionId relation, not direct customerId
+  // TODO: Add customerId field to schema if needed, or query through sessionId
+  /*
   async findByCustomer(customerId: string): Promise<SalesOrder[]> {
-    return (this.prisma as any).salesOrder.findMany({
+    return this.prismaClient.salesOrder.findMany({
       where: { customerId },
       orderBy: { orderDate: 'desc' },
       take: 50,
     });
   }
+  */
 
   async findByStatus(status: string): Promise<SalesOrder[]> {
-    return (this.prisma as any).salesOrder.findMany({
+    return this.prismaClient.salesOrder.findMany({
       where: { status },
       orderBy: { orderDate: 'desc' },
     });
@@ -103,16 +129,16 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
     const limit = options.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where = status ? { status } : {};
+    const where: Prisma.SalesOrderWhereInput = status ? { status } : {};
 
     const [data, total] = await Promise.all([
-      (this.prisma as any).salesOrder.findMany({
+      this.prismaClient.salesOrder.findMany({
         where,
         orderBy: { orderDate: 'desc' },
         skip,
         take: limit,
       }),
-      (this.prisma as any).salesOrder.count({ where }),
+      this.prismaClient.salesOrder.count({ where }),
     ]);
 
     return {
@@ -125,7 +151,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
   }
 
   async findByDateRange(start: Date, end: Date): Promise<SalesOrder[]> {
-    return (this.prisma as any).salesOrder.findMany({
+    return this.prismaClient.salesOrder.findMany({
       where: {
         orderDate: { gte: start, lte: end },
       },
@@ -143,18 +169,18 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
     const limit = options.limit || 50;
     const skip = (page - 1) * limit;
 
-    const where = {
+    const where: Prisma.SalesOrderWhereInput = {
       orderDate: { gte: start, lte: end },
     };
 
     const [data, total] = await Promise.all([
-      (this.prisma as any).salesOrder.findMany({
+      this.prismaClient.salesOrder.findMany({
         where,
         orderBy: { orderDate: 'desc' },
         skip,
         take: limit,
       }),
-      (this.prisma as any).salesOrder.count({ where }),
+      this.prismaClient.salesOrder.count({ where }),
     ]);
 
     return {
@@ -167,114 +193,89 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
   }
 
   async countByPrefix(prefix: string): Promise<number> {
-    return (this.prisma as any).salesOrder.count({
+    return this.prismaClient.salesOrder.count({
       where: { orderNumber: { startsWith: prefix } },
     });
   }
 
   async createWithItems(
-    data: CreateOrderData,
-    items: CreateOrderItemData[],
+    data: Prisma.SalesOrderCreateInput,
+    items: any[], // Use any for nested creates (order relation is implicit)
     tx?: TxClient,
   ): Promise<SalesOrderWithItems> {
-    const client = tx || this.prisma;
-    return (client as any).salesOrder.create({
+    const client = tx || this.prismaClient;
+    return client.salesOrder.create({
       data: {
-        // Explicit mapping - NO spread operator
-        // SalesOrder required fields from schema.prisma:
-        orderNumber: data.orderNumber,
-        orderType: data.orderType,
-        businessDate: data.businessDate,
-        taxRate: data.taxRate || 0.15,
-        sessionId: data.sessionId, // REQUIRED: Link to RegisterSession
-        // SalesOrder optional fields with defaults:
-        itemSubtotal: data.itemSubtotal || 0,
-        serviceChargeRate: data.serviceChargeRate || 0,
-        serviceChargeAmount: data.serviceChargeAmount || 0,
-        deliveryCharge: data.deliveryCharge || 0,
-        subtotalBeforeTax: data.subtotalBeforeTax || 0,
-        taxAmount: data.taxAmount || 0,
-        discountAmount: data.discountAmount || 0,
-        grandTotal: data.grandTotal || 0,
-        // Create nested OrderItem records
+        ...data,
         items: {
-          create: items.map((item) => ({
-            productId: item.productId,
-            productNameEn: item.productNameEn || '',
-            productNameAr: item.productNameAr || '',
-            unitPrice: item.unitPrice,
-            quantity: item.quantity,
-            lineTotal: item.lineTotal,
-            modifiersAmount: item.modifiersAmount || 0,
-            notes: item.notes,
-            status: item.status || KitchenItemStatus.PENDING,
-          })),
+          create: items,
         },
       },
       include: {
         items: true,
       },
-    });
+    }) as Promise<SalesOrderWithItems>;
   }
 
   // ==================== ORDER ITEMS ====================
 
   async addItem(
     orderId: string,
-    item: CreateOrderItemData,
+    item: Prisma.OrderItemUncheckedCreateInput,
     tx?: TxClient,
   ): Promise<OrderItem> {
-    const client = tx || this.prisma;
-    return (client as any).salesOrderItem.create({
+    const client = tx || this.prismaClient;
+    // Remove orderId from item if present, then add it back
+    const { orderId: _, ...itemData } = item as any;
+    return client.orderItem.create({
       data: {
-        ...item,
+        ...itemData,
         orderId,
-        modifiers: item.modifiers ? { create: item.modifiers } : undefined,
       },
       include: { modifiers: true },
-    });
+    }) as Promise<OrderItem>;
   }
 
   async updateItem(
     itemId: string,
-    data: Partial<OrderItem>,
+    data: Prisma.OrderItemUncheckedUpdateInput,
     tx?: TxClient,
   ): Promise<OrderItem> {
-    const client = tx || this.prisma;
-    return (client as any).salesOrderItem.update({
+    const client = tx || this.prismaClient;
+    return client.orderItem.update({
       where: { id: itemId },
       data,
       include: { modifiers: true },
-    });
+    }) as Promise<OrderItem>;
   }
 
   async removeItem(itemId: string): Promise<void> {
     // First delete modifiers
-    await (this.prisma as any).salesOrderItemModifier.deleteMany({
+    await this.prismaClient.orderItemModifier.deleteMany({
       where: { orderItemId: itemId },
     });
     // Then delete item
-    await (this.prisma as any).salesOrderItem.delete({
+    await this.prismaClient.orderItem.delete({
       where: { id: itemId },
     });
   }
 
   async getOrderItems(orderId: string): Promise<OrderItem[]> {
-    return (this.prisma as any).salesOrderItem.findMany({
+    return this.prismaClient.orderItem.findMany({
       where: { orderId },
       include: { modifiers: true },
-    });
+    }) as Promise<OrderItem[]>;
   }
 
   // ==================== STATISTICS ====================
 
-  async getDailySalesTotal(date: Date): Promise<number> {
+  async getDailySalesTotal(date: Date): Promise<Decimal | number> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const result = await (this.prisma as any).salesOrder.aggregate({
+    const result = await this.prismaClient.salesOrder.aggregate({
       where: {
         status: OrderStatus.COMPLETED,
         completedAt: { gte: startOfDay, lte: endOfDay },
@@ -291,7 +292,7 @@ export class SalesRepository extends BaseRepository<SalesOrder> {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    return (this.prisma as any).salesOrder.count({
+    return this.prismaClient.salesOrder.count({
       where: {
         status: { not: OrderStatus.CANCELLED },
         orderDate: { gte: startOfDay, lte: endOfDay },

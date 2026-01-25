@@ -38,6 +38,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { examples } from '../../common/fixtures/swagger-examples';
+import { ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Sales')
 @ApiBearerAuth('JWT')
@@ -52,31 +54,10 @@ export class SalesController {
   @Post()
   @Permissions(PERMISSIONS.SALES_CREATE) // Cashier+
   @ApiOperation({ summary: 'Create new order', description: 'Creates a new order (DINE_IN, TAKEAWAY, or DELIVERY)' })
-  @ApiResponse({
-    status: 201,
-    description: 'Order created successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'Order created successfully',
-        data: {
-          id: 'ord_123456789',
-          orderNumber: 'ORD-20260123-001',
-          status: 'DRAFT',
-          type: 'DINE_IN',
-          items: [],
-          subtotal: 0,
-          tax: 0,
-          total: 0,
-          createdAt: '2026-01-23T12:00:00Z',
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-        path: '/api/v1/orders',
-        requestId: 'req_123',
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Validation error - invalid input data' })
+  @ApiBody({ schema: { example: examples.sales.createOrderRequest.value } })
+  @ApiResponse({ status: 201, description: 'Order created successfully', content: { 'application/json': { example: examples.sales.createOrderSuccess.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
   async createOrder(
     @Body() dto: CreateOrderDto,
     @CurrentUser('sub') userId: string,
@@ -134,35 +115,9 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get order by ID', description: 'Returns order with all items and details' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Order found',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          id: 'ord_123',
-          orderNumber: 'ORD-001',
-          status: 'CONFIRMED',
-          type: 'DINE_IN',
-          subtotal: 100.0,
-          tax: 15.0,
-          total: 115.0,
-          items: [
-            {
-              id: 'item_1',
-              productName: 'Burger',
-              quantity: 2,
-              price: 50.0,
-            },
-          ],
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
-  })
-  @ApiNotFoundResponse({ description: 'Order not found' })
+  @ApiResponse({ status: 200, description: 'Order found', content: { 'application/json': { example: examples.sales.createOrderSuccess.value } } })
+  @ApiResponse({ status: 404, description: 'Order not found', content: { 'application/json': { example: examples.errors.notFoundError.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
   async findOrderById(@Param('id') id: string) {
     return this.service.findOrderByIdWithItems(id);
   }
@@ -197,8 +152,9 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_CONFIRM) // Cashier+
   @ApiOperation({ summary: 'Confirm order', description: 'Confirms order and sends to kitchen' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({ status: 200, description: 'Order confirmed' })
-  @ApiNotFoundResponse({ description: 'Order not found' })
+  @ApiResponse({ status: 200, description: 'Order confirmed', content: { 'application/json': { example: examples.sales.confirmOrderSuccess.value } } })
+  @ApiResponse({ status: 404, description: 'Order not found', content: { 'application/json': { example: examples.errors.notFoundError.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
   async confirmOrder(@Param('id') id: string) {
     return this.service.confirmOrder(id);
   }
@@ -294,6 +250,9 @@ export class SalesController {
     return this.service.findOrdersBySession(sessionId);
   }
 
+  // NOTE: findByCustomer endpoint disabled - customerId field not in Prisma schema
+  // TODO: Implement customer order lookup through sessionId if needed
+  /*
   @Get('customer/:customerId')
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get orders by customer', description: 'Returns all orders for a customer' })
@@ -302,4 +261,5 @@ export class SalesController {
   async findByCustomer(@Param('customerId') customerId: string) {
     return this.service.findOrdersByCustomer(customerId);
   }
+  */
 }

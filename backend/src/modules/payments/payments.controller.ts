@@ -35,6 +35,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { examples } from '../../common/fixtures/swagger-examples';
+import { ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Payments')
 @ApiBearerAuth('JWT')
@@ -49,29 +51,10 @@ export class PaymentsController {
   @Post()
   @Permissions(PERMISSIONS.PAYMENTS_CREATE) // Cashier+
   @ApiOperation({ summary: 'Process payment', description: 'Processes a payment for an order' })
-  @ApiResponse({
-    status: 201,
-    description: 'Payment processed successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'Payment processed successfully',
-        data: {
-          id: 'pay_123456789',
-          orderId: 'ord_123456789',
-          amount: 50.0,
-          method: 'CASH',
-          status: 'COMPLETED',
-          transactionId: 'tx_987654321',
-          createdAt: '2026-01-23T12:05:00Z',
-        },
-        timestamp: '2026-01-23T12:05:00Z',
-        path: '/api/v1/payments',
-        requestId: 'req_123',
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Validation error or insufficient amount' })
+  @ApiBody({ schema: { example: examples.payment.createPaymentRequest.value } })
+  @ApiResponse({ status: 201, description: 'Payment processed successfully', content: { 'application/json': { example: examples.payment.paymentSuccess.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
   async createPayment(@Body() dto: CreatePaymentDto) {
     return this.service.createPayment(dto);
   }
@@ -79,28 +62,39 @@ export class PaymentsController {
   @Post('split')
   @Permissions(PERMISSIONS.PAYMENTS_SPLIT) // Cashier+
   @ApiOperation({ summary: 'Process split payment', description: 'Processes multiple payment methods for one order' })
+  @ApiBody({ schema: { example: examples.payment.createPaymentRequest.value } })
+  @ApiResponse({ status: 201, description: 'Split payment processed', content: { 'application/json': { example: examples.payment.paymentSuccess.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
+  async processSplitPayment(@Body() dto: SplitPaymentDto) {
+    return this.service.processSplitPayment(dto);
+  }
+
+  @Get('methods')
+  @Permissions(PERMISSIONS.PAYMENTS_VIEW) // Cashier+ (view methods)
+  @ApiOperation({ summary: 'Get payment methods', description: 'Returns all available payment methods' })
   @ApiResponse({
-    status: 201,
-    description: 'Split payment processed',
+    status: 200,
+    description: 'Payment methods retrieved',
     schema: {
       example: {
         success: true,
-        message: 'Split payment processed successfully',
-        data: {
-          orderId: 'ord_123456789',
-          totalPaid: 100.0,
-          payments: [
-            { method: 'CASH', amount: 50.0, status: 'COMPLETED' },
-            { method: 'CARD', amount: 50.0, status: 'COMPLETED' },
-          ],
-        },
-        timestamp: '2026-01-23T12:05:00Z',
+        message: 'Request successful',
+        data: [
+          {
+            id: 'pm_1',
+            nameEn: 'Cash',
+            nameAr: 'نقدي',
+            type: 'CASH',
+            active: true,
+          },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error or amounts do not match total' })
-  async processSplitPayment(@Body() dto: SplitPaymentDto) {
-    return this.service.processSplitPayment(dto);
+  async getAllPaymentMethods() {
+    return this.service.getAllPaymentMethods();
   }
 
   @Get(':id')
@@ -229,32 +223,7 @@ export class PaymentsController {
 
   // ==================== PAYMENT METHODS ====================
 
-  @Get('methods')
-  @Permissions(PERMISSIONS.PAYMENTS_VIEW) // Cashier+ (view methods)
-  @ApiOperation({ summary: 'Get payment methods', description: 'Returns all available payment methods' })
-  @ApiResponse({
-    status: 200,
-    description: 'Payment methods retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'pm_1',
-            nameEn: 'Cash',
-            nameAr: 'نقدي',
-            type: 'CASH',
-            active: true,
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
-  })
-  async getAllPaymentMethods() {
-    return this.service.getAllPaymentMethods();
-  }
+
 
   @Post('methods')
   @Permissions(PERMISSIONS.SETTINGS_UPDATE) // 🔒 Admin only

@@ -6,12 +6,14 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { EventBusModule } from './core/event-bus/event-bus.module';
 import { DecimalTransformInterceptor } from './common/interceptors/decimal-transform.interceptor';
 import { RequestIdMiddleware, ResponseHeadersMiddleware } from './common/middleware';
+import { envValidationSchema } from './config/env.validation';
 
 // Feature Modules
 import { ProductsModule } from './modules/products/products.module';
@@ -39,7 +41,17 @@ import { LookupModule } from './modules/lookup/lookup.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: envValidationSchema,
+      validationOptions: {
+        allowUnknown: true,
+        abortEarly: false,
+      },
+      envFilePath: ['.env.local', '.env'],
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // 60 seconds
+      limit: 100, // 100 requests per minute
+    }]),
     EventEmitterModule.forRoot(), // Enable @OnEvent handlers
     PrismaModule,
     EventBusModule,

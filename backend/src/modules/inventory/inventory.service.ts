@@ -87,7 +87,7 @@ export class InventoryService {
 
     // Create batch for FIFO tracking
     const batch = await this.repo.createBatch({
-      inventoryItemId: item.id,
+      inventoryItem: { connect: { id: item.id } },
       batchNumber,
       receivedDate: new Date(),
       expiryDate,
@@ -176,8 +176,8 @@ export class InventoryService {
         new LowStockAlertEvent(
           productId,
           warehouseId,
-          item.quantityOnHand,
-          item.reorderPoint,
+          new Decimal(item.quantityOnHand).toNumber(),
+          new Decimal(item.reorderPoint).toNumber(),
         ),
       );
     }
@@ -344,9 +344,9 @@ export class InventoryService {
 
       deductions.push({
         batchId: batch.id,
-        quantity: toDeduct.toNumber(),
+        quantity: toDeduct,
         unitCost: batch.costPerUnit,
-        totalCost: toDeduct.times(batch.costPerUnit).toNumber(),
+        totalCost: toDeduct.times(batch.costPerUnit),
       });
 
       remainingQty = remainingQty.minus(toDeduct);
@@ -407,7 +407,7 @@ export class InventoryService {
     // Create batch with tx
     const batch = await this.repo.createBatch(
       {
-        inventoryItemId: item!.id,
+        inventoryItem: { connect: { id: item!.id } },
         batchNumber,
         receivedDate: new Date(),
         expiryDate,
@@ -486,7 +486,12 @@ export class InventoryService {
   // ==================== RECIPE ====================
 
   async createRecipe(dto: CreateRecipeDto): Promise<Recipe> {
-    return this.repo.createRecipe(dto);
+    // Map DTO to Prisma RecipeCreateInput
+    const recipeData: Prisma.RecipeCreateInput = {
+      product: { connect: { id: dto.productId } },
+      yieldQuantity: dto.yield,
+    };
+    return this.repo.createRecipe(recipeData);
   }
 
   async getRecipeByProduct(productId: string): Promise<Recipe | null> {
@@ -494,7 +499,14 @@ export class InventoryService {
   }
 
   async addRecipeIngredient(dto: AddRecipeIngredientDto) {
-    return this.repo.addRecipeIngredient(dto);
+    // Map DTO to Prisma RecipeIngredientCreateInput
+    const ingredientData: Prisma.RecipeIngredientCreateInput = {
+      recipe: { connect: { id: dto.recipeId } },
+      ingredient: { connect: { id: dto.productId } },
+      quantityRequired: dto.quantity,
+      unit: dto.unit,
+    };
+    return this.repo.addRecipeIngredient(ingredientData);
   }
 
   // Calculate recipe cost based on FIFO ingredient costs

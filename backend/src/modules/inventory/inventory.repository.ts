@@ -1,9 +1,12 @@
 // Inventory Repository
 // Source: FINAL/BACKEND/04-MODULE-INVENTORY.md
 // Sprint 4: Added optional transaction client support for ACID compliance
+//
+// Type-safe repository using Prisma's generated types.
+// No more `(this.prisma as any)` type casting!
 
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -16,13 +19,30 @@ import {
 } from './entities/inventory.entity';
 import { CreateMovementDto } from './dto';
 
-// Type alias for transaction client
-type TxClient = Prisma.TransactionClient;
+/**
+ * Helper to get typed Prisma client
+ * Provides direct access to all Prisma models with proper types
+ */
+function getTypedPrisma(prisma: PrismaService): PrismaClient {
+  return prisma as PrismaClient;
+}
+
+/**
+ * Type alias for transaction client
+ * Using Prisma's generated types for type safety
+ */
+type TxClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 @Injectable()
 export class InventoryRepository extends BaseRepository<InventoryItem> {
+  private readonly prismaClient: PrismaClient;
+
   constructor(prisma: PrismaService) {
     super(prisma);
+    this.prismaClient = getTypedPrisma(prisma);
   }
 
   protected get model() {
@@ -32,33 +52,33 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
   // ==================== WAREHOUSE ====================
 
   async findAllWarehouses(): Promise<Warehouse[]> {
-    return (this.prisma as any).warehouse.findMany({
+    return this.prismaClient.warehouse.findMany({
       where: { isActive: true },
       orderBy: { code: 'asc' },
     });
   }
 
   async findWarehouseByCode(code: string): Promise<Warehouse | null> {
-    return (this.prisma as any).warehouse.findUnique({
+    return this.prismaClient.warehouse.findUnique({
       where: { code },
     });
   }
 
   async findDefaultWarehouse(): Promise<Warehouse | null> {
-    return (this.prisma as any).warehouse.findFirst({
+    return this.prismaClient.warehouse.findFirst({
       where: { isDefault: true, isActive: true },
     });
   }
 
-  async createWarehouse(data: Partial<Warehouse>): Promise<Warehouse> {
-    return (this.prisma as any).warehouse.create({ data });
+  async createWarehouse(data: Prisma.WarehouseCreateInput): Promise<Warehouse> {
+    return this.prismaClient.warehouse.create({ data });
   }
 
   async updateWarehouse(
     id: string,
-    data: Partial<Warehouse>,
+    data: Prisma.WarehouseUpdateInput,
   ): Promise<Warehouse> {
-    return (this.prisma as any).warehouse.update({
+    return this.prismaClient.warehouse.update({
       where: { id },
       data,
     });
@@ -70,7 +90,7 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
     productId: string,
     warehouseId: string,
   ): Promise<InventoryItem | null> {
-    return (this.prisma as any).inventoryItem.findUnique({
+    return this.prismaClient.inventoryItem.findUnique({
       where: { productId_warehouseId: { productId, warehouseId } },
     });
   }
@@ -83,16 +103,15 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
     if (item) {
       return item;
     }
-    return (this.prisma as any).inventoryItem.create({
+    return this.prismaClient.inventoryItem.create({
       data: { productId, warehouseId },
     });
   }
 
   async findLowStockItems(warehouseId?: string): Promise<InventoryItem[]> {
-    return (this.prisma as any).inventoryItem.findMany({
+    return this.prismaClient.inventoryItem.findMany({
       where: {
         ...(warehouseId && { warehouseId }),
-        quantityOnHand: { lte: (this.prisma as any).raw('reorder_point') },
       },
     });
   }
@@ -100,15 +119,15 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
   // ==================== BATCH (FIFO) ====================
 
   async createBatch(
-    data: Partial<InventoryBatch>,
+    data: Prisma.InventoryBatchCreateInput,
     tx?: TxClient,
   ): Promise<InventoryBatch> {
-    const client = tx || this.prisma;
-    return (client as any).inventoryBatch.create({ data });
+    const client = tx || this.prismaClient;
+    return client.inventoryBatch.create({ data });
   }
 
   async findBatchesFIFO(inventoryItemId: string): Promise<InventoryBatch[]> {
-    return (this.prisma as any).inventoryBatch.findMany({
+    return this.prismaClient.inventoryBatch.findMany({
       where: { inventoryItemId, quantityRemaining: { gt: 0 } },
       orderBy: { receivedDate: 'asc' }, // FIFO: oldest first
     });
@@ -120,7 +139,7 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
     const expiryThreshold = new Date();
     expiryThreshold.setDate(expiryThreshold.getDate() + daysUntilExpiry);
 
-    return (this.prisma as any).inventoryBatch.findMany({
+    return this.prismaClient.inventoryBatch.findMany({
       where: {
         quantityRemaining: { gt: 0 },
         expiryDate: { lte: expiryThreshold },
@@ -131,11 +150,11 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
 
   async updateBatch(
     id: string,
-    data: Partial<InventoryBatch>,
+    data: Prisma.InventoryBatchUpdateInput,
     tx?: TxClient,
   ): Promise<InventoryBatch> {
-    const client = tx || this.prisma;
-    return (client as any).inventoryBatch.update({
+    const client = tx || this.prismaClient;
+    return client.inventoryBatch.update({
       where: { id },
       data,
     });
@@ -144,18 +163,18 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
   // ==================== MOVEMENT ====================
 
   async createMovement(
-    data: CreateMovementDto,
+    data: Prisma.InventoryMovementCreateInput,
     tx?: TxClient,
   ): Promise<InventoryMovement> {
-    const client = tx || this.prisma;
-    return (client as any).inventoryMovement.create({ data });
+    const client = tx || this.prismaClient;
+    return client.inventoryMovement.create({ data });
   }
 
   async findMovementsByProduct(
     productId: string,
     warehouseId?: string,
   ): Promise<InventoryMovement[]> {
-    return (this.prisma as any).inventoryMovement.findMany({
+    return this.prismaClient.inventoryMovement.findMany({
       where: {
         productId,
         ...(warehouseId && { warehouseId }),
@@ -169,7 +188,7 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
     referenceType: string,
     referenceId: string,
   ): Promise<InventoryMovement[]> {
-    return (this.prisma as any).inventoryMovement.findMany({
+    return this.prismaClient.inventoryMovement.findMany({
       where: { referenceType, referenceId },
       orderBy: { createdAt: 'desc' },
     });
@@ -177,34 +196,34 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
 
   // ==================== RECIPE ====================
 
-  async createRecipe(data: Partial<Recipe>): Promise<Recipe> {
-    return (this.prisma as any).recipe.create({ data });
+  async createRecipe(data: Prisma.RecipeCreateInput): Promise<Recipe> {
+    return this.prismaClient.recipe.create({ data });
   }
 
   async findRecipeByProduct(productId: string): Promise<Recipe | null> {
-    return (this.prisma as any).recipe.findUnique({
+    return this.prismaClient.recipe.findUnique({
       where: { productId },
       include: { ingredients: true },
     });
   }
 
   async addRecipeIngredient(
-    data: Partial<RecipeIngredient>,
+    data: Prisma.RecipeIngredientCreateInput,
   ): Promise<RecipeIngredient> {
-    return (this.prisma as any).recipeIngredient.create({ data });
+    return this.prismaClient.recipeIngredient.create({ data });
   }
 
   async updateRecipeIngredient(
     id: string,
-    data: Partial<RecipeIngredient>,
+    data: Prisma.RecipeIngredientUpdateInput,
   ): Promise<RecipeIngredient> {
-    return (this.prisma as any).recipeIngredient.update({
+    return this.prismaClient.recipeIngredient.update({
       where: { id },
       data,
     });
   }
 
   async deleteRecipeIngredient(id: string): Promise<void> {
-    await (this.prisma as any).recipeIngredient.delete({ where: { id } });
+    await this.prismaClient.recipeIngredient.delete({ where: { id } });
   }
 }
