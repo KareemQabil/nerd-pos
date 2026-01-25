@@ -7,7 +7,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SalesService } from '../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../src/modules/sales/sales.repository';
-import { PrismaService } from '../../../src/core/prisma/prisma/prisma.service';
+import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
 import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';

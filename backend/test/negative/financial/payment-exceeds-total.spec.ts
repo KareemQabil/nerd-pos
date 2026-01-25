@@ -7,11 +7,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from '../../../src/modules/payments/payments.service';
 import { PaymentsRepository } from '../../../src/modules/payments/payments.repository';
-import { PrismaService } from '../../../src/core/prisma/prisma/prisma.service';
+import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Decimal } from '@prisma/client';
 
 describe('FIN-06: Payment Exceeds Total', () => {
   let paymentsService: PaymentsService;

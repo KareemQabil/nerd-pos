@@ -6,7 +6,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
-import { PrismaService } from '../../../src/core/prisma/prisma/prisma.service';
+import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus, IEventHandler } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
@@ -81,7 +81,7 @@ describe('EB-06: Multiple Handlers Fail', () => {
     const hasFailures = (eventBus as any).hasFailures?.() ?? false;
     const failures = (eventBus as any).getFailures?.() ?? [];
 
-    expect(hasures).toBe(true);
+    expect((eventBus as any).hasFailures?.() ?? false).toBe(true);
     expect(failures.length).toBe(3); // All 3 handlers should fail
   });
 

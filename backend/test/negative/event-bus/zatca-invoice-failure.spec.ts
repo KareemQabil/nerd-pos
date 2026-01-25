@@ -6,7 +6,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
-import { PrismaService } from '../../../src/core/prisma/prisma/prisma.service';
+import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus, IEventHandler } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
@@ -80,7 +80,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     const hasFailures = (eventBus as any).hasFailures?.() ?? false;
     const failures = (eventBus as any).getFailures?.() ?? [];
 
-    expect(hasures).toBe(true);
+    expect((eventBus as any).hasFailures?.() ?? false).toBe(true);
     expect(failures.length).toBeGreaterThan(0);
     expect(failures[0].error.message).toContain('ZATCA');
   });
@@ -211,7 +211,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
 
     // Handler should receive all VAT details for compliance
     const hasFailures = (eventBus as any).hasFailures?.() ?? false;
-    expect(hasures).toBe(false);
+    expect((eventBus as any).hasFailures?.() ?? false).toBe(false);
   });
 
   it('should handle ZATCA API timeout', async () => {
@@ -305,6 +305,6 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     });
 
     const hasFailures = (eventBus as any).hasFailures?.() ?? false;
-    expect(hasures).toBe(false);
+    expect((eventBus as any).hasFailures?.() ?? false).toBe(false);
   });
 });

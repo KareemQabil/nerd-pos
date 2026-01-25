@@ -8,7 +8,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
 import { InventoryService } from '../../../src/modules/inventory/inventory.service';
 import { InventoryRepository } from '../../../src/modules/inventory/inventory.repository';
-import { PrismaService } from '../../../src/core/prisma/prisma/prisma.service';
+import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus, IEventHandler } from '../../../src/core/event-bus/event-bus.interface';
 import { cleanupTestData } from '../../helpers/test-helpers';
 import { EventSpy } from '../../helpers/event-spy';
@@ -127,7 +127,7 @@ describe('EB-01: Stock Deduction Failure', () => {
       await eventBus.publish(eventName, { id: 'test' });
 
       const hasFailures = (eventBus as any).hasFailures?.() ?? false;
-      expect(hasures).toBe(true);
+      expect((eventBus as any).hasFailures?.() ?? false).toBe(true);
 
       // Reset for next event
       (eventBus as any).handlers.clear();

@@ -10,7 +10,7 @@ import { SalesService } from '../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { InventoryService } from '../../../src/modules/inventory/inventory.service';
 import { InventoryRepository } from '../../../src/modules/inventory/inventory.repository';
-import { PrismaService } from '../../../src/core/prisma/prisma/prisma.service';
+import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
 import { EventSpy } from '../../helpers/event-spy';
