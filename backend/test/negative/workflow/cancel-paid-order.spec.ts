@@ -77,8 +77,8 @@ describe('WF-02: Cancel Paid Order', () => {
       data: {
         orderId: order.id,
         amount: 100,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -197,8 +197,8 @@ describe('WF-02: Cancel Paid Order', () => {
       data: {
         orderId: order.id,
         amount: 100,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 

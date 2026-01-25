@@ -71,6 +71,7 @@ describe('INV-02: Selling Zero-Stock Item', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',
@@ -113,6 +114,7 @@ describe('INV-02: Selling Zero-Stock Item', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',
@@ -155,6 +157,7 @@ describe('INV-02: Selling Zero-Stock Item', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',
@@ -186,6 +189,7 @@ describe('INV-02: Selling Zero-Stock Item', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',

@@ -11,7 +11,10 @@ import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
-import { Decimal } from '@prisma/client';
+import { Prisma } from '@prisma/client'
+const PrismaClient = require('@prisma/client').PrismaClient
+type Decimal = PrismaClient.Decimal
+type Decimal = Prisma.Decimal;
 
 describe('FIN-06: Payment Exceeds Total', () => {
   let paymentsService: PaymentsService;
@@ -52,8 +55,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 100, // Exceeds total!
-        method: 'CASH',
-        reference: 'PAY-EXCESS'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-EXCESS'
       }
     }).catch(e => ({ error: e }));
 
@@ -72,8 +75,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 100, // Exact total
-        method: 'CASH',
-        reference: 'PAY-EXACT'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-EXACT'
       }
     });
 
@@ -91,8 +94,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 50, // Partial payment
-        method: 'CASH',
-        reference: 'PAY-PARTIAL'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-PARTIAL'
       }
     });
 
@@ -122,8 +125,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 60,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -132,8 +135,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 50, // Would exceed remaining
-        method: 'CARD',
-        reference: 'PAY-2'
+        paymentMethod: 'CARD',
+        referenceNumber: 'PAY-2'
       }
     }).catch(e => ({ error: e }));
 
@@ -152,8 +155,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 40,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -161,8 +164,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 30,
-        method: 'CARD',
-        reference: 'PAY-2'
+        paymentMethod: 'CARD',
+        referenceNumber: 'PAY-2'
       }
     });
 
@@ -170,8 +173,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 30,
-        method: 'VOUCHER',
-        reference: 'PAY-3'
+        paymentMethod: 'VOUCHER',
+        referenceNumber: 'PAY-3'
       }
     });
 
@@ -225,8 +228,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 10, // Would exceed 0 total
-        method: 'CASH',
-        reference: 'PAY-ZERO'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-ZERO'
       }
     }).catch(e => ({ error: e }));
 
@@ -245,8 +248,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: -50,
-        method: 'CASH',
-        reference: 'PAY-NEG'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-NEG'
       }
     }).catch(e => ({ error: e }));
 
@@ -264,8 +267,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 100,
-        method: 'CASH',
-        reference: 'PAY-OVER'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-OVER'
       }
     }).catch(e => ({ error: e }));
 
@@ -293,8 +296,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 80, // Equals discounted total
-        method: 'CASH',
-        reference: 'PAY-DISCOUNT'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-DISCOUNT'
       }
     });
 
@@ -314,8 +317,8 @@ describe('FIN-06: Payment Exceeds Total', () => {
       data: {
         orderId: order.id,
         amount: 100, // Original amount before discount
-        method: 'CASH',
-        reference: 'PAY-ORIGINAL'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-ORIGINAL'
       }
     }).catch(e => ({ error: e }));
 

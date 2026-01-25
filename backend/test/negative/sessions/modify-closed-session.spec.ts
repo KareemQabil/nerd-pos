@@ -37,12 +37,11 @@ describe('SES-08: Modify Closed Session', () => {
     // Setup: Create a closed session
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -50,7 +49,7 @@ describe('SES-08: Modify Closed Session', () => {
     // Act: Try to update closing balance
     const result = await prisma.registerSession.update({
       where: { id: session.id },
-      data: { closingBalance: 2000 }
+      data: { actualClosingBalance: 2000 }
     }).catch(e => ({ error: e }));
 
     // Should reject (application validation needed)
@@ -68,12 +67,11 @@ describe('SES-08: Modify Closed Session', () => {
     // Setup: Create a closed session
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-002',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -97,12 +95,11 @@ describe('SES-08: Modify Closed Session', () => {
   it('should reject reopening closed session', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-003',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -121,13 +118,12 @@ describe('SES-08: Modify Closed Session', () => {
   it('should preserve closed session data integrity', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-004',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
-        expectedClosingBalance: 1500,
+        actualClosingBalance: 1500,
+        expectedCash: 1500,
         discrepancy: 0,
         closedAt: new Date()
       }
@@ -150,12 +146,11 @@ describe('SES-08: Modify Closed Session', () => {
 
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-005',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date(),
         closedBy: closedBy
       }
@@ -167,12 +162,11 @@ describe('SES-08: Modify Closed Session', () => {
   it('should prevent modification of session denominations after close', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-006',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -199,12 +193,11 @@ describe('SES-08: Modify Closed Session', () => {
   it('should allow read-only access to closed sessions', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-007',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -221,12 +214,11 @@ describe('SES-08: Modify Closed Session', () => {
   it('should generate audit trail for closed session modifications', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-008',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date(),
         closedBy: 'manager-1'
       }
@@ -244,12 +236,11 @@ describe('SES-08: Modify Closed Session', () => {
   it('should not delete closed sessions', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-009',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -266,13 +257,12 @@ describe('SES-08: Modify Closed Session', () => {
   it('should calculate session summary from closed data', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-010',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
-        expectedClosingBalance: 1500,
+        actualClosingBalance: 1500,
+        expectedCash: 1500,
         closedAt: new Date()
       }
     });

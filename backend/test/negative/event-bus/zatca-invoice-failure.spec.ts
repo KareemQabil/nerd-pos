@@ -64,6 +64,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         status: OrderStatus.PAID,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 115, // 100 + 15% VAT
         tax: 15
       }
@@ -117,6 +118,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         status: OrderStatus.PAID,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 115,
         tax: 15,
         paidAt: new Date()
@@ -146,6 +148,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         orderType: 'DINE_IN',
         status: OrderStatus.PAID,
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 115,
         tax: 15,
@@ -264,6 +267,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         status: OrderStatus.PAID,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 115,
         tax: 15,
         paidAt: new Date()
@@ -275,8 +279,8 @@ describe('EB-05: ZATCA Invoice Failure', () => {
       data: {
         orderId: order.id,
         amount: 115,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 

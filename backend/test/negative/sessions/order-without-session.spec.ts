@@ -106,7 +106,6 @@ describe('SES-02: Order Without Session', () => {
     // Setup: Create a session
     await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-TEST',
         userId: 'test-user',
         terminalId: 'test-terminal',
         status: 'OPEN',

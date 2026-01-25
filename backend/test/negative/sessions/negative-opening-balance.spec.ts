@@ -10,7 +10,10 @@ import { SessionsRepository } from '../../../src/modules/sessions/sessions.repos
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { cleanupTestData } from '../../helpers/test-helpers';
-import { Decimal } from '@prisma/client';
+import { Prisma } from '@prisma/client'
+const PrismaClient = require('@prisma/client').PrismaClient
+type Decimal = PrismaClient.Decimal
+type Decimal = Prisma.Decimal;
 
 describe('SES-04: Negative Opening Balance', () => {
   let sessionsService: SessionsService;
@@ -36,7 +39,6 @@ describe('SES-04: Negative Opening Balance', () => {
 
   it('should reject opening session with negative balance', async () => {
     const sessionData = {
-      sessionNumber: 'SESS-NEG-001',
       userId: 'user-1',
       terminalId: 'terminal-1',
       openingBalance: -100, // Negative!
@@ -53,7 +55,6 @@ describe('SES-04: Negative Opening Balance', () => {
 
     // Verify no session created
     const sessions = await prisma.registerSession.findMany({
-      where: { sessionNumber: 'SESS-NEG-001' }
     });
 
     expect(sessions.length).toBe(0);
@@ -62,7 +63,6 @@ describe('SES-04: Negative Opening Balance', () => {
   it('should allow opening session with zero balance', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-ZERO-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -77,7 +77,6 @@ describe('SES-04: Negative Opening Balance', () => {
   it('should allow opening session with positive balance', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-POS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -92,7 +91,6 @@ describe('SES-04: Negative Opening Balance', () => {
     // Create valid session first
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-UPD-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -121,7 +119,6 @@ describe('SES-04: Negative Opening Balance', () => {
     // Test with large amount (e.g., starting with bank deposit)
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-LARGE-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -136,7 +133,6 @@ describe('SES-04: Negative Opening Balance', () => {
     // Opening balance must be a number/Decimal
     const result = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-TYPE-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -152,7 +148,6 @@ describe('SES-04: Negative Opening Balance', () => {
 
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-TRACK-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -172,7 +167,6 @@ describe('SES-04: Negative Opening Balance', () => {
     // System should prevent this or show warning
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-OPS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -191,7 +185,6 @@ describe('SES-04: Negative Opening Balance', () => {
     // New terminal starting with empty cash drawer
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-NEW-001',
         userId: 'user-1',
         terminalId: 'new-terminal',
         status: 'OPEN',
@@ -209,7 +202,6 @@ describe('SES-04: Negative Opening Balance', () => {
   it('should include opening balance in session summary', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-SUMMARY-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -244,7 +236,6 @@ describe('SES-04: Negative Opening Balance', () => {
     for (const balance of invalidBalances) {
       const result = await prisma.registerSession.create({
         data: {
-          sessionNumber: `SESS-INV-${Date.now()}`,
           userId: 'user-1',
           terminalId: 'terminal-1',
           status: 'OPEN',

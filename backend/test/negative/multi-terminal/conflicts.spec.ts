@@ -58,7 +58,7 @@ describe('MT-02: Pay Same Order Twice', () => {
         data: {
           orderId: order.id,
           amount,
-          method: 'CASH',
+          paymentMethod: 'CASH',
           reference: `PAY-${Date.now()}`
         }
       });
@@ -100,8 +100,8 @@ describe('MT-02: Pay Same Order Twice', () => {
       data: {
         orderId: order.id,
         amount: 100,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 

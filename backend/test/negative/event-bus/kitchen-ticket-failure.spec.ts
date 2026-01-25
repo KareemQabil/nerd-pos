@@ -70,6 +70,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
         status: OrderStatus.CONFIRMED,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100
       }
     });
@@ -98,6 +99,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
         orderType: 'DINE_IN',
         status: OrderStatus.CONFIRMED,
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 100
       }
@@ -144,6 +146,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
         status: OrderStatus.CONFIRMED,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 50
       }
     });
@@ -167,6 +170,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
         orderType: 'DINE_IN',
         status: OrderStatus.CONFIRMED,
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 100
       }
@@ -224,6 +228,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
           orderType: 'DINE_IN',
           status: OrderStatus.CONFIRMED,
           sessionId: 'test-session',
+        businessDate: new Date(),
           businessDate: new Date(),
           grandTotal: 100
         }
@@ -234,6 +239,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
           orderType: 'DINE_IN',
           status: OrderStatus.CONFIRMED,
           sessionId: 'test-session',
+        businessDate: new Date(),
           businessDate: new Date(),
           grandTotal: 150
         }

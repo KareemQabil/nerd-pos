@@ -37,12 +37,11 @@ describe('WF-07: Reopen Closed Session', () => {
     // Setup: Create a closed session
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -69,12 +68,11 @@ describe('WF-07: Reopen Closed Session', () => {
     // Setup: Create a closed session
     await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-OLD',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -82,7 +80,6 @@ describe('WF-07: Reopen Closed Session', () => {
     // Act: Create a new session (correct approach)
     const newSession = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-NEW-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -96,7 +93,6 @@ describe('WF-07: Reopen Closed Session', () => {
 
     // Verify old session still closed
     const oldSession = await prisma.registerSession.findFirst({
-      where: { sessionNumber: 'SESS-OLD' }
     });
 
     expect(oldSession?.status).toBe('CLOSED');
@@ -108,12 +104,11 @@ describe('WF-07: Reopen Closed Session', () => {
 
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-AUDIT-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: closedAt,
         closedBy: closedBy
       }
@@ -128,12 +123,11 @@ describe('WF-07: Reopen Closed Session', () => {
   it('should not allow creating orders in closed session', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-002',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -157,12 +151,11 @@ describe('WF-07: Reopen Closed Session', () => {
   it('should track session closure reason', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-003',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date(),
         closeReason: 'End of shift' // Optional field
       }
@@ -174,12 +167,11 @@ describe('WF-07: Reopen Closed Session', () => {
   it('should prevent session status transition from CLOSED to OPEN', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-004',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -199,12 +191,11 @@ describe('WF-07: Reopen Closed Session', () => {
     // Close first session
     const session1 = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-DAY1',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -212,7 +203,6 @@ describe('WF-07: Reopen Closed Session', () => {
     // Open second session
     const session2 = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-DAY2',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -228,12 +218,11 @@ describe('WF-07: Reopen Closed Session', () => {
   it('should not allow modifying closed session transactions', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-CLOSED-005',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });

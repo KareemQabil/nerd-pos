@@ -229,6 +229,7 @@ describe('EB-06: Multiple Handlers Fail', () => {
         status: OrderStatus.CONFIRMED,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100
       }
     });

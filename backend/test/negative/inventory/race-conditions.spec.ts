@@ -94,6 +94,7 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
     const terminalAOrder = {
       type: 'DINE_IN' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId,
@@ -108,6 +109,7 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
     const terminalBOrder = {
       type: 'DINE_IN' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId,
@@ -156,6 +158,7 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
           return await salesService.createOrder({
             type: 'TAKEAWAY',
             sessionId: 'test-session',
+        businessDate: new Date(),
             items: [
               {
                 productId,
@@ -194,6 +197,7 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId,

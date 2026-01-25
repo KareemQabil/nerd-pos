@@ -112,8 +112,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
       data: {
         orderId: order.id,
         amount: 100,
-        method: 'CASH',
-        reference: 'PAY-TEST-001',
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-TEST-001',
         userId: 'user-1'
       }
     });
@@ -136,7 +136,6 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
     // Act: Open session
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-AUDIT-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -153,7 +152,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
       where: { id: session.id },
       data: {
         status: 'CLOSED',
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -173,6 +172,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         orderType: 'TAKEAWAY',
         status: 'DRAFT',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 0,
         createdBy: actingUser
@@ -257,6 +257,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         orderType: 'TAKEAWAY',
         status: 'COMPLETED',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: yesterday,
         grandTotal: 100,
         createdAt: yesterday
@@ -269,6 +270,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         orderType: 'DINE_IN',
         status: 'COMPLETED',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: today,
         grandTotal: 200,
         createdAt: today

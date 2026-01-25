@@ -49,6 +49,7 @@ describe('FIN-07: Tax Calculation Rounding', () => {
     const order = {
       type: 'DINE_IN' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',

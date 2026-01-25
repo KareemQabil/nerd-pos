@@ -47,6 +47,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',
@@ -81,6 +82,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
+        businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',
@@ -122,6 +124,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 0
       }
     });
@@ -135,6 +138,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         orderType: 'TAKEAWAY',
         status: 'DRAFT',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 0
       }
@@ -152,6 +156,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 0
       }
     });
@@ -163,6 +168,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         orderType: 'DINE_IN',
         status: 'DRAFT',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 0
       }
@@ -180,6 +186,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         orderType: 'TAKEAWAY',
         status: 'DRAFT',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 0
       }
@@ -199,6 +206,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         orderType: 'TAKEAWAY',
         status: 'DRAFT',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: today,
         grandTotal: 0
       }
@@ -218,6 +226,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 0
       }
     });
@@ -228,6 +237,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         orderType: 'TAKEAWAY',
         status: 'DRAFT',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 0
       }
@@ -240,6 +250,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         orderType: 'TAKEAWAY',
         status: 'DRAFT',
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 0
       }

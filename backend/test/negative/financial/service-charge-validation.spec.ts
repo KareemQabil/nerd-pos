@@ -11,7 +11,10 @@ import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../../src/core/constants/enums';
 import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
-import { Decimal } from '@prisma/client';
+import { Prisma } from '@prisma/client'
+const PrismaClient = require('@prisma/client').PrismaClient
+type Decimal = PrismaClient.Decimal
+type Decimal = Prisma.Decimal;
 
 describe('FIN-10: Takeaway Service Charge', () => {
   let salesService: SalesService;
@@ -49,12 +52,13 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const order = await prisma.salesOrder.create({
       data: {
         orderNumber: `ORD-${Date.now()}`,
-        orderType: ' 'TAKEAWAY,
+        orderType: 'TAKEAWAY,
         status: OrderStatus.DRAFT,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100,
-        serviceCharge: 0,
+        serviceChargeAmount: 0,
         serviceChargeRate: 0
       }
     });
@@ -69,12 +73,13 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const order = await prisma.salesOrder.create({
       data: {
         orderNumber: `ORD-${Date.now()}`,
-        orderType: ' 'DINE_IN,
+        orderType: 'DINE_IN,
         status: OrderStatus.DRAFT,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100,
-        serviceCharge: 10, // 10% service charge
+        serviceChargeAmount: 10, // 10% service charge
         serviceChargeRate: 0.10
       }
     });
@@ -90,13 +95,14 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const order = await prisma.salesOrder.create({
       data: {
         orderNumber: `ORD-${Date.now()}`,
-        orderType: ' 'DELIVERY,
+        orderType: 'DELIVERY,
         status: OrderStatus.DRAFT,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100,
-        serviceCharge: 0,
-        deliveryFee: 15
+        serviceChargeAmount: 0,
+        deliveryCharge: 15
       }
     });
 
@@ -122,12 +128,13 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const order = await prisma.salesOrder.create({
       data: {
         orderNumber: `ORD-${Date.now()}`,
-        orderType: ' 'DINE_IN,
+        orderType: 'DINE_IN,
         status: OrderStatus.DRAFT,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100,
-        serviceCharge: 0,
+        serviceChargeAmount: 0,
         serviceChargeRate: 0
       }
     });
@@ -140,12 +147,13 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const result = await prisma.salesOrder.create({
       data: {
         orderNumber: `ORD-${Date.now()}`,
-        orderType: ' 'TAKEAWAY,
+        orderType: 'TAKEAWAY,
         status: OrderStatus.DRAFT,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100,
-        serviceCharge: 10, // Should not be allowed for TAKEAWAY
+        serviceChargeAmount: 10, // Should not be allowed for TAKEAWAY
         serviceChargeRate: 0.10
       }
     });
@@ -162,12 +170,13 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const exemptOrder = await prisma.salesOrder.create({
       data: {
         orderNumber: `ORD-${Date.now()}`,
-        orderType: ' 'DINE_IN,
+        orderType: 'DINE_IN,
         status: OrderStatus.DRAFT,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100,
-        serviceCharge: 0, // Exempt
+        serviceChargeAmount: 0, // Exempt
         serviceChargeRate: 0,
         serviceChargeExempt: true // Flag indicating exemption
       }
@@ -195,12 +204,13 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const order = await prisma.salesOrder.create({
       data: {
         orderNumber: `ORD-${Date.now()}`,
-        orderType: ' 'DINE_IN,
+        orderType: 'DINE_IN,
         status: OrderStatus.DRAFT,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 110, // Includes service charge
-        serviceCharge: 10,
+        serviceChargeAmount: 10,
         serviceChargeRate: 0.10
       }
     });
@@ -209,8 +219,8 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const updated = await prisma.salesOrder.update({
       where: { id: order.id },
       data: {
-        orderType: ' 'TAKEAWAY,
-        serviceCharge: 0, // Remove service charge
+        orderType: 'TAKEAWAY,
+        serviceChargeAmount: 0, // Remove service charge
         serviceChargeRate: 0
       }
     });
@@ -224,12 +234,13 @@ describe('FIN-10: Takeaway Service Charge', () => {
     const dineInOrder = await prisma.salesOrder.create({
       data: {
         orderNumber: `ORD-${Date.now()}`,
-        orderType: ' 'DINE_IN,
+        orderType: 'DINE_IN,
         status: OrderStatus.COMPLETED,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         subtotal: 100,
-        serviceCharge: 10,
+        serviceChargeAmount: 10,
         serviceChargeRate: 0.10,
         tax: 16.50,
         grandTotal: 126.50

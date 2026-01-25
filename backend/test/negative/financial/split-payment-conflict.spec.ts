@@ -12,7 +12,10 @@ import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
 import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { Decimal } from '@prisma/client';
+import { Prisma } from '@prisma/client'
+const PrismaClient = require('@prisma/client').PrismaClient
+type Decimal = PrismaClient.Decimal
+type Decimal = Prisma.Decimal;
 
 describe('MT-04: Split Payment Conflict', () => {
   let paymentsService: PaymentsService;
@@ -53,8 +56,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 60,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -62,8 +65,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 60, // Total would be 120, exceeds 100
-        method: 'CARD',
-        reference: 'PAY-2'
+        paymentMethod: 'CARD',
+        referenceNumber: 'PAY-2'
       }
     });
 
@@ -97,16 +100,16 @@ describe('MT-04: Split Payment Conflict', () => {
           data: {
             orderId: order.id,
             amount: 60,
-            method: 'CASH',
-            reference: 'PAY-A'
+            paymentMethod: 'CASH',
+            referenceNumber: 'PAY-A'
           }
         }),
         () => prisma.payment.create({
           data: {
             orderId: order.id,
             amount: 60,
-            method: 'CARD',
-            reference: 'PAY-B'
+            paymentMethod: 'CARD',
+            referenceNumber: 'PAY-B'
           }
         })
       );
@@ -131,8 +134,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 30,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -164,8 +167,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 100,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -174,8 +177,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 10,
-        method: 'CARD',
-        reference: 'PAY-2'
+        paymentMethod: 'CARD',
+        referenceNumber: 'PAY-2'
       }
     }).catch(e => ({ error: e }));
 
@@ -200,8 +203,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 40,
-        method: 'CASH',
-        reference: 'PAY-CASH'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-CASH'
       }
     });
 
@@ -209,8 +212,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 40,
-        method: 'CARD',
-        reference: 'PAY-CARD',
+        paymentMethod: 'CARD',
+        referenceNumber: 'PAY-CARD',
         cardLastFour: '1234'
       }
     });
@@ -219,8 +222,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 20,
-        method: 'VOUCHER',
-        reference: 'PAY-VOUCHER',
+        paymentMethod: 'VOUCHER',
+        referenceNumber: 'PAY-VOUCHER',
         voucherCode: 'VOUCHER-123'
       }
     });
@@ -249,8 +252,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 50,
-        method: 'CARD',
-        reference: 'PAY-CARD',
+        paymentMethod: 'CARD',
+        referenceNumber: 'PAY-CARD',
         cardLastFour: '9876'
       }
     });
@@ -262,8 +265,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 50,
-        method: 'VOUCHER',
-        reference: 'PAY-VOUCHER',
+        paymentMethod: 'VOUCHER',
+        referenceNumber: 'PAY-VOUCHER',
         voucherCode: 'SAVE20'
       }
     });
@@ -282,8 +285,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 60,
-        method: 'CASH',
-        reference: 'PAY-1',
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1',
         status: 'COMPLETED'
       }
     });
@@ -292,8 +295,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 40,
-        method: 'CARD',
-        reference: 'PAY-2',
+        paymentMethod: 'CARD',
+        referenceNumber: 'PAY-2',
         status: 'COMPLETED'
       }
     });
@@ -302,7 +305,7 @@ describe('MT-04: Split Payment Conflict', () => {
     await prisma.payment.updateMany({
       where: {
         orderId: order.id,
-        reference: 'PAY-1'
+        referenceNumber: 'PAY-1'
       },
       data: {
         status: 'REFUNDED',
@@ -333,8 +336,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 60,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -349,8 +352,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 40,
-        method: 'CARD',
-        reference: 'PAY-2'
+        paymentMethod: 'CARD',
+        referenceNumber: 'PAY-2'
       }
     });
 
@@ -380,8 +383,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: -10,
-        method: 'CASH',
-        reference: 'PAY-NEGATIVE'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-NEGATIVE'
       }
     }).catch(e => ({ error: e }));
 
@@ -400,8 +403,8 @@ describe('MT-04: Split Payment Conflict', () => {
       data: {
         orderId: order.id,
         amount: 0,
-        method: 'CASH',
-        reference: 'PAY-ZERO'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-ZERO'
       }
     }).catch(e => ({ error: e }));
 

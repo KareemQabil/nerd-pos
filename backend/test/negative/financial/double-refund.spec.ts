@@ -220,8 +220,8 @@ describe('FIN-03: Double Refund', () => {
       data: {
         orderId: order.id,
         amount: 50,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 

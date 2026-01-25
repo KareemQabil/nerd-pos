@@ -10,7 +10,10 @@ import { SessionsRepository } from '../../../src/modules/sessions/sessions.repos
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { cleanupTestData } from '../../helpers/test-helpers';
-import { Decimal } from '@prisma/client';
+import { Prisma } from '@prisma/client'
+const PrismaClient = require('@prisma/client').PrismaClient
+type Decimal = PrismaClient.Decimal
+type Decimal = Prisma.Decimal;
 
 describe('SES-03: Close Session Without Reconciliation', () => {
   let sessionsService: SessionsService;
@@ -38,7 +41,6 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     // Setup: Create an open session with some transactions
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -62,7 +64,7 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     // Act: Try to close without providing reconciliation data
     const result = await sessionsService.closeSession(session.id, {
       userId: 'user-1',
-      closingBalance: undefined, // No reconciliation
+      actualClosingBalance: undefined, // No reconciliation
       countedCash: undefined
     }).catch(e => ({ error: e }));
 
@@ -81,7 +83,6 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     // Setup: Open session with opening balance
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -115,16 +116,15 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     });
 
     // Expected closing balance = opening (1000) + sales (500) = 1500
-    const expectedClosingBalance = new Decimal(1000).add(500);
+    const expectedCash = new Decimal(1000).add(500);
 
-    expect(expectedClosingBalance.toString()).toBe('1500');
+    expect(expectedCash.toString()).toBe('1500');
   });
 
   it('should detect cash shortage on reconciliation', async () => {
     // Setup: Session with sales
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -156,8 +156,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
       where: { id: session.id },
       data: {
         status: 'CLOSED',
-        closingBalance: countedCash,
-        expectedClosingBalance: expectedBalance,
+        actualClosingBalance: countedCash,
+        expectedCash: expectedBalance,
         discrepancy: shortage,
         discrepancyType: 'SHORTAGE',
         closedAt: new Date()
@@ -172,7 +172,6 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     // Setup: Session with sales
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -204,8 +203,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
       where: { id: session.id },
       data: {
         status: 'CLOSED',
-        closingBalance: countedCash,
-        expectedClosingBalance: expectedBalance,
+        actualClosingBalance: countedCash,
+        expectedCash: expectedBalance,
         discrepancy: overage,
         discrepancyType: 'OVERAGE',
         closedAt: new Date()
@@ -220,7 +219,6 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     // Setup: Session with sales
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -248,8 +246,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
       where: { id: session.id },
       data: {
         status: 'CLOSED',
-        closingBalance: countedCash,
-        expectedClosingBalance: countedCash,
+        actualClosingBalance: countedCash,
+        expectedCash: countedCash,
         discrepancy: new Decimal(0),
         discrepancyType: null,
         closedAt: new Date()
@@ -264,7 +262,6 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     // Setup: Session with significant shortage
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -289,7 +286,6 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     // Setup: Session with unpaid orders
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -312,7 +308,7 @@ describe('SES-03: Close Session Without Reconciliation', () => {
     // Act: Try to close session
     const result = await sessionsService.closeSession(session.id, {
       userId: 'user-1',
-      closingBalance: 1000,
+      actualClosingBalance: 1000,
       countedCash: 1000
     }).catch(e => ({ error: e }));
 
@@ -331,7 +327,6 @@ describe('SES-03: Close Session Without Reconciliation', () => {
   it('should track reconciliation history', async () => {
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -344,8 +339,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
       where: { id: session.id },
       data: {
         status: 'CLOSED',
-        closingBalance: 1500,
-        expectedClosingBalance: 1500,
+        actualClosingBalance: 1500,
+        expectedCash: 1500,
         closedAt: new Date()
       }
     });

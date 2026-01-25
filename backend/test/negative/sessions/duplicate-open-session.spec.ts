@@ -37,7 +37,6 @@ describe('SES-01: Open Session While Another Open', () => {
     // Setup: Create an open session
     await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -71,7 +70,6 @@ describe('SES-01: Open Session While Another Open', () => {
     // Setup: Create an open session on terminal-1
     await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -82,7 +80,6 @@ describe('SES-01: Open Session While Another Open', () => {
     // Act: Open session on terminal-2
     const newSession = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-002',
         userId: 'user-1',
         terminalId: 'terminal-2',
         status: 'OPEN',
@@ -108,12 +105,11 @@ describe('SES-01: Open Session While Another Open', () => {
     // Setup: Create a closed session
     await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -121,7 +117,6 @@ describe('SES-01: Open Session While Another Open', () => {
     // Act: Open new session on same terminal
     const newSession = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-002',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -150,7 +145,6 @@ describe('SES-01: Open Session While Another Open', () => {
     // Act: Two concurrent requests to open session on same terminal
     const openSession1 = prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-A',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -160,7 +154,6 @@ describe('SES-01: Open Session While Another Open', () => {
 
     const openSession2 = prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-B',
         userId: 'user-2',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -187,7 +180,6 @@ describe('SES-01: Open Session While Another Open', () => {
     // Setup: Create an open session
     const session = await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
@@ -203,7 +195,7 @@ describe('SES-01: Open Session While Another Open', () => {
       where: { id: session.id },
       data: {
         status: 'CLOSED',
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });
@@ -217,12 +209,11 @@ describe('SES-01: Open Session While Another Open', () => {
     // Setup: Create a closed session
     await prisma.registerSession.create({
       data: {
-        sessionNumber: 'SESS-001',
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'CLOSED',
         openingBalance: 1000,
-        closingBalance: 1500,
+        actualClosingBalance: 1500,
         closedAt: new Date()
       }
     });

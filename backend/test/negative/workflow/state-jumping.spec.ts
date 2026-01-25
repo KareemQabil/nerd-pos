@@ -54,6 +54,7 @@ describe('WF-01: Add Item to Paid Order', () => {
         status: OrderStatus.PAID,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         grandTotal: 100
       }
     });
@@ -79,6 +80,7 @@ describe('WF-01: Add Item to Paid Order', () => {
         orderType: 'DINE_IN',
         status: OrderStatus.COMPLETED,
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         completedAt: new Date(),
         grandTotal: 100
@@ -107,6 +109,7 @@ describe('WF-01: Add Item to Paid Order', () => {
         status: OrderStatus.CANCELLED,
         sessionId: 'test-session',
         businessDate: new Date(),
+        businessDate: new Date(),
         cancelledAt: new Date(),
         grandTotal: 100
       }
@@ -133,6 +136,7 @@ describe('WF-01: Add Item to Paid Order', () => {
         orderType: 'DINE_IN',
         status: OrderStatus.DRAFT,
         sessionId: 'test-session',
+        businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 0
       }

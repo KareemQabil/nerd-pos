@@ -11,7 +11,10 @@ import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { Decimal } from '@prisma/client';
+import { Prisma } from '@prisma/client'
+const PrismaClient = require('@prisma/client').PrismaClient
+type Decimal = PrismaClient.Decimal
+type Decimal = Prisma.Decimal;
 
 describe('FIN-01: Split Payment Rounding Error', () => {
   let paymentsService: PaymentsService;
@@ -61,8 +64,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: payment1Amount,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -70,8 +73,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: payment2Amount,
-        method: 'CASH',
-        reference: 'PAY-2'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-2'
       }
     });
 
@@ -79,8 +82,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: payment3Amount,
-        method: 'CASH',
-        reference: 'PAY-3'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-3'
       }
     });
 
@@ -118,8 +121,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: payment1Amount,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -127,8 +130,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: payment2Amount,
-        method: 'CASH',
-        reference: 'PAY-2'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-2'
       }
     });
 
@@ -136,8 +139,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: payment3Amount,
-        method: 'CASH',
-        reference: 'PAY-3'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-3'
       }
     });
 
@@ -169,7 +172,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
         data: {
           orderId: order.id,
           amount: perPayment,
-          method: 'CASH',
+          paymentMethod: 'CASH',
           reference: `PAY-${i + 1}`
         }
       }));
@@ -181,8 +184,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: lastPaymentAmount,
-        method: 'CASH',
-        reference: 'PAY-7'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-7'
       }
     }));
 
@@ -206,8 +209,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: 25,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
@@ -215,8 +218,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: 25,
-        method: 'CASH',
-        reference: 'PAY-2'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-2'
       }
     });
 
@@ -247,8 +250,8 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       data: {
         orderId: order.id,
         amount: 33.33,
-        method: 'CASH',
-        reference: 'PAY-1'
+        paymentMethod: 'CASH',
+        referenceNumber: 'PAY-1'
       }
     });
 
