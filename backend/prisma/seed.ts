@@ -352,7 +352,7 @@ async function main() {
     ];
 
     for (const pm of paymentMethods) {
-        await prisma.paymentMethodConfig.upsert({
+        await prisma.paymentMethod.upsert({
             where: { code: pm.code },
             update: {},
             create: pm,

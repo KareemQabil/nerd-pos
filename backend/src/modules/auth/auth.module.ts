@@ -22,8 +22,9 @@ import { PermissionsGuard } from './guards/permissions.guard';
     UsersModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
-      secret:
-        process.env.JWT_SECRET || 'nerdpos-secret-change-in-production-2026',
+      secret: process.env.JWT_SECRET ?? (() => {
+        throw new Error('JWT_SECRET environment variable is required and must be at least 32 characters');
+      })(),
       signOptions: {
         expiresIn: '7d',
       },

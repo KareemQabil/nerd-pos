@@ -116,3 +116,4 @@ Most endpoints require a Bearer token obtained from \`POST /auth/login\`
   console.log(`❤️  Health Check at http://localhost:${port}/health`);
 }
 bootstrap();
+// reload prisma client

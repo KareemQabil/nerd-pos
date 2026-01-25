@@ -31,11 +31,14 @@ const cookieOrBearerExtractor = (req: Request): string | null => {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
+    const jwtSecret = process.env.JWT_SECRET ?? (() => {
+      throw new Error('JWT_SECRET environment variable is required and must be at least 32 characters');
+    })();
+
     super({
       jwtFromRequest: cookieOrBearerExtractor,
       ignoreExpiration: false,
-      secretOrKey:
-        process.env.JWT_SECRET || 'nerdpos-secret-change-in-production-2026',
+      secretOrKey: jwtSecret,
     });
   }
 
