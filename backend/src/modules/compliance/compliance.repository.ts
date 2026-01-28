@@ -10,27 +10,33 @@ export class ComplianceRepository extends BaseRepository<ZATCAInvoice> {
     super(prisma);
   }
   protected get model() {
-    return 'zatcaInvoice';
+    return 'complianceInvoice';
   }
 
   async findByOrder(orderId: string): Promise<ZATCAInvoice | null> {
-    return (this.prisma as any).zatcaInvoice.findUnique({ where: { orderId } });
+    return (this.prisma as any).complianceInvoice.findUnique({ where: { orderId } });
   }
 
   async findLastInvoice(): Promise<ZATCAInvoice | null> {
-    return (this.prisma as any).zatcaInvoice.findFirst({
+    return (this.prisma as any).complianceInvoice.findFirst({
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async findPending(): Promise<ZATCAInvoice[]> {
-    return (this.prisma as any).zatcaInvoice.findMany({
+    return (this.prisma as any).complianceInvoice.findMany({
       where: { submissionStatus: 'PENDING' },
       orderBy: { createdAt: 'asc' },
     });
   }
 
   async countInvoices(): Promise<number> {
-    return (this.prisma as any).zatcaInvoice.count();
+    return (this.prisma as any).complianceInvoice.count();
+  }
+
+  async findAllOrdered(): Promise<ZATCAInvoice[]> {
+    return (this.prisma as any).complianceInvoice.findMany({
+      orderBy: { createdAt: 'asc' },
+    });
   }
 }

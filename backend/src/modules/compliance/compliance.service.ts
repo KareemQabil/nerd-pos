@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
   Inject,
 } from '@nestjs/common';
 import { ComplianceRepository } from './compliance.repository';
@@ -14,7 +15,6 @@ import {
 } from './events/compliance.events';
 import { ZATCAInvoice, HashChainStatus } from './entities/compliance.entity';
 import * as crypto from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ComplianceService {
@@ -31,8 +31,24 @@ export class ComplianceService {
     if (existing)
       throw new BadRequestException('Invoice already exists for this order');
 
+    const chainStatus = await this.verifyHashChain();
+    if (!chainStatus.chainValid) {
+      await this.eventBus.publish(
+        'HashChainBroken',
+        new HashChainBrokenEvent(
+          chainStatus.brokenAtInvoiceId || 'unknown',
+          chainStatus.expectedHash || '',
+          chainStatus.actualHash || '',
+        ),
+      );
+      throw new InternalServerErrorException(
+        'ZATCA hash chain validation failed',
+      );
+    }
+
     const lastInvoice = await this.repo.findLastInvoice();
-    const previousHash = lastInvoice?.currentHash || '0'.repeat(64);
+    const previousHash =
+      this.resolveInvoiceHash(lastInvoice) || '0'.repeat(64);
 
     const invoiceXML = this.buildInvoiceXML(orderData);
     const currentHash = this.calculateHash(previousHash, invoiceXML);
@@ -42,10 +58,8 @@ export class ComplianceService {
     const invoice = await this.repo.create({
       orderId,
       invoiceNumber,
-      uuid: uuidv4(),
       previousHash,
-      currentHash,
-      invoiceXML,
+      invoiceHash: currentHash,
       qrCode,
       submissionStatus: 'PENDING',
     });
@@ -54,7 +68,10 @@ export class ComplianceService {
       'InvoiceGenerated',
       new InvoiceGeneratedEvent(invoice.id, orderId),
     );
-    return invoice;
+    return this.normalizeInvoice(invoice, {
+      currentHash,
+      invoiceXML,
+    });
   }
 
   private buildInvoiceXML(orderData: any): string {
@@ -97,24 +114,108 @@ export class ComplianceService {
       'InvoiceSubmitted',
       new InvoiceSubmittedEvent(invoiceId, 'ACCEPTED'),
     );
-    return updated;
+    return this.normalizeInvoice(updated);
   }
 
   async verifyHashChain(): Promise<HashChainStatus> {
-    const lastInvoice = await this.repo.findLastInvoice();
-    const total = await this.repo.countInvoices();
+    const invoices = await this.repo.findAllOrdered();
+    if (invoices.length === 0) {
+      return {
+        lastInvoiceId: '',
+        lastHash: '',
+        chainValid: true,
+        totalInvoices: 0,
+      };
+    }
+
+    let expectedPrevious = '0'.repeat(64);
+    for (const invoice of invoices) {
+      const actualPrevious = invoice.previousHash || '0'.repeat(64);
+      if (actualPrevious !== expectedPrevious) {
+        return {
+          lastInvoiceId: invoice.id,
+          lastHash: expectedPrevious,
+          chainValid: false,
+          totalInvoices: invoices.length,
+          brokenAtInvoiceId: invoice.id,
+          expectedHash: expectedPrevious,
+          actualHash: actualPrevious,
+        };
+      }
+
+      const currentHash = this.resolveInvoiceHash(invoice);
+      if (!currentHash || !/^[a-f0-9]{64}$/i.test(currentHash)) {
+        return {
+          lastInvoiceId: invoice.id,
+          lastHash: expectedPrevious,
+          chainValid: false,
+          totalInvoices: invoices.length,
+          brokenAtInvoiceId: invoice.id,
+          expectedHash: expectedPrevious,
+          actualHash: currentHash || '',
+        };
+      }
+
+      expectedPrevious = currentHash;
+    }
+
     return {
-      lastInvoiceId: lastInvoice?.id || '',
-      lastHash: lastInvoice?.currentHash || '',
-      chainValid: true, // Would verify full chain in production
-      totalInvoices: total,
+      lastInvoiceId: invoices[invoices.length - 1]?.id || '',
+      lastHash: expectedPrevious,
+      chainValid: true,
+      totalInvoices: invoices.length,
     };
   }
 
   async getPendingInvoices(): Promise<ZATCAInvoice[]> {
-    return this.repo.findPending();
+    const invoices = await this.repo.findPending();
+    return invoices.map((invoice) => this.normalizeInvoice(invoice));
   }
   async findByOrder(orderId: string): Promise<ZATCAInvoice | null> {
-    return this.repo.findByOrder(orderId);
+    const invoice = await this.repo.findByOrder(orderId);
+    return invoice ? this.normalizeInvoice(invoice) : null;
+  }
+
+  private resolveInvoiceHash(invoice?: ZATCAInvoice | null): string | null {
+    if (!invoice) return null;
+    return (
+      (invoice as any).invoiceHash ||
+      (invoice as any).currentHash ||
+      (invoice as any).hash ||
+      null
+    );
+  }
+
+  private normalizeInvoice(
+    invoice: ZATCAInvoice,
+    extras?: { currentHash?: string; invoiceXML?: string },
+  ): ZATCAInvoice {
+    if (!invoice) {
+      return invoice;
+    }
+
+    const currentHash =
+      (invoice as any).currentHash ||
+      (invoice as any).invoiceHash ||
+      (invoice as any).hash ||
+      extras?.currentHash;
+    const invoiceXML =
+      (invoice as any).invoiceXML ||
+      (invoice as any).xmlContent ||
+      extras?.invoiceXML;
+
+    return {
+      ...invoice,
+      currentHash,
+      hash: (invoice as any).hash || currentHash,
+      invoiceHash: (invoice as any).invoiceHash || currentHash,
+      invoiceXML,
+      xmlContent: (invoice as any).xmlContent || invoiceXML,
+      qrCode: (invoice as any).qrCode || (invoice as any).qrCodeData,
+      qrCodeData: (invoice as any).qrCodeData || (invoice as any).qrCode,
+      submissionStatus:
+        (invoice as any).submissionStatus || (invoice as any).clearanceStatus,
+      uuid: (invoice as any).uuid,
+    };
   }
 }

@@ -7,21 +7,22 @@
 export interface InvoiceCompliance {
   id: string;
   orderId: string;
-  uuid: string;
-  hash: string; // SHA-256 hash
+  uuid?: string;
+  hash?: string; // SHA-256 hash
+  invoiceHash?: string; // ComplianceInvoice alias
   currentHash?: string; // Backward-compatible alias for hash
-  previousHash: string; // Hash chain
+  previousHash?: string | null; // Hash chain
   signature?: string | null; // Digital signature
   publicKey?: string | null; // Certificate public key
-  xmlContent: string; // Full UBL 2.1 XML
-  qrCodeData: string; // Base64 TLV
+  xmlContent?: string; // Full UBL 2.1 XML
+  qrCodeData?: string; // Base64 TLV
   submittedAt?: Date | null;
   clearanceStatus?: string | null; // CLEARED, REJECTED, REPORTED
   clearanceId?: string | null; // ZATCA clearance ID
   etaUuid?: string | null;
   etaSubmittedAt?: Date | null;
   etaStatus?: string | null;
-  createdAt: Date;
+  createdAt?: Date;
 
   // Backward-compatible aliases for service
   invoiceNumber?: string; // Alias for orderId/uuid
@@ -61,4 +62,7 @@ export interface HashChainStatus {
   lastHash: string;
   chainValid: boolean;
   totalInvoices: number;
+  brokenAtInvoiceId?: string;
+  expectedHash?: string;
+  actualHash?: string;
 }
