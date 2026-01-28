@@ -43,16 +43,17 @@
 ## WEEK 1: FOUNDATION (Days 1-7)
 
 ### 1.1 Test Database Setup (P0)
-- [ ] Create `docker-compose.test.yml`
-  - [ ] PostgreSQL service configuration
-  - [ ] Test database initialization
-- [ ] Add test scripts to package.json
+- [x] Create `docker-compose.test.yml`
+  - [x] PostgreSQL service configuration
+  - [x] Test database initialization
+- [x] Add test scripts to package.json
   ```json
   "test:up": "docker-compose -f docker-compose.test.yml up -d",
   "test:down": "docker-compose -f docker-compose.test.yml down",
   "test:db:migrate": "npx prisma migrate deploy"
   ```
-- [ ] Configure test environment variables
+- [x] Configure test environment variables
+- [x] Document `TEST_CONCURRENCY` for shared/remote DB (avoid Prisma transaction timeouts; recommend 12)
 - [ ] Verify test database isolation
 
 ### 1.2 Test Helpers (P0)
@@ -76,21 +77,21 @@
   - [ ] `floodEndpoint()` method
 
 ### 1.3 Test Data Fixtures (P1)
-- [ ] Create `test/fixtures/products.json`
-  - [ ] Sample product data
-  - [ ] Product with modifiers
+- [x] Create `test/fixtures/products.json`
+  - [x] Sample product data
+  - [x] Product with modifiers
   - [ ] Product with variants
-- [ ] Create `test/fixtures/orders.json`
-  - [ ] Quick sale order
-  - [ ] Dine-in order
+- [x] Create `test/fixtures/orders.json`
+  - [x] Quick sale order
+  - [x] Dine-in order
   - [ ] Delivery order
-- [ ] Create `test/fixtures/users.json`
-  - [ ] Admin user
-  - [ ] Cashier user
-  - [ ] Manager user
-- [ ] Create `test/fixtures/sessions.json`
-  - [ ] Open session
-  - [ ] Closed session with variance
+- [x] Create `test/fixtures/users.json`
+  - [x] Admin user
+  - [x] Cashier user
+  - [x] Manager user
+- [x] Create `test/fixtures/sessions.json`
+  - [x] Open session
+  - [x] Closed session with variance
 
 ### 1.4 Jest Configuration Update (P0)
 - [ ] Update `jest.config.js`
@@ -98,12 +99,12 @@
   - [ ] Configure coverage thresholds
   - [ ] Add module name mapper
   - [ ] Add setup files
-- [ ] Create `test/setup.ts`
-  - [ ] Global test setup
-  - [ ] Test database initialization
-  - [ ] Cleanup after tests
-- [ ] Create `test/teardown.ts`
-  - [ ] Global cleanup logic
+- [x] Create `test/setup.ts`
+  - [x] Global test setup
+  - [x] Test database initialization
+  - [x] Cleanup after tests
+- [x] Create `test/teardown.ts`
+  - [x] Global cleanup logic
 
 ---
 
@@ -222,28 +223,28 @@
 ### 3.2 FINANCIAL TESTS (FIN-01 to FIN-12)
 
 #### FIN-01: Split Payment Rounding (P0) ✨ LAUNCH CRITICAL
-- [ ] Create `test/negative/financial/payment-splitting.spec.ts`
-- [ ] Test: 10.00 / 3 split
-  - [ ] Payment 1: 3.33
-  - [ ] Payment 2: 3.33
-  - [ ] Payment 3: 3.34 (absorbs remainder)
-  - [ ] Assert: Total = 10.00
-  - [ ] Assert: Order status = PAID
+- [x] Create `test/negative/financial/split-payment-rounding.spec.ts`
+- [x] Test: 10.00 / 3 split
+  - [x] Payment 1: 3.33
+  - [x] Payment 2: 3.33
+  - [x] Payment 3: 3.34 (absorbs remainder)
+  - [x] Assert: Total = 10.00
+  - [ ] Assert: Order status = PAID (pending: order/payment linkage)
 
 #### FIN-02: Discount > Total (P0)
-- [ ] Test: Apply 100 discount on 50 order
+- [ ] Test: Apply 100 discount on 50 order (pending: discount engine)
   - [ ] Expect: 400 Bad Request
   - [ ] Assert: No order created
 
 #### FIN-03: Double Refund (P0)
-- [ ] Test: Refund same item twice
+- [ ] Test: Refund same item twice (skipped: refund model not in schema)
   - [ ] First refund: Success
   - [ ] Second refund: 400 Bad Request
   - [ ] Assert: Refunded once only
 
 #### FIN-04: Negative Price (P0)
-- [ ] Test: Create product with price=-10
-  - [ ] Expect: 400 Bad Request
+- [x] Test: Create product with price=-10
+  - [x] Expect: 400 Bad Request
 
 #### FIN-05: Zero Total Order (P1)
 - [ ] Test: Order with all items price=0
@@ -252,32 +253,32 @@
   - [ ] Assert: Stock still deducted
 
 #### FIN-06: Payment > Total (P0)
-- [ ] Test: Pay 100 on 50 order
+- [ ] Test: Pay 100 on 50 order (pending: enforcement in PaymentsService)
   - [ ] Expect: 400 Bad Request
 
 #### FIN-07: Tax Rounding (P0) ✨ LAUNCH CRITICAL
-- [ ] Create `test/negative/financial/tax-calculation.spec.ts`
-- [ ] Test: 3 items × 10.00, 15% VAT
-  - [ ] Expected tax: 4.50
-  - [ ] Assert: Exact precision (Decimal.js)
-  - [ ] Assert: NOT 4.49 or 4.51
+- [x] Create `test/negative/financial/tax-calculation.spec.ts`
+- [x] Test: 3 items × 10.00, 15% VAT
+  - [x] Expected tax: 4.50
+  - [x] Assert: Exact precision (Decimal.js)
+  - [x] Assert: NOT 4.49 or 4.51
 
 #### FIN-08: Void Paid Order (P1)
-- [ ] Test: Void order that's already paid
+- [ ] Test: Void order that's already paid (pending: paid cancellation rule)
   - [ ] Expect: 400 Bad Request
   - [ ] Assert: No automatic refund
 
 #### FIN-09: Refund Overage (P1)
-- [ ] Test: Refund 150 from 100 order
+- [ ] Test: Refund 150 from 100 order (pending: refund model)
   - [ ] Expect: 400 Bad Request
 
 #### FIN-10: Takeaway Service Charge (P0)
-- [ ] Test: Service charge on TAKEAWAY
-  - [ ] Expect: Service charge = 0.00
-  - [ ] Assert: Only DINE_IN has service charge
+- [x] Test: Service charge on TAKEAWAY
+  - [x] Expect: Service charge = 0.00
+  - [x] Assert: Only DINE_IN has service charge
 
 #### FIN-11: Currency Mismatch (P2)
-- [ ] Test: Pay USD on SAR order
+- [ ] Test: Pay USD on SAR order (pending: currency support)
   - [ ] Expect: 400 Bad Request
 
 #### FIN-12: Session Variance (P1)
@@ -496,37 +497,37 @@
 ### 3.7 COMPLIANCE TESTS (COMP-01 to COMP-07)
 
 #### COMP-01: ZATCA Hash Chain (P0) ✨ LAUNCH CRITICAL
-- [ ] Create `test/negative/compliance/hash-chain.spec.ts`
-- [ ] Test: Tamper with previousHash
-  - [ ] Expect: 500 Internal Server Error
+- [x] Create `test/negative/compliance/hash-chain.spec.ts`
+- [x] Test: Tamper with previousHash
+  - [x] Expect: 500 Internal Server Error
   - [ ] Assert: Order creation blocked
   - [ ] Assert: Admin alerted
 
 #### COMP-02: Invoice Without Order (P0)
-- [ ] Test: Generate invoice without order
+- [ ] Test: Generate invoice without order (skipped - order validation missing)
   - [ ] Expect: 400 Bad Request
 
 #### COMP-03: Delete Audit Log (P0)
-- [ ] Test: DELETE audit log entry
+- [ ] Test: DELETE audit log entry (skipped - no delete endpoint)
   - [ ] Expect: 403 Forbidden
   - [ ] Assert: Logs immutable
 
 #### COMP-04: Backdated Transaction (P0)
-- [ ] Test: Create order with past timestamp
+- [ ] Test: Create order with past timestamp (skipped - rule not implemented)
   - [ ] createdAt: "2023-01-01"
   - [ ] Expect: 400 Bad Request
 
 #### COMP-05: Invoice Without Tax ID (P1)
-- [ ] Test: B2B order without taxId
+- [ ] Test: B2B order without taxId (skipped - rule not implemented)
   - [ ] Check if mandatory
   - [ ] Implement accordingly
 
 #### COMP-06: Modify Invoice (P0)
-- [ ] Test: PATCH invoice after generation
+- [ ] Test: PATCH invoice after generation (skipped - no endpoint)
   - [ ] Expect: 403 Forbidden
 
 #### COMP-07: Regenerate Invoice (P2)
-- [ ] Test: Force new hash on invoice
+- [ ] Test: Force new hash on invoice (skipped - no endpoint)
   - [ ] Expect: 403 Forbidden
 
 ### 3.8 KITCHEN TESTS (KDS-01 to KDS-06)
@@ -801,6 +802,7 @@
 - [ ] 3. Create test helpers
   - [ ] `test/helpers/event-spy.ts`
   - [ ] `test/helpers/test-helpers.ts`
+- [ ] 3a. Run negative inventory tests with `TEST_CONCURRENCY=12` on shared/remote DB
 
 ### Today (2 hours)
 - [ ] 4. Fix event bus silent failures
@@ -845,6 +847,8 @@
 
 **Progress:**
 - [x] TypeScript fixes
+- [x] Day 4 (Payments) complete — 2026-01-28
+- [x] Day 5 (Compliance + Reports) complete — 2026-01-28
 - [ ] Test infrastructure
 - [ ] Negative test suite
 - [ ] Event bus fixes
@@ -853,3 +857,4 @@
 - [ ] Monitoring
 
 **Next Action:** Start with "Quick Start: Launch Today" tasks above
+
