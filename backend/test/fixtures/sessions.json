@@ -1,0 +1,17 @@
+[
+  {
+    "terminalId": "TERM-001",
+    "userId": "cashier_test",
+    "status": "OPEN",
+    "openingBalance": 1000,
+    "businessDate": "2026-01-27"
+  },
+  {
+    "terminalId": "TERM-002",
+    "userId": "cashier_test",
+    "status": "CLOSED",
+    "openingBalance": 800,
+    "actualClosingBalance": 750,
+    "businessDate": "2026-01-26"
+  }
+]

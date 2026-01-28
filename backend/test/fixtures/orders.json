@@ -1,0 +1,23 @@
+[
+  {
+    "orderNumber": "ORD-TEST-001",
+    "orderType": "DINE_IN",
+    "status": "DRAFT",
+    "items": [
+      { "sku": "TEST-FOOD-001", "quantity": 2, "unitPrice": 25.0 },
+      { "sku": "TEST-DRINK-001", "quantity": 2, "unitPrice": 8.0 }
+    ],
+    "discountAmount": 0,
+    "taxRate": 0.15
+  },
+  {
+    "orderNumber": "ORD-TEST-002",
+    "orderType": "TAKEAWAY",
+    "status": "CONFIRMED",
+    "items": [
+      { "sku": "TEST-FOOD-001", "quantity": 1, "unitPrice": 25.0 }
+    ],
+    "discountAmount": 5.0,
+    "taxRate": 0.15
+  }
+]
