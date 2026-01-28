@@ -38,7 +38,7 @@ export class PaymentsRepository extends BaseRepository<Payment> {
   async findByOrder(orderId: string): Promise<Payment[]> {
     return (this.prisma as any).payment.findMany({
       where: { orderId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { paymentDate: 'desc' },
     });
   }
 
@@ -51,14 +51,14 @@ export class PaymentsRepository extends BaseRepository<Payment> {
   async findBySession(sessionId: string): Promise<Payment[]> {
     return (this.prisma as any).payment.findMany({
       where: { sessionId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { paymentDate: 'desc' },
     });
   }
 
   async findByStatus(status: string): Promise<Payment[]> {
     return (this.prisma as any).payment.findMany({
       where: { status },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { paymentDate: 'desc' },
     });
   }
 
@@ -145,27 +145,55 @@ export class PaymentsRepository extends BaseRepository<Payment> {
     const result = await (this.prisma as any).payment.aggregate({
       where: {
         status: 'COMPLETED',
-        paidAt: { gte: startOfDay, lte: endOfDay },
+        paymentDate: { gte: startOfDay, lte: endOfDay },
         ...(sessionId && { sessionId }),
       },
       _sum: { amount: true },
     });
 
-    return result._sum.amount || 0;
+    const amount = result._sum.amount;
+    if (amount === undefined || amount === null) {
+      return 0;
+    }
+    if (typeof amount === 'number') {
+      return amount;
+    }
+    if (typeof (amount as any).toNumber === 'function') {
+      return (amount as any).toNumber();
+    }
+    return Number(amount) || 0;
   }
 
   async getPaymentsByMethod(
     startDate: Date,
     endDate: Date,
   ): Promise<{ method: string; total: number; count: number }[]> {
-    return (this.prisma as any).payment.groupBy({
-      by: ['method'],
+    const results = await (this.prisma as any).payment.groupBy({
+      by: ['paymentMethod'],
       where: {
         status: 'COMPLETED',
-        paidAt: { gte: startDate, lte: endDate },
+        paymentDate: { gte: startDate, lte: endDate },
       },
       _sum: { amount: true },
       _count: true,
+    });
+
+    return results.map((row: any) => {
+      const sumAmount = row._sum.amount;
+      const total =
+        sumAmount === undefined || sumAmount === null
+          ? 0
+          : typeof sumAmount === 'number'
+            ? sumAmount
+            : typeof sumAmount.toNumber === 'function'
+              ? sumAmount.toNumber()
+              : Number(sumAmount) || 0;
+
+      return {
+        method: row.paymentMethod,
+        total,
+        count: row._count?._all ?? 0,
+      };
     });
   }
 }

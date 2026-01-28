@@ -9,7 +9,12 @@ import { ProductsService } from '../../../src/modules/products/products.service'
 import { ProductsRepository } from '../../../src/modules/products/products.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
-import { cleanupTestData } from '../../helpers/test-helpers';
+import {
+  cleanupTestData,
+  createTestCategory,
+  createTestProduct,
+  generateTestId,
+} from '../../helpers/test-helpers';
 
 describe('FIN-04: Negative Price', () => {
   let productsService: ProductsService;
@@ -34,16 +39,20 @@ describe('FIN-04: Negative Price', () => {
   });
 
   it('should reject creating product with negative price', async () => {
+    const category = await createTestCategory(prisma);
+    const sku = generateTestId('NEG-001');
     const productData = {
-      name: 'Invalid Product',
-      nameAr: 'منتج غير صالح',
-      sku: 'NEG-001',
+      nameEn: 'Invalid Product',
+      nameAr: 'Ù…Ù†ØªØ¬ ØºÙŠØ± ØµØ§Ù„Ø­',
+      sku,
+      categoryId: category.id,
       price: -10,
-      isActive: true
+      isActive: true,
     };
 
     // Act: Try to create product with negative price
-    const result = await productsService.create(productData as any)
+    const result = await productsService
+      .createProduct(productData as any)
       .catch(e => ({ error: e }));
 
     // Assert: Should reject
@@ -51,7 +60,7 @@ describe('FIN-04: Negative Price', () => {
 
     // Verify product was not created
     const products = await prisma.product.findMany({
-      where: { sku: 'NEG-001' }
+      where: { sku },
     });
 
     expect(products.length).toBe(0);
@@ -59,65 +68,68 @@ describe('FIN-04: Negative Price', () => {
 
   it('should reject updating product to negative price', async () => {
     // Setup: Create valid product
-    const product = await prisma.product.create({
-      data: {
-        name: 'Valid Product',
-        nameAr: 'منتج صالح',
-        sku: 'NEG-002',
-        price: 50,
-        isActive: true
-      }
+    const product = await createTestProduct(prisma, {
+      sku: generateTestId('NEG-002'),
+      price: 50,
     });
 
     // Act: Try to update to negative price
-    const result = await productsService.update(product.id, {
-      price: -20
-    }).catch(e => ({ error: e }));
+    const result = await productsService
+      .updateProduct(product.id, {
+        price: -20,
+      })
+      .catch(e => ({ error: e }));
 
     // Assert: Should reject
     expect('error' in result).toBe(true);
 
     // Verify price unchanged
     const unchangedProduct = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
     expect(unchangedProduct?.price.toNumber()).toBe(50);
   });
 
   it('should accept zero price products', async () => {
+    const category = await createTestCategory(prisma);
     // Some products might be free (promotional items)
+    const sku = generateTestId('FREE-001');
     const productData = {
-      name: 'Free Item',
-      nameAr: 'عنصر مجاني',
-      sku: 'FREE-001',
+      nameEn: 'Free Item',
+      nameAr: 'Ø¹Ù†ØµØ± Ù…Ø¬Ø§Ù†ÙŠ',
+      sku,
+      categoryId: category.id,
       price: 0,
-      isActive: true
+      isActive: true,
     };
 
     // Act: Create product with zero price
-    const result = await productsService.create(productData as any)
+    const result = await productsService
+      .createProduct(productData as any)
       .catch(e => ({ error: e }));
 
-    // Zero price should be allowed (implementation dependent)
     if (!('error' in result)) {
-      expect(result.price.toNumber()).toBe(0);
+      expect(Number(result.price)).toBe(0);
     }
   });
 
   it('should reject price less than zero', async () => {
+    const category = await createTestCategory(prisma);
     const testPrices = [-0.01, -1, -100, -1000];
+    const baseSku = generateTestId('NEG');
 
     for (const price of testPrices) {
-      const result = await prisma.product.create({
-        data: {
-          name: `Test Product ${price}`,
-          nameAr: 'منتج',
-          sku: `TEST-${price}`,
+      const result = await productsService
+        .createProduct({
+          nameEn: `Test Product ${price}`,
+          nameAr: 'Ù…Ù†ØªØ¬',
+          sku: `${baseSku}-${Math.abs(price)}`,
+          categoryId: category.id,
           price,
-          isActive: true
-        }
-      }).catch(e => ({ error: e }));
+          isActive: true,
+        } as any)
+        .catch(e => ({ error: e }));
 
       // Should reject negative prices
       expect('error' in result).toBe(true);
@@ -125,23 +137,26 @@ describe('FIN-04: Negative Price', () => {
   });
 
   it('should validate price on bulk import', async () => {
+    const category = await createTestCategory(prisma);
     // Test bulk product import scenario
+    const bulkBase = generateTestId('BULK');
     const products = [
-      { name: 'Product 1', sku: 'BULK-1', price: 10 },
-      { name: 'Product 2', sku: 'BULK-2', price: -5 }, // Invalid!
-      { name: 'Product 3', sku: 'BULK-3', price: 20 }
+      { name: 'Product 1', sku: `${bulkBase}-1`, price: 10 },
+      { name: 'Product 2', sku: `${bulkBase}-2`, price: -5 }, // Invalid!
+      { name: 'Product 3', sku: `${bulkBase}-3`, price: 20 },
     ];
 
     const results = await Promise.allSettled(
-      products.map(p => prisma.product.create({
-        data: {
-          name: p.name,
-          nameAr: 'منتج',
+      products.map(p =>
+        productsService.createProduct({
+          nameEn: p.name,
+          nameAr: 'Ù…Ù†ØªØ¬',
           sku: p.sku,
+          categoryId: category.id,
           price: p.price,
-          isActive: true
-        }
-      }))
+          isActive: true,
+        } as any),
+      ),
     );
 
     // Two should succeed, one should fail
@@ -153,25 +168,15 @@ describe('FIN-04: Negative Price', () => {
   });
 
   it('should handle price update from positive to negative', async () => {
-    const product = await prisma.product.create({
-      data: {
-        name: 'Price Change Test',
-        nameAr: 'تغير السعر',
-        sku: 'PRICE-TEST',
-        price: 100,
-        isActive: true
-      }
+    const product = await createTestProduct(prisma, {
+      sku: generateTestId('PRICE-TEST'),
+      price: 100,
     });
 
     // Try multiple negative values
     const negativeUpdates = [-1, -50, -100];
     const results = await Promise.allSettled(
-      negativeUpdates.map(price =>
-        prisma.product.update({
-          where: { id: product.id },
-          data: { price }
-        })
-      )
+      negativeUpdates.map(price => productsService.updateProduct(product.id, { price })),
     );
 
     // All should fail
@@ -180,67 +185,60 @@ describe('FIN-04: Negative Price', () => {
 
     // Original price should remain
     const unchanged = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
     expect(unchanged?.price.toNumber()).toBe(100);
   });
 
   it('should validate price is a number', async () => {
-    // Test non-number values (TypeScript should catch this, but test validates runtime)
-    const result = await prisma.product.create({
-      data: {
-        name: 'Test',
-        nameAr: 'تجربة',
-        sku: 'TYPE-TEST',
+    const category = await createTestCategory(prisma);
+    const result = await productsService
+      .createProduct({
+        nameEn: 'Test',
+        nameAr: 'ØªØ¬Ø±Ø¨Ø©',
+        sku: generateTestId('TYPE-TEST'),
+        categoryId: category.id,
         price: NaN as any,
-        isActive: true
-      }
-    }).catch(e => ({ error: e }));
+        isActive: true,
+      } as any)
+      .catch(e => ({ error: e }));
 
     expect('error' in result).toBe(true);
   });
 
   it('should allow very small positive prices', async () => {
-    // Test precision edge case
-    const product = await prisma.product.create({
-      data: {
-        name: 'Micro Price',
-        nameAr: 'سعر دقيق',
-        sku: 'MICRO-001',
-        price: 0.01,
-        isActive: true
-      }
-    });
+    const category = await createTestCategory(prisma);
+    const product = await productsService.createProduct({
+      nameEn: 'Micro Price',
+      nameAr: 'Ø³Ø¹Ø± Ø¯Ù‚ÙŠÙ‚',
+      sku: generateTestId('MICRO-001'),
+      categoryId: category.id,
+      price: 0.01,
+      isActive: true,
+    } as any);
 
-    expect(product.price.toNumber()).toBe(0.01);
+    expect(Number(product.price)).toBe(0.01);
   });
 
   it('should track price changes for audit', async () => {
-    const product = await prisma.product.create({
-      data: {
-        name: 'Audit Test',
-        nameAr: 'اختبار التدقيق',
-        sku: 'AUDIT-001',
-        price: 50,
-        isActive: true
-      }
+    const product = await createTestProduct(prisma, {
+      sku: generateTestId('AUDIT-001'),
+      price: 50,
     });
-
-    const originalPrice = product.price.toNumber();
 
     // Update price
     await prisma.product.update({
       where: { id: product.id },
       data: {
         price: 60,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     // Verify price changed
     const updated = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
     expect(updated?.price.toNumber()).toBe(60);
