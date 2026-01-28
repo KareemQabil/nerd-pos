@@ -186,6 +186,11 @@ export class SalesService {
     });
 
     // 7. Event Emission - AFTER TRANSACTION COMMITS
+    const eventItems = dto.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity ?? 1,
+    }));
+
     await this.eventBus.publish(
       'OrderCreated',
       new OrderCreatedEvent(
@@ -193,6 +198,7 @@ export class SalesService {
         order.orderNumber,
         order.orderType,
         safeToNumber(calculated.grandTotal, 0),
+        eventItems,
       ),
     );
 
@@ -202,7 +208,18 @@ export class SalesService {
   // ==================== ORDER STATUS ====================
 
   async confirmOrder(orderId: string): Promise<Order> {
-    const order = await this.findOrderById(orderId);
+    const order = await this.findOrderByIdWithItems(orderId);
+
+    const eventItems = order.items.map((item) => ({
+      productId: item.productId,
+      productName: item.productNameEn ?? 'Unknown',
+      productNameAr: item.productNameAr ?? '',
+      quantity: typeof item.quantity === 'number'
+        ? item.quantity
+        : new Decimal(item.quantity).toNumber(),
+      notes: item.notes ?? undefined,
+      modifiers: (item.modifiers || []).map((m) => m.name),
+    }));
 
     if (order.status !== OrderStatus.DRAFT) {
       throw new BadRequestException('Only DRAFT orders can be confirmed');
@@ -215,7 +232,12 @@ export class SalesService {
 
     await this.eventBus.publish(
       'OrderConfirmed',
-      new OrderConfirmedEvent(orderId, order.orderNumber),
+      new OrderConfirmedEvent(
+        orderId,
+        order.orderNumber,
+        eventItems,
+        order.orderType || order.type,
+      ),
     );
 
     await this.eventBus.publish(
@@ -231,6 +253,7 @@ export class SalesService {
     dto: UpdateOrderStatusDto,
   ): Promise<Order> {
     const order = await this.findOrderById(orderId);
+
     const previousStatus = order.status as OrderStatus;
     const newStatus = dto.status as OrderStatus;
 

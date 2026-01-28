@@ -1,216 +1,258 @@
-/**
+﻿/**
  * INV-01: Overselling Last Item (Race Condition)
  *
  * Tests that two terminals cannot oversell the same stock
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SalesService } from '../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { InventoryService } from '../../../src/modules/inventory/inventory.service';
 import { InventoryRepository } from '../../../src/modules/inventory/inventory.repository';
+import { InventoryEventHandlers } from '../../../src/modules/inventory/inventory.handlers';
+import { FIFOStrategy } from '../../../src/modules/inventory/strategies/fifo.strategy';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
+import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
+import {
+  ItemSubtotalStep,
+  ServiceChargeStep,
+  DeliveryChargeStep,
+  SubtotalBeforeTaxStep,
+  TaxStep,
+  DiscountStep,
+  GrandTotalStep,
+} from '../../../src/modules/sales/calculation-steps';
+import { SessionsService } from '../../../src/modules/sessions/sessions.service';
 import { RaceConditionTester } from '../../helpers/race-condition';
-import { EventSpy } from '../../helpers/event-spy';
 import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
 
 describe('INV-01: Overselling Last Item (Race Condition)', () => {
   let salesService: SalesService;
   let inventoryService: InventoryService;
   let prisma: PrismaService;
-  let eventSpy: EventSpy;
   let productId: string;
   let warehouseId: string;
+  let sessionId: string;
+  let inventoryItemId: string;
+  let defaultWarehouseSpy: jest.SpyInstance;
+  let orderNumberSpy: jest.SpyInstance;
+  let orderNumberCounter = 0;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
+      imports: [EventEmitterModule.forRoot()],
       providers: [
         SalesService,
-        InventoryService,
         SalesRepository,
+        InventoryService,
         InventoryRepository,
+        InventoryEventHandlers,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        FIFOStrategy,
+        EventBusService,
+        ItemSubtotalStep,
+        ServiceChargeStep,
+        DeliveryChargeStep,
+        SubtotalBeforeTaxStep,
+        TaxStep,
+        DiscountStep,
+        GrandTotalStep,
+        { provide: SessionsService, useValue: { getCurrentSession: jest.fn() } },
+        { provide: 'IEventBus', useExisting: EventBusService },
       ],
     }).compile();
+
+    await module.init();
 
     salesService = module.get<SalesService>(SalesService);
     inventoryService = module.get<InventoryService>(InventoryService);
     prisma = module.get<PrismaService>(PrismaService);
-
-    // Mock sessions service
-    (salesService as any).sessionsService = {
-      getCurrentSession: jest.fn().mockResolvedValue({ id: 'test-session' }),
-    };
   });
 
   beforeEach(async () => {
-    eventSpy = new EventSpy({ publish: jest.fn(), subscribe: jest.fn() } as IEventBus);
+    const session = await createTestSession(prisma);
+    sessionId = session.id;
 
-    // Setup: Create warehouse
-    const warehouse = await prisma.warehouse.create({
-      data: {
-        name: 'Test Warehouse',
-        code: 'WH-TEST',
-        isActive: true,
-        isDefault: true
-      }
+    let defaultWarehouse = await prisma.warehouse.findFirst({
+      where: { isDefault: true, isActive: true },
     });
-    warehouseId = warehouse.id;
+    if (!defaultWarehouse) {
+      defaultWarehouse = await prisma.warehouse.create({
+        data: {
+          code: `WH-DEFAULT-${Date.now()}`,
+          nameEn: 'Default Warehouse',
+          nameAr: 'Default Warehouse AR',
+          isActive: true,
+          isDefault: true,
+        },
+      });
+    }
+    warehouseId = defaultWarehouse.id;
+    defaultWarehouseSpy = jest
+      .spyOn(inventoryService, 'getDefaultWarehouse')
+      .mockResolvedValue({ id: warehouseId } as any);
 
-    // Setup: Create product with stock = 3
+    orderNumberCounter = 0;
+    orderNumberSpy = jest
+      .spyOn(salesService as any, 'generateOrderNumber')
+      .mockImplementation(async () => `TEST-${Date.now()}-${orderNumberCounter++}`);
+
     const product = await createTestProduct(prisma, {
-      name: 'Test Product for Overselling',
-      price: 50
+      nameEn: 'Test Product for Overselling',
+      price: 50,
     });
     productId = product.id;
 
-    // Setup: Create inventory item with stock = 3
-    await prisma.inventoryItem.create({
+    const inventoryItem = await prisma.inventoryItem.create({
       data: {
         productId,
         warehouseId,
-        quantityOnHand: 3,
+        quantityOnHand: 5,
         reorderPoint: 10,
-        averageCost: 25
-      }
+        averageCost: 25,
+      },
     });
+    inventoryItemId = inventoryItem.id;
 
-    // Setup: Create session
-    await createTestSession(prisma, {
-      userId: 'test-user',
-      terminalId: 'test-terminal'
+    await prisma.inventoryBatch.create({
+      data: {
+        inventoryItemId: inventoryItem.id,
+        receivedDate: new Date(),
+        quantityReceived: 5,
+        quantityRemaining: 5,
+        costPerUnit: 25,
+      },
     });
   });
 
   afterEach(async () => {
+    if (defaultWarehouseSpy) {
+      defaultWarehouseSpy.mockRestore();
+    }
+    if (orderNumberSpy) {
+      orderNumberSpy.mockRestore();
+    }
     await cleanupTestData(prisma);
   });
 
   it('should prevent overselling when two terminals order simultaneously', async () => {
-    // Arrange: Two terminals order same product (stock=3, each wants 5)
     const terminalAOrder = {
       type: 'DINE_IN' as const,
-      sessionId: 'test-session',
-        businessDate: new Date(),
+      sessionId,
       items: [
         {
           productId,
           name: 'Test Product',
-          nameAr: 'منتج تجريبي',
+          nameAr: 'Test Product AR',
           price: 50,
-          quantity: 5
-        }
-      ]
+          quantity: 5,
+        },
+      ],
     };
 
     const terminalBOrder = {
       type: 'DINE_IN' as const,
-      sessionId: 'test-session',
-        businessDate: new Date(),
+      sessionId,
       items: [
         {
           productId,
           name: 'Test Product',
-          nameAr: 'منتج تجريبي',
+          nameAr: 'Test Product AR',
           price: 50,
-          quantity: 5
-        }
-      ]
+          quantity: 5,
+        },
+      ],
     };
 
-    // Act: Simulate concurrent requests
     const { terminalAResult, terminalBResult, bothSucceeded } =
       await RaceConditionTester.simulateDualTerminalRequest(
-        () => salesService.createOrder(terminalAOrder, 'terminal-a').catch(e => ({ error: e })),
-        () => salesService.createOrder(terminalBOrder, 'terminal-b').catch(e => ({ error: e }))
+        () => salesService.createOrder(terminalAOrder as any, 'terminal-a'),
+        () => salesService.createOrder(terminalBOrder as any, 'terminal-b')
       );
 
-    // Assert: Only ONE should succeed
     const results = [terminalAResult, terminalBResult];
-    const successCount = results.filter(r => !('error' in r)).length;
-    const errorCount = results.filter(r => 'error' in r).length;
+    const successCount = results.filter(r => !('error' in (r as any))).length;
+    const errorCount = results.filter(r => 'error' in (r as any)).length;
 
     expect(successCount).toBe(1);
     expect(errorCount).toBe(1);
     expect(bothSucceeded).toBe(false);
 
-    // CRITICAL: Verify stock = 0 (not -2)
     const finalStock = await prisma.inventoryItem.findFirst({
-      where: { productId, warehouseId }
+      where: { productId, warehouseId },
     });
     expect(finalStock?.quantityOnHand?.toString()).toBe('0');
   });
 
   it('should handle rapid concurrent stock deductions correctly', async () => {
-    // Setup: Update stock to 10
     await prisma.inventoryItem.update({
       where: { productId_warehouseId: { productId, warehouseId } },
-      data: { quantityOnHand: 10 }
+      data: { quantityOnHand: 10 },
     });
 
-    // Act: Flood with 20 concurrent orders (each requesting 1 unit)
+    await prisma.inventoryBatch.updateMany({
+      where: { inventoryItemId },
+      data: { quantityRemaining: 10, quantityReceived: 10 },
+    });
+
+    const concurrency = Number(process.env.TEST_CONCURRENCY || 20);
+    const expectedSuccess = Math.min(10, concurrency);
+    const expectedFailed = Math.max(0, concurrency - 10);
+
     const { successful, failed } = await RaceConditionTester.floodEndpoint(
       async () => {
-        try {
-          return await salesService.createOrder({
-            type: 'TAKEAWAY',
-            sessionId: 'test-session',
-        businessDate: new Date(),
-            items: [
-              {
-                productId,
-                name: 'Test Product',
-                nameAr: 'منتج تجريبي',
-                price: 50,
-                quantity: 1
-              }
-            ]
-          }, 'user-1');
-        } catch (e) {
-          return { error: e };
-        }
+        return salesService.createOrder({
+          type: 'TAKEAWAY',
+          sessionId,
+          items: [
+            {
+              productId,
+              name: 'Test Product',
+              nameAr: 'Test Product AR',
+              price: 50,
+              quantity: 1,
+            },
+          ],
+        } as any, 'user-1');
       },
-      20
+      concurrency
     );
 
-    // Assert: Exactly 10 should succeed (stock=10), 10 should fail
-    expect(successful).toBe(10);
-    expect(failed).toBe(10);
+    expect(successful).toBe(expectedSuccess);
+    expect(failed).toBe(expectedFailed);
 
-    // Verify stock = 0
     const stock = await prisma.inventoryItem.findFirst({
-      where: { productId, warehouseId }
+      where: { productId, warehouseId },
     });
     expect(stock?.quantityOnHand?.toString()).toBe('0');
   });
 
   it('should reject order when product has zero stock', async () => {
-    // Setup: Set stock to 0
     await prisma.inventoryItem.update({
       where: { productId_warehouseId: { productId, warehouseId } },
-      data: { quantityOnHand: 0 }
+      data: { quantityOnHand: 0 },
+    });
+
+    await prisma.inventoryBatch.updateMany({
+      where: { inventoryItemId },
+      data: { quantityRemaining: 0, quantityReceived: 0 },
     });
 
     const order = {
       type: 'TAKEAWAY' as const,
-      sessionId: 'test-session',
-        businessDate: new Date(),
+      sessionId,
       items: [
         {
           productId,
           name: 'Test Product',
-          nameAr: 'منتج تجريبي',
+          nameAr: 'Test Product AR',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
-    // Act & Assert
-    await expect(salesService.createOrder(order, 'user'))
-      .rejects.toThrow();
+    await expect(salesService.createOrder(order as any, 'user')).rejects.toThrow();
   });
 });

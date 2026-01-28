@@ -1,215 +1,221 @@
-/**
+﻿/**
  * INV-02: Selling Zero-Stock Item
  *
  * Tests that items with zero stock cannot be sold
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SalesService } from '../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { InventoryService } from '../../../src/modules/inventory/inventory.service';
 import { InventoryRepository } from '../../../src/modules/inventory/inventory.repository';
+import { InventoryEventHandlers } from '../../../src/modules/inventory/inventory.handlers';
+import { FIFOStrategy } from '../../../src/modules/inventory/strategies/fifo.strategy';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
+import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
+import {
+  ItemSubtotalStep,
+  ServiceChargeStep,
+  DeliveryChargeStep,
+  SubtotalBeforeTaxStep,
+  TaxStep,
+  DiscountStep,
+  GrandTotalStep,
+} from '../../../src/modules/sales/calculation-steps';
+import { SessionsService } from '../../../src/modules/sessions/sessions.service';
 import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
 
 describe('INV-02: Selling Zero-Stock Item', () => {
   let salesService: SalesService;
   let inventoryService: InventoryService;
   let prisma: PrismaService;
+  let sessionId: string;
+  let warehouseId: string;
+  let productId: string;
+  let defaultWarehouseSpy: jest.SpyInstance;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
+      imports: [EventEmitterModule.forRoot()],
       providers: [
         SalesService,
         SalesRepository,
         InventoryService,
         InventoryRepository,
+        InventoryEventHandlers,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        FIFOStrategy,
+        EventBusService,
+        ItemSubtotalStep,
+        ServiceChargeStep,
+        DeliveryChargeStep,
+        SubtotalBeforeTaxStep,
+        TaxStep,
+        DiscountStep,
+        GrandTotalStep,
+        { provide: SessionsService, useValue: { getCurrentSession: jest.fn() } },
+        { provide: 'IEventBus', useExisting: EventBusService },
       ],
     }).compile();
+
+    await module.init();
 
     salesService = module.get<SalesService>(SalesService);
     inventoryService = module.get<InventoryService>(InventoryService);
     prisma = module.get<PrismaService>(PrismaService);
-
-    (salesService as any).sessionsService = {
-      getCurrentSession: jest.fn().mockResolvedValue({ id: 'test-session' }),
-    };
   });
 
   beforeEach(async () => {
-    await createTestSession(prisma);
+    const session = await createTestSession(prisma);
+    sessionId = session.id;
+
+    let defaultWarehouse = await prisma.warehouse.findFirst({
+      where: { isDefault: true, isActive: true },
+    });
+    if (!defaultWarehouse) {
+      defaultWarehouse = await prisma.warehouse.create({
+        data: {
+          code: `WH-DEFAULT-${Date.now()}`,
+          nameEn: 'Default Warehouse',
+          nameAr: 'Default Warehouse AR',
+          isActive: true,
+          isDefault: true,
+        },
+      });
+    }
+    warehouseId = defaultWarehouse.id;
+    defaultWarehouseSpy = jest
+      .spyOn(inventoryService, 'getDefaultWarehouse')
+      .mockResolvedValue({ id: warehouseId } as any);
+
+    const product = await createTestProduct(prisma);
+    productId = product.id;
   });
 
   afterEach(async () => {
+    if (defaultWarehouseSpy) {
+      defaultWarehouseSpy.mockRestore();
+    }
     await cleanupTestData(prisma);
   });
 
   it('should reject sale of item with zero stock', async () => {
-    // Setup: Product with 0 stock
-    const product = await createTestProduct(prisma);
-
-    // Set stock to 0
-    await prisma.inventoryItem.create({
-      data: {
-        productId: 'prod-1',
-        warehouseId: 'wh-1',
-        quantityOnHand: 0,
-        reorderPoint: 5,
-        averageCost: 25
-      }
-    });
-
-    // Mock FIFO strategy to return 0 available
-    (inventoryService as any).fifoStrategy = {
-      getAvailableStock: jest.fn().mockResolvedValue(0),
-      deduct: jest.fn().mockResolvedValue([])
-    };
-
     const order = {
       type: 'TAKEAWAY' as const,
-      sessionId: 'test-session',
-        businessDate: new Date(),
+      sessionId,
       items: [
         {
-          productId: 'prod-1',
+          productId,
           name: 'Test Product',
-          nameAr: 'منتج تجريبي',
+          nameAr: 'Test Product AR',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
-    // Act & Assert - should reject due to insufficient stock
-    await expect(salesService.createOrder(order as any, 'user'))
-      .rejects.toThrow();
+    await expect(salesService.createOrder(order as any, 'user')).rejects.toThrow();
   });
 
   it('should reject sale when quantity exceeds available stock', async () => {
-    // Setup: Product with 5 stock
-    const product = await createTestProduct(prisma);
-
-    // Set stock to 5
-    await prisma.inventoryItem.create({
+    const inventoryItem = await prisma.inventoryItem.create({
       data: {
-        productId: 'prod-1',
-        warehouseId: 'wh-1',
+        productId,
+        warehouseId,
         quantityOnHand: 5,
         reorderPoint: 5,
-        averageCost: 25
-      }
+        averageCost: 25,
+      },
     });
 
-    // Mock FIFO strategy to return 5 available
-    (inventoryService as any).fifoStrategy = {
-      getAvailableStock: jest.fn().mockResolvedValue(5),
-      deduct: jest.fn().mockResolvedValue([
-        { batchId: 'batch-1', quantity: 5 }
-      ])
-    };
+    await prisma.inventoryBatch.create({
+      data: {
+        inventoryItemId: inventoryItem.id,
+        receivedDate: new Date(),
+        quantityReceived: 5,
+        quantityRemaining: 5,
+        costPerUnit: 25,
+      },
+    });
 
     const order = {
       type: 'TAKEAWAY' as const,
-      sessionId: 'test-session',
-        businessDate: new Date(),
+      sessionId,
       items: [
         {
-          productId: 'prod-1',
+          productId,
           name: 'Test Product',
-          nameAr: 'منتج تجريبي',
+          nameAr: 'Test Product AR',
           price: 50,
-          quantity: 10 // Want 10, but only 5 available
-        }
-      ]
+          quantity: 10,
+        },
+      ],
     };
 
-    // Act & Assert - should reject due to insufficient stock
-    await expect(salesService.createOrder(order as any, 'user'))
-      .rejects.toThrow();
+    await expect(salesService.createOrder(order as any, 'user')).rejects.toThrow();
   });
 
   it('should allow sale when stock equals requested quantity', async () => {
-    // Setup: Product with 5 stock
-    const product = await createTestProduct(prisma);
-
-    // Set stock to 5
-    await prisma.inventoryItem.create({
+    const inventoryItem = await prisma.inventoryItem.create({
       data: {
-        productId: 'prod-1',
-        warehouseId: 'wh-1',
+        productId,
+        warehouseId,
         quantityOnHand: 5,
         reorderPoint: 5,
-        averageCost: 25
-      }
+        averageCost: 25,
+      },
     });
 
-    // Mock FIFO strategy to return 5 available
-    (inventoryService as any).fifoStrategy = {
-      getAvailableStock: jest.fn().mockResolvedValue(5),
-      deduct: jest.fn().mockResolvedValue([
-        { batchId: 'batch-1', quantity: 5 }
-      ])
-    };
+    await prisma.inventoryBatch.create({
+      data: {
+        inventoryItemId: inventoryItem.id,
+        receivedDate: new Date(),
+        quantityReceived: 5,
+        quantityRemaining: 5,
+        costPerUnit: 25,
+      },
+    });
 
     const order = {
       type: 'TAKEAWAY' as const,
-      sessionId: 'test-session',
-        businessDate: new Date(),
+      sessionId,
       items: [
         {
-          productId: 'prod-1',
+          productId,
           name: 'Test Product',
-          nameAr: 'منتج تجريبي',
+          nameAr: 'Test Product AR',
           price: 50,
-          quantity: 5 // Exactly 5 available
-        }
-      ]
+          quantity: 5,
+        },
+      ],
     };
 
-    // Act & Assert - should succeed
     const result = await salesService.createOrder(order as any, 'user');
     expect(result).toBeDefined();
   });
 
   it('should check stock before deducting', async () => {
-    // Setup: Product with 0 stock
-    await createTestProduct(prisma);
-
-    (inventoryService as any).fifoStrategy = {
-      getAvailableStock: jest.fn().mockResolvedValue(0),
-      deduct: jest.fn().mockResolvedValue([])
-    };
-
-    // Verify stock check is called before deduction
-    const fifoStrategy = (inventoryService as any).fifoStrategy;
-
     const order = {
       type: 'TAKEAWAY' as const,
-      sessionId: 'test-session',
-        businessDate: new Date(),
+      sessionId,
       items: [
         {
-          productId: 'prod-1',
+          productId,
           name: 'Test Product',
-          nameAr: 'منتج تجريبي',
+          nameAr: 'Test Product AR',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
-    try {
-      await salesService.createOrder(order as any, 'user');
-    } catch (e) {
-      // Expected to fail
-    }
+    await expect(salesService.createOrder(order as any, 'user')).rejects.toThrow();
 
-    // Verify getAvailableStock was called
-    expect(fifoStrategy.getAvailableStock).toHaveBeenCalled();
-    // Verify deduct was NOT called (no stock to deduct)
-    expect(fifoStrategy.deduct).not.toHaveBeenCalled();
+    const movements = await prisma.inventoryMovement.findMany({
+      where: { productId, warehouseId },
+    });
+
+    expect(movements.length).toBe(0);
   });
 });

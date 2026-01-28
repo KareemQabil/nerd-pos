@@ -33,20 +33,27 @@ export class InventoryEventHandlers {
   /**
    * When an order is created, reserve stock for the items
    */
-  @OnEvent('OrderCreated')
+  @OnEvent('OrderCreated', { suppressErrors: false })
   async handleOrderCreated(payload: OrderCreatedPayload): Promise<void> {
     this.logger.log(`Handling OrderCreated event for order ${payload.orderId}`);
 
     try {
+      if (!payload.items || payload.items.length === 0) {
+        this.logger.warn(`OrderCreated event missing items for order ${payload.orderId}`);
+        return;
+      }
+
+      const warehouse = await this.inventoryService.getDefaultWarehouse();
+      const warehouseId = warehouse.id;
+
       for (const item of payload.items) {
-        // Deduct stock for each item
-        await this.inventoryService.adjustStock(
-          {
-            productId: item.productId,
-            warehouseId: 'default', // TODO: Get from order context
-            quantity: -item.quantity,
-            reason: `Sale: Order ${payload.orderId}`,
-          },
+        // Deduct stock for each item (FIFO)
+        await this.inventoryService.deductStock(
+          item.productId,
+          warehouseId,
+          item.quantity,
+          'ORDER',
+          payload.orderId,
           'system',
         );
       }
@@ -54,28 +61,37 @@ export class InventoryEventHandlers {
     } catch (error) {
       this.logger.error(
         `Failed to reserve stock for order ${payload.orderId}`,
-        error,
+        error as Error,
       );
       // In production, this would trigger a compensation event
+      throw error;
     }
   }
 
   /**
    * When an order is cancelled, release the reserved stock
    */
-  @OnEvent('OrderCancelled')
+  @OnEvent('OrderCancelled', { suppressErrors: false })
   async handleOrderCancelled(payload: OrderCancelledPayload): Promise<void> {
     this.logger.log(
       `Handling OrderCancelled event for order ${payload.orderId}`,
     );
 
     try {
+      if (!payload.items || payload.items.length === 0) {
+        this.logger.warn(`OrderCancelled event missing items for order ${payload.orderId}`);
+        return;
+      }
+
+      const warehouse = await this.inventoryService.getDefaultWarehouse();
+      const warehouseId = warehouse.id;
+
       for (const item of payload.items) {
         // Restore stock for each item
         await this.inventoryService.adjustStock(
           {
             productId: item.productId,
-            warehouseId: 'default',
+            warehouseId,
             quantity: item.quantity, // Positive to add back
             reason: `Cancelled: Order ${payload.orderId}`,
           },

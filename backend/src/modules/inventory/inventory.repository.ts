@@ -89,8 +89,10 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
   async findByProductAndWarehouse(
     productId: string,
     warehouseId: string,
+    tx?: TxClient,
   ): Promise<InventoryItem | null> {
-    return this.prismaClient.inventoryItem.findUnique({
+    const client = tx || this.prismaClient;
+    return client.inventoryItem.findUnique({
       where: { productId_warehouseId: { productId, warehouseId } },
     });
   }
@@ -126,8 +128,12 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
     return client.inventoryBatch.create({ data });
   }
 
-  async findBatchesFIFO(inventoryItemId: string): Promise<InventoryBatch[]> {
-    return this.prismaClient.inventoryBatch.findMany({
+  async findBatchesFIFO(
+    inventoryItemId: string,
+    tx?: TxClient,
+  ): Promise<InventoryBatch[]> {
+    const client = tx || this.prismaClient;
+    return client.inventoryBatch.findMany({
       where: { inventoryItemId, quantityRemaining: { gt: 0 } },
       orderBy: { receivedDate: 'asc' }, // FIFO: oldest first
     });

@@ -142,30 +142,26 @@ export class InventoryService {
     referenceId: string,
     userId: string,
   ): Promise<DeductionResult[]> {
-    // Use FIFO strategy to deduct from oldest batches
-    const deductions = await this.fifoStrategy.deduct(
-      productId,
-      warehouseId,
-      quantity,
+    // ATOMIC + CONCURRENCY SAFE: lock inventory item/batches within transaction
+    const deductions = await this.prisma.$transaction(
+      async (tx) => {
+        return this.deductStockWithTx(
+          productId,
+          warehouseId,
+          quantity,
+          referenceType,
+          referenceId,
+          userId,
+          tx,
+        );
+      },
+      {
+        maxWait: 10000,
+        timeout: 20000,
+      },
     );
 
-    // Create movement records for each batch deduction
-    for (const deduction of deductions) {
-      await this.repo.createMovement({
-        type: 'OUT',
-        productId,
-        warehouseId,
-        batchId: deduction.batchId || undefined,
-        quantity: -deduction.quantity, // Negative for OUT
-        unitCost: deduction.unitCost,
-        totalValue: deduction.totalCost,
-        referenceType,
-        referenceId,
-        createdBy: userId,
-      });
-    }
-
-    // Check for low stock alert
+    // Check for low stock alert (after transaction commits)
     const item = await this.repo.findByProductAndWarehouse(
       productId,
       warehouseId,
@@ -182,7 +178,7 @@ export class InventoryService {
       );
     }
 
-    // Publish deduction event
+    // Publish deduction event (after transaction commits)
     await this.eventBus.publish(
       'StockDeducted',
       new StockDeductedEvent(productId, warehouseId, quantity, referenceId),
@@ -266,7 +262,7 @@ export class InventoryService {
         userId,
         tx,
       );
-    });
+    }, { maxWait: 10000, timeout: 20000 });
 
     // Event Emission - AFTER TRANSACTION COMMITS
     await this.eventBus.publish(
@@ -306,7 +302,12 @@ export class InventoryService {
       );
     }
 
-    const batches = await this.repo.findBatchesFIFO(item.id);
+    // Lock inventory item row to prevent concurrent deductions
+    await (tx as any).$queryRaw`SELECT id FROM inventory_items WHERE product_id = ${productId} AND warehouse_id = ${warehouseId} FOR UPDATE`;
+    // Lock related batches for FIFO consistency
+    await (tx as any).$queryRaw`SELECT id FROM inventory_batches WHERE inventory_item_id = ${item.id} AND quantity_remaining > 0 FOR UPDATE`;
+
+    const batches = await this.repo.findBatchesFIFO(item.id, tx);
     let remainingQty = new Decimal(quantity);
     const deductions: DeductionResult[] = [];
 
@@ -363,9 +364,7 @@ export class InventoryService {
     await (client as any).inventoryItem.update({
       where: { id: item.id },
       data: {
-        quantityOnHand: new Decimal(item.quantityOnHand)
-          .minus(quantity)
-          .toNumber(),
+        quantityOnHand: { decrement: quantity },
       },
     });
 

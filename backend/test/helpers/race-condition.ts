@@ -38,8 +38,8 @@ export class RaceConditionTester {
     terminalA: () => Promise<T>,
     terminalB: () => Promise<T>
   ): Promise<{
-    terminalAResult: T;
-    terminalBResult: T;
+    terminalAResult: T | { error: any };
+    terminalBResult: T | { error: any };
     bothSucceeded: boolean;
     timeDifferenceMs: number;
   }> {
@@ -50,10 +50,14 @@ export class RaceConditionTester {
     ]);
     const endTime = Date.now();
 
+    const isErrorResult = (value: unknown): value is { error: any } => {
+      return typeof value === 'object' && value !== null && 'error' in value;
+    };
+
     return {
       terminalAResult: resultA,
       terminalBResult: resultB,
-      bothSucceeded: !('error' in resultA) && !('error' in resultB),
+      bothSucceeded: !isErrorResult(resultA) && !isErrorResult(resultB),
       timeDifferenceMs: endTime - startTime
     };
   }

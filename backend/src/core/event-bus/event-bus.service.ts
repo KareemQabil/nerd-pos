@@ -1,9 +1,10 @@
-// Event Bus Service Implementation
+﻿// Event Bus Service Implementation
 // Source: FINAL/BACKEND/02-CORE-PATTERNS.md
 // Handlers execute in PARALLEL (from documented pattern)
 // FIX: Track failures instead of silent catching
 
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { IEventBus, IEventHandler } from './event-bus.interface';
 
 interface HandlerFailure {
@@ -17,6 +18,8 @@ export class EventBusService implements IEventBus {
   private handlers = new Map<string, IEventHandler[]>();
   private readonly logger = new Logger(EventBusService.name);
   private failures: HandlerFailure[] = [];
+
+  constructor(private readonly emitter: EventEmitter2) {}
 
   subscribe<T>(eventName: string, handler: IEventHandler<T>): void {
     if (!this.handlers.has(eventName)) {
@@ -40,19 +43,35 @@ export class EventBusService implements IEventBus {
           const failure: HandlerFailure = {
             handlerName: handler.constructor.name,
             error: error as Error,
-            timestamp: new Date()
+            timestamp: new Date(),
           };
           this.failures.push(failure);
 
           this.logger.error(
             `Handler failed for ${eventName}: ${failure.handlerName}`,
-            error.stack
+            (error as Error).stack
           );
 
           return { success: false, handler: handler.constructor.name, error };
         }
       })
     );
+
+    // Emit through Nest EventEmitter for @OnEvent handlers
+    try {
+      await this.emitter.emitAsync(eventName, event);
+    } catch (error) {
+      const failure: HandlerFailure = {
+        handlerName: 'EventEmitter',
+        error: error as Error,
+        timestamp: new Date(),
+      };
+      this.failures.push(failure);
+      this.logger.error(
+        `EventEmitter handler failed for ${eventName}`,
+        (error as Error).stack
+      );
+    }
 
     // Log summary
     const successCount = results.filter(r => r.status === 'fulfilled').length;
@@ -68,8 +87,9 @@ export class EventBusService implements IEventBus {
     const criticalEvents = ['OrderCreated', 'PaymentReceived', 'StockDeducted'];
     if (criticalEvents.includes(eventName) && failCount > 0) {
       this.logger.warn(
-        `⚠️  CRITICAL: ${failCount} handlers failed for ${eventName}`
+        `CRITICAL: ${failCount} handlers failed for ${eventName}`
       );
+      throw new Error(`Critical event failure: ${eventName}`);
     }
 
     // Return failures for inspection

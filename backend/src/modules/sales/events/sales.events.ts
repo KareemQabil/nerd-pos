@@ -9,6 +9,7 @@ export class OrderCreatedEvent extends DomainEvent {
     public readonly orderNumber: string,
     public readonly type: string,
     public readonly grandTotal: number,
+    public readonly items: Array<{ productId: string; quantity: number }> = [],
   ) {
     super();
   }
@@ -18,6 +19,15 @@ export class OrderConfirmedEvent extends DomainEvent {
   constructor(
     public readonly orderId: string,
     public readonly orderNumber: string,
+    public readonly items: Array<{
+      productId: string;
+      productName?: string;
+      productNameAr?: string;
+      quantity: number;
+      notes?: string;
+      modifiers?: string[];
+    }> = [],
+    public readonly orderType?: string,
   ) {
     super();
   }
