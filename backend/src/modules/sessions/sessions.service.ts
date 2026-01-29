@@ -253,6 +253,40 @@ export class SessionsService {
     });
   }
 
+  async applyPaymentTotals(
+    sessionId: string,
+    method: string,
+    amount: number,
+    incrementOrders: boolean = false,
+  ): Promise<void> {
+    const session = await this.repo.findById(sessionId);
+    if (!session || session.status !== SessionStatus.OPEN) return;
+
+    const normalized = (method || '').toUpperCase();
+    const cashAmount = normalized === 'CASH' ? amount : 0;
+    const cardAmount = normalized === 'CARD' || normalized === 'MADA' ? amount : 0;
+    const otherAmount =
+      cashAmount === 0 && cardAmount === 0 ? amount : 0;
+
+    const updatePayload: Record<string, unknown> = {
+      totalCashSales: new Decimal(session.totalCashSales || 0)
+        .plus(cashAmount)
+        .toNumber(),
+      totalCardSales: new Decimal(session.totalCardSales || 0)
+        .plus(cardAmount)
+        .toNumber(),
+      totalOtherSales: new Decimal(session.totalOtherSales || 0)
+        .plus(otherAmount)
+        .toNumber(),
+    };
+
+    if (incrementOrders) {
+      updatePayload.ordersCount = (session.ordersCount || 0) + 1;
+    }
+
+    await this.repo.update(sessionId, updatePayload);
+  }
+
   async updateRefundStats(
     sessionId: string,
     refundAmount: number,

@@ -13,6 +13,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PaymentsRepository } from './payments.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { SessionsService } from '../sessions/sessions.service';
 import Decimal from 'decimal.js';
 
 // Mock Repository - methods from payments.repository.ts
@@ -61,6 +62,7 @@ function createMockPrismaService() {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
     refund: {
       update: jest.fn(),
@@ -78,11 +80,15 @@ describe('PaymentsService', () => {
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
   let prisma: ReturnType<typeof createMockPrismaService>;
+  let sessionsService: { applyPaymentTotals: jest.Mock };
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
     prisma = createMockPrismaService();
+    sessionsService = { applyPaymentTotals: jest.fn() };
+
+    prisma.payment.count.mockResolvedValue(0);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -90,6 +96,7 @@ describe('PaymentsService', () => {
         { provide: PaymentsRepository, useValue: repo },
         { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
+        { provide: SessionsService, useValue: sessionsService },
       ],
     }).compile();
 
@@ -124,6 +131,7 @@ describe('PaymentsService', () => {
       };
 
       repo.create.mockResolvedValue(mockPayment);
+      prisma.payment.count.mockResolvedValue(0);
 
       const result = await service.createPayment(dto);
 
@@ -170,6 +178,7 @@ describe('PaymentsService', () => {
       };
 
       repo.create.mockResolvedValue(mockPayment);
+      prisma.payment.count.mockResolvedValue(0);
 
       const result = await service.createPayment(dto);
 
@@ -192,6 +201,7 @@ describe('PaymentsService', () => {
         sessionId: 'session-1',
       };
 
+      prisma.payment.count.mockResolvedValue(0);
       // Mock prisma.payment.create used by createPaymentWithTx
       prisma.payment.create
         .mockResolvedValueOnce({ id: 'pay-1', amount: 50, method: 'CASH' })

@@ -84,7 +84,7 @@ export class CreateUserDto {
 
   @ApiProperty({
     description: 'Full name (Arabic)',
-    example: 'علي محمد',
+    example: '??? ????',
   })
   @IsString()
   nameAr: string;
@@ -123,15 +123,18 @@ export class CreateUserDto {
 export class UpdateUserDto extends PartialType(CreateUserDto) { }
 
 export class UpdatePinDto {
+  @ApiProperty({ description: 'New PIN (4-6 digits)', example: '4321' })
   @IsString()
   @Length(4, 6)
   newPin: string;
 }
 
 export class ChangePasswordDto {
+  @ApiProperty({ description: 'Current password', example: 'OldPass123!' })
   @IsString()
   currentPassword: string;
 
+  @ApiProperty({ description: 'New password (min 8 chars)', example: 'NewPass123!' })
   @IsString()
   @MinLength(8)
   newPassword: string;
@@ -149,7 +152,7 @@ export class CreateRoleDto {
 
   @ApiProperty({
     description: 'Role name (Arabic)',
-    example: 'كاشير',
+    example: '?????',
   })
   @IsString()
   nameAr: string;
@@ -175,7 +178,7 @@ export class CreateRoleDto {
 
   @ApiProperty({
     description: 'Permission UUIDs assigned to this role',
-    example: ['p1-uuid', 'p2-uuid'],
+    example: ['p23e4567-e89b-12d3-a456-426614174050'],
     type: [String],
   })
   @IsArray()
@@ -188,22 +191,28 @@ export class UpdateRoleDto extends PartialType(CreateRoleDto) { }
 // ==================== PERMISSION ====================
 
 export class CreatePermissionDto {
+  @ApiProperty({ description: 'Permission code', example: 'sales.create' })
   @IsString()
   code: string;
 
+  @ApiProperty({ description: 'Permission name (English)', example: 'Create Sales Order' })
   @IsString()
   name: string;
 
+  @ApiProperty({ description: 'Permission name (Arabic)', example: '????? ??? ???' })
   @IsString()
   nameAr: string;
 
+  @ApiPropertyOptional({ description: 'Permission description', example: 'Allows creating sales orders' })
   @IsOptional()
   @IsString()
   description?: string;
 
+  @ApiProperty({ description: 'Module key', example: 'sales' })
   @IsString()
   module: string;
 
+  @ApiPropertyOptional({ description: 'Section key', example: 'orders' })
   @IsOptional()
   @IsString()
   section?: string;
@@ -237,7 +246,7 @@ export class UserResponseDto {
   nameEn: string;
 
   @Expose()
-  @ApiProperty({ description: 'Full name in Arabic', example: 'علي محمد' })
+  @ApiProperty({ description: 'Full name in Arabic', example: '??? ????' })
   nameAr: string;
 
   @Expose()
@@ -261,14 +270,14 @@ export class UserResponseDto {
   isActive: boolean;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Created timestamp', example: '2024-01-10T08:00:00Z' })
+  @ApiPropertyOptional({ description: 'Created timestamp', example: '2026-01-10T08:00:00Z' })
   createdAt?: Date;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Last updated timestamp', example: '2024-01-20T14:30:00Z' })
+  @ApiPropertyOptional({ description: 'Last updated timestamp', example: '2026-01-20T14:30:00Z' })
   updatedAt?: Date;
 
-  // ✅ EXCLUDED: passwordHash, pin - NEVER expose these fields
+  // ? EXCLUDED: passwordHash, pin - NEVER expose these fields
 }
 
 /**
@@ -277,26 +286,26 @@ export class UserResponseDto {
 @Exclude()
 export class UserListItemDto {
   @Expose()
-  @ApiProperty()
+  @ApiProperty({ description: 'User ID', example: 'u23e4567-e89b-12d3-a456-426614174020' })
   id: string;
 
   @Expose()
-  @ApiProperty()
+  @ApiProperty({ description: 'Username', example: 'cashier01' })
   username: string;
 
   @Expose()
-  @ApiProperty()
+  @ApiProperty({ description: 'Full name (English)', example: 'Ali Mohammed' })
   nameEn: string;
 
   @Expose()
-  @ApiProperty()
+  @ApiProperty({ description: 'Full name (Arabic)', example: '??? ????' })
   nameAr: string;
 
   @Expose()
-  @ApiProperty()
+  @ApiProperty({ description: 'Role name', example: 'Cashier' })
   role: string;
 
   @Expose()
-  @ApiProperty()
+  @ApiProperty({ description: 'Active status', example: true })
   isActive: boolean;
 }

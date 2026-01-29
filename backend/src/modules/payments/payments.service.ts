@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PaymentsRepository } from './payments.repository';
+import { SessionsService } from '../sessions/sessions.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
@@ -38,11 +39,15 @@ export class PaymentsService {
     private readonly repo: PaymentsRepository,
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
     @Inject('IEventBus') private readonly eventBus: IEventBus,
+    private readonly sessionsService: SessionsService,
   ) { }
 
   // ==================== SINGLE PAYMENT ====================
 
   async createPayment(dto: CreatePaymentDto): Promise<Payment> {
+    const prePaymentCount = await (this.prisma as any).payment.count({
+      where: { orderId: dto.orderId },
+    });
     const amount = new Decimal(dto.amount);
 
     if (!Number.isFinite(dto.amount)) {
@@ -88,6 +93,13 @@ export class PaymentsService {
       ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
     });
 
+    await this.sessionsService.applyPaymentTotals(
+      dto.sessionId,
+      payment.paymentMethod || dto.method,
+      amount.toNumber(),
+      prePaymentCount === 0,
+    );
+
     await this.eventBus.publish(
       'PaymentCreated',
       new PaymentCreatedEvent(
@@ -113,6 +125,9 @@ export class PaymentsService {
       (sum, p) => sum.plus(new Decimal(p.amount)),
       new Decimal(0),
     );
+    const prePaymentCount = await (this.prisma as any).payment.count({
+      where: { orderId: dto.orderId },
+    });
 
     // ATOMIC: All split payments created together or none
     const payments = await this.prisma.$transaction(async (tx) => {
@@ -137,6 +152,16 @@ export class PaymentsService {
 
     // FORENSIC AUDIT FIX: Events emitted AFTER transaction commits (not inside)
     const normalizedPayments = this.normalizePayments(payments);
+
+    for (let index = 0; index < normalizedPayments.length; index += 1) {
+      const payment = normalizedPayments[index];
+      await this.sessionsService.applyPaymentTotals(
+        dto.sessionId,
+        payment.method || payment.paymentMethod || 'UNKNOWN',
+        payment.amount,
+        prePaymentCount === 0 && index === 0,
+      );
+    }
 
     for (const payment of normalizedPayments) {
       await this.eventBus.publish(

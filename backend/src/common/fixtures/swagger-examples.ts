@@ -87,15 +87,21 @@ export const salesExamples = {
     summary: 'Create a new dine-in order',
     value: {
       type: 'DINE_IN',
-      tableId: 'table-1',
+      tableId: 't23e4567-e89b-12d3-a456-426614174012',
       items: [
         {
-          productId: 'prod-latte-001',
+          productId: '123e4567-e89b-12d3-a456-426614174000',
+          name: 'Latte',
+          nameAr: 'لاتيه',
+          price: 15.0,
           quantity: 2,
           notes: 'Extra hot',
         },
         {
-          productId: 'prod-croissant-001',
+          productId: '223e4567-e89b-12d3-a456-426614174001',
+          name: 'Croissant',
+          nameAr: 'كرواسون',
+          price: 12.0,
           quantity: 1,
         },
       ],

@@ -15,6 +15,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { OrderStatus } from '../../../core/constants/enums';
 
 // ==================== ORDER ITEM DTO ====================
 
@@ -65,7 +66,7 @@ export class CreateOrderItemDto {
 
   @ApiProperty({
     description: 'Product name (Arabic)',
-    example: 'طبق شاورما',
+    example: '??? ??????',
   })
   @IsString()
   nameAr: string;
@@ -97,6 +98,14 @@ export class CreateOrderItemDto {
   @ApiPropertyOptional({
     description: 'Selected modifiers for this item',
     type: [OrderItemModifierDto],
+    example: [
+      {
+        modifierId: '823e4567-e89b-12d3-a456-426614174007',
+        optionId: 'b23e4567-e89b-12d3-a456-426614174010',
+        name: 'Extra Cheese',
+        price: 5.0,
+      },
+    ],
   })
   @IsOptional()
   @IsArray()
@@ -143,6 +152,24 @@ export class CreateOrderDto {
   @ApiProperty({
     description: 'Order items',
     type: [CreateOrderItemDto],
+    example: [
+      {
+        productId: '123e4567-e89b-12d3-a456-426614174000',
+        name: 'Shawarma Plate',
+        nameAr: '??? ??????',
+        price: 35.0,
+        quantity: 2,
+        notes: 'No onions',
+        modifiers: [
+          {
+            modifierId: '823e4567-e89b-12d3-a456-426614174007',
+            optionId: 'b23e4567-e89b-12d3-a456-426614174010',
+            name: 'Extra Cheese',
+            price: 5.0,
+          },
+        ],
+      },
+    ],
   })
   @IsArray()
   @ValidateNested({ each: true })
@@ -151,7 +178,7 @@ export class CreateOrderDto {
 
   @ApiPropertyOptional({
     description: 'Discount code to apply',
-    example: 'SUMMER2024',
+    example: 'RAMADAN2026',
   })
   @IsOptional()
   @IsString()
@@ -170,31 +197,11 @@ export class CreateOrderDto {
 export class UpdateOrderStatusDto {
   @ApiProperty({
     description: 'New order status',
-    enum: [
-      'DRAFT',
-      'CONFIRMED',
-      'PREPARING',
-      'READY',
-      'COMPLETED',
-      'CANCELLED',
-    ],
-    example: 'CONFIRMED',
+    enum: OrderStatus,
+    example: 'PAID',
   })
-  @IsEnum([
-    'DRAFT',
-    'CONFIRMED',
-    'PREPARING',
-    'READY',
-    'COMPLETED',
-    'CANCELLED',
-  ])
-  status:
-    | 'DRAFT'
-    | 'CONFIRMED'
-    | 'PREPARING'
-    | 'READY'
-    | 'COMPLETED'
-    | 'CANCELLED';
+  @IsEnum(OrderStatus)
+  status: OrderStatus;
 }
 
 export class AddOrderItemDto extends CreateOrderItemDto { }
@@ -222,7 +229,7 @@ export class UpdateOrderItemDto {
 export class ApplyDiscountDto {
   @ApiProperty({
     description: 'Discount code',
-    example: 'RAMADAN2024',
+    example: 'RAMADAN2026',
   })
   @IsString()
   discountCode: string;

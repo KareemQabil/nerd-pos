@@ -58,10 +58,38 @@ export class InventoryService {
 
   async getDefaultWarehouse(): Promise<Warehouse> {
     const warehouse = await this.repo.findDefaultWarehouse();
-    if (!warehouse) {
-      throw new NotFoundException('No default warehouse configured');
+    const isUuid = (value?: string) =>
+      typeof value === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        value,
+      );
+
+    if (warehouse && isUuid(warehouse.id)) {
+      return warehouse;
     }
-    return warehouse;
+
+    const warehouses = await this.repo.findAllWarehouses();
+    const validDefault = warehouses.find(
+      (item) => item.isDefault && isUuid(item.id),
+    );
+
+    if (validDefault) {
+      return validDefault;
+    }
+
+    const fallback = warehouses.find((item) => isUuid(item.id));
+    if (!fallback) {
+      throw new NotFoundException('No valid warehouse configured');
+    }
+
+    if (warehouse?.isDefault) {
+      await this.repo.updateWarehouse(warehouse.id, { isDefault: false });
+    }
+
+    return this.repo.updateWarehouse(fallback.id, {
+      isDefault: true,
+      isActive: true,
+    });
   }
 
   // ==================== STOCK OPERATIONS ====================

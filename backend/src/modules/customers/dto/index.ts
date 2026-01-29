@@ -25,7 +25,7 @@ export class CreateCustomerDto {
 
   @ApiPropertyOptional({
     description: 'Customer name (Arabic)',
-    example: 'أحمد المنصوري',
+    example: '???? ????',
   })
   @IsOptional()
   @IsString()
@@ -184,7 +184,7 @@ export class CreateLoyaltyTierDto {
 
   @ApiProperty({
     description: 'Tier name (Arabic)',
-    example: 'عضو ذهبي',
+    example: '??? ????',
   })
   @IsString()
   nameAr: string;
@@ -241,3 +241,4 @@ export class CreateLoyaltyTierDto {
 }
 
 export class UpdateLoyaltyTierDto extends PartialType(CreateLoyaltyTierDto) { }
+
