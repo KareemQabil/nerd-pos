@@ -87,7 +87,7 @@ export class InventoryService {
 
     // Create batch for FIFO tracking
     const batch = await this.repo.createBatch({
-      inventoryItemId: item.id,
+      inventoryItem: { connect: { id: item.id } },
       batchNumber,
       receivedDate: new Date(),
       expiryDate,
@@ -142,30 +142,26 @@ export class InventoryService {
     referenceId: string,
     userId: string,
   ): Promise<DeductionResult[]> {
-    // Use FIFO strategy to deduct from oldest batches
-    const deductions = await this.fifoStrategy.deduct(
-      productId,
-      warehouseId,
-      quantity,
+    // ATOMIC + CONCURRENCY SAFE: lock inventory item/batches within transaction
+    const deductions = await this.prisma.$transaction(
+      async (tx) => {
+        return this.deductStockWithTx(
+          productId,
+          warehouseId,
+          quantity,
+          referenceType,
+          referenceId,
+          userId,
+          tx,
+        );
+      },
+      {
+        maxWait: 10000,
+        timeout: 20000,
+      },
     );
 
-    // Create movement records for each batch deduction
-    for (const deduction of deductions) {
-      await this.repo.createMovement({
-        type: 'OUT',
-        productId,
-        warehouseId,
-        batchId: deduction.batchId || undefined,
-        quantity: -deduction.quantity, // Negative for OUT
-        unitCost: deduction.unitCost,
-        totalValue: deduction.totalCost,
-        referenceType,
-        referenceId,
-        createdBy: userId,
-      });
-    }
-
-    // Check for low stock alert
+    // Check for low stock alert (after transaction commits)
     const item = await this.repo.findByProductAndWarehouse(
       productId,
       warehouseId,
@@ -176,13 +172,13 @@ export class InventoryService {
         new LowStockAlertEvent(
           productId,
           warehouseId,
-          item.quantityOnHand,
-          item.reorderPoint,
+          new Decimal(item.quantityOnHand).toNumber(),
+          new Decimal(item.reorderPoint).toNumber(),
         ),
       );
     }
 
-    // Publish deduction event
+    // Publish deduction event (after transaction commits)
     await this.eventBus.publish(
       'StockDeducted',
       new StockDeductedEvent(productId, warehouseId, quantity, referenceId),
@@ -266,7 +262,7 @@ export class InventoryService {
         userId,
         tx,
       );
-    });
+    }, { maxWait: 10000, timeout: 20000 });
 
     // Event Emission - AFTER TRANSACTION COMMITS
     await this.eventBus.publish(
@@ -306,7 +302,12 @@ export class InventoryService {
       );
     }
 
-    const batches = await this.repo.findBatchesFIFO(item.id);
+    // Lock inventory item row to prevent concurrent deductions
+    await (tx as any).$queryRaw`SELECT id FROM inventory_items WHERE product_id = ${productId} AND warehouse_id = ${warehouseId} FOR UPDATE`;
+    // Lock related batches for FIFO consistency
+    await (tx as any).$queryRaw`SELECT id FROM inventory_batches WHERE inventory_item_id = ${item.id} AND quantity_remaining > 0 FOR UPDATE`;
+
+    const batches = await this.repo.findBatchesFIFO(item.id, tx);
     let remainingQty = new Decimal(quantity);
     const deductions: DeductionResult[] = [];
 
@@ -344,9 +345,9 @@ export class InventoryService {
 
       deductions.push({
         batchId: batch.id,
-        quantity: toDeduct.toNumber(),
+        quantity: toDeduct,
         unitCost: batch.costPerUnit,
-        totalCost: toDeduct.times(batch.costPerUnit).toNumber(),
+        totalCost: toDeduct.times(batch.costPerUnit),
       });
 
       remainingQty = remainingQty.minus(toDeduct);
@@ -363,9 +364,7 @@ export class InventoryService {
     await (client as any).inventoryItem.update({
       where: { id: item.id },
       data: {
-        quantityOnHand: new Decimal(item.quantityOnHand)
-          .minus(quantity)
-          .toNumber(),
+        quantityOnHand: { decrement: quantity },
       },
     });
 
@@ -407,7 +406,7 @@ export class InventoryService {
     // Create batch with tx
     const batch = await this.repo.createBatch(
       {
-        inventoryItemId: item!.id,
+        inventoryItem: { connect: { id: item!.id } },
         batchNumber,
         receivedDate: new Date(),
         expiryDate,
@@ -486,7 +485,12 @@ export class InventoryService {
   // ==================== RECIPE ====================
 
   async createRecipe(dto: CreateRecipeDto): Promise<Recipe> {
-    return this.repo.createRecipe(dto);
+    // Map DTO to Prisma RecipeCreateInput
+    const recipeData: Prisma.RecipeCreateInput = {
+      product: { connect: { id: dto.productId } },
+      yieldQuantity: dto.yield,
+    };
+    return this.repo.createRecipe(recipeData);
   }
 
   async getRecipeByProduct(productId: string): Promise<Recipe | null> {
@@ -494,7 +498,14 @@ export class InventoryService {
   }
 
   async addRecipeIngredient(dto: AddRecipeIngredientDto) {
-    return this.repo.addRecipeIngredient(dto);
+    // Map DTO to Prisma RecipeIngredientCreateInput
+    const ingredientData: Prisma.RecipeIngredientCreateInput = {
+      recipe: { connect: { id: dto.recipeId } },
+      ingredient: { connect: { id: dto.productId } },
+      quantityRequired: dto.quantity,
+      unit: dto.unit,
+    };
+    return this.repo.addRecipeIngredient(ingredientData);
   }
 
   // Calculate recipe cost based on FIFO ingredient costs

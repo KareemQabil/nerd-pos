@@ -49,9 +49,9 @@ export class FIFOStrategy {
 
       deductions.push({
         batchId: batch.id,
-        quantity: deductQty.toNumber(),
-        unitCost: unitCost.toNumber(),
-        totalCost: totalCost.toNumber(),
+        quantity: deductQty,
+        unitCost: unitCost,
+        totalCost: totalCost,
       });
 
       // Update batch remaining quantity
@@ -74,9 +74,9 @@ export class FIFOStrategy {
         // Allow negative stock - create virtual negative deduction
         deductions.push({
           batchId: null,
-          quantity: remaining.toNumber(),
-          unitCost: 0, // Will be resolved when stock is added (FIFO)
-          totalCost: 0,
+          quantity: remaining,
+          unitCost: new Decimal(0), // Will be resolved when stock is added (FIFO)
+          totalCost: new Decimal(0),
           isVirtual: true,
         });
       } else {

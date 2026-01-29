@@ -1,0 +1,26 @@
+[
+  {
+    "username": "admin_test",
+    "password": "nerdpos123",
+    "role": "ADMIN",
+    "email": "admin_test@example.com",
+    "nameEn": "Admin Test",
+    "nameAr": "Admin Test AR"
+  },
+  {
+    "username": "cashier_test",
+    "password": "cashier123",
+    "role": "CASHIER",
+    "email": "cashier_test@example.com",
+    "nameEn": "Cashier Test",
+    "nameAr": "Cashier Test AR"
+  },
+  {
+    "username": "manager_test",
+    "password": "manager123",
+    "role": "MANAGER",
+    "email": "manager_test@example.com",
+    "nameEn": "Manager Test",
+    "nameAr": "Manager Test AR"
+  }
+]

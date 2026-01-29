@@ -2,7 +2,12 @@
 // Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
 // Aligned with: prisma/schema.prisma
 
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { ProductsRepository } from './products.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
@@ -43,6 +48,13 @@ export class ProductsService {
   // ==================== PRODUCT ====================
 
   async createProduct(dto: CreateProductDto): Promise<Product> {
+    if (!Number.isFinite(dto.price)) {
+      throw new BadRequestException('Price must be a valid number');
+    }
+    if (dto.price < 0) {
+      throw new BadRequestException('Price must be non-negative');
+    }
+
     const data = {
       ...dto,
       price: new Decimal(dto.price).toNumber(),
@@ -71,6 +83,12 @@ export class ProductsService {
 
     const data: any = { ...dto };
     if (dto.price !== undefined) {
+      if (!Number.isFinite(dto.price)) {
+        throw new BadRequestException('Price must be a valid number');
+      }
+      if (dto.price < 0) {
+        throw new BadRequestException('Price must be non-negative');
+      }
       data.price = new Decimal(dto.price).toNumber();
     }
     if (dto.cost !== undefined) {

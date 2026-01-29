@@ -1,0 +1,32 @@
+[
+  {
+    "sku": "TEST-FOOD-001",
+    "nameEn": "Cheeseburger",
+    "nameAr": "Cheeseburger AR",
+    "category": "Main Dishes",
+    "price": 25.0,
+    "taxCategory": "STANDARD",
+    "trackInventory": true,
+    "hasModifiers": true,
+    "modifiers": [
+      {
+        "group": "Add-ons",
+        "selectionType": "MULTIPLE",
+        "options": [
+          { "nameEn": "Extra Cheese", "price": 3.0 },
+          { "nameEn": "Bacon", "price": 5.0 }
+        ]
+      }
+    ]
+  },
+  {
+    "sku": "TEST-DRINK-001",
+    "nameEn": "Cola",
+    "nameAr": "Cola AR",
+    "category": "Beverages",
+    "price": 8.0,
+    "taxCategory": "STANDARD",
+    "trackInventory": true,
+    "hasModifiers": false
+  }
+]

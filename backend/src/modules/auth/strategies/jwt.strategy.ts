@@ -5,13 +5,15 @@
  * Extracts token from cookies (primary) OR Authorization header (fallback).
  * Cookie-based auth enables seamless Swagger testing.
  *
+ * Update 2026-01-25: Using ConfigService for validated env vars
  * Source: FINAL/BACKEND/14-MODULE-USERS-ROLES.md
  */
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '../decorators/current-user.decorator';
 
 // Custom extractor: try cookie first, then Bearer header
@@ -30,12 +32,17 @@ const cookieOrBearerExtractor = (req: Request): string | null => {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private readonly configService: ConfigService) {
+    const jwtSecret = configService.get<string>('JWT_SECRET');
+
+    if (!jwtSecret || jwtSecret.length < 32) {
+      throw new Error('JWT_SECRET must be at least 32 characters long');
+    }
+
     super({
       jwtFromRequest: cookieOrBearerExtractor,
       ignoreExpiration: false,
-      secretOrKey:
-        process.env.JWT_SECRET || 'nerdpos-secret-change-in-production-2026',
+      secretOrKey: jwtSecret,
     });
   }
 
@@ -45,7 +52,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    */
   async validate(payload: JwtPayload): Promise<JwtPayload> {
     if (!payload.sub || !payload.username) {
-      throw new UnauthorizedException('Invalid token payload');
+      throw new Error('Invalid token payload');
     }
 
     return {
@@ -56,4 +63,3 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
-

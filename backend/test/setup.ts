@@ -1,89 +1,94 @@
 /**
  * Global Test Setup
- * Runs before all tests
- * Source: Phase 1 Test Infrastructure Plan
+ *
+ * Runs before all test suites
  */
+
 import Decimal from 'decimal.js';
+import { PrismaService } from '../src/core/prisma/prisma.service';
 
-// Configure Decimal.js for consistent test behavior
-Decimal.set({ precision: 20, rounding: Decimal.ROUND_HALF_UP });
-
-// Extend Jest with custom matchers for Decimal.js
-expect.extend({
-  /**
-   * Check if value is a Decimal instance
-   * Usage: expect(result.price).toBeDecimal()
-   */
-  toBeDecimal(received) {
-    const pass = received instanceof Decimal;
-    return {
-      message: () =>
-        pass
-          ? `expected ${received} not to be a Decimal instance`
-          : `expected ${received} to be a Decimal instance`,
-      pass,
-    };
-  },
-
-  /**
-   * Check if Decimal equals expected value
-   * Usage: expect(result.price).toEqualDecimal('10.50')
-   */
-  toEqualDecimal(received, expected) {
-    const receivedDecimal =
-      received instanceof Decimal ? received : new Decimal(received);
-    const expectedDecimal = new Decimal(expected);
-    const pass = receivedDecimal.equals(expectedDecimal);
-
-    return {
-      message: () =>
-        pass
-          ? `expected ${receivedDecimal.toString()} not to equal ${expectedDecimal.toString()}`
-          : `expected ${receivedDecimal.toString()} to equal ${expectedDecimal.toString()}`,
-      pass,
-    };
-  },
-
-  /**
-   * Check if Decimal is greater than expected value
-   * Usage: expect(result.total).toBeGreaterThanDecimal('100.00')
-   */
-  toBeGreaterThanDecimal(received, expected) {
-    const receivedDecimal =
-      received instanceof Decimal ? received : new Decimal(received);
-    const expectedDecimal = new Decimal(expected);
-    const pass = receivedDecimal.greaterThan(expectedDecimal);
-
-    return {
-      message: () =>
-        pass
-          ? `expected ${receivedDecimal.toString()} not to be greater than ${expectedDecimal.toString()}`
-          : `expected ${receivedDecimal.toString()} to be greater than ${expectedDecimal.toString()}`,
-      pass,
-    };
-  },
-});
-
-// Type declarations for custom matchers
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace jest {
-    interface Matchers<R> {
-      toBeDecimal(): R;
-      toEqualDecimal(expected: string | number | Decimal): R;
-      toBeGreaterThanDecimal(expected: string | number | Decimal): R;
-    }
-  }
+// Set test environment variables
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/nerdpos_test';
+process.env.NODE_ENV = 'test';
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  process.env.JWT_SECRET = 'test-jwt-secret-32-characters-minimum';
 }
 
-// Global test setup
-beforeAll(() => {
-  // Silence console during tests (optional - comment out for debugging)
-  // jest.spyOn(console, 'log').mockImplementation(() => {});
-  // jest.spyOn(console, 'warn').mockImplementation(() => {});
+// Increase timeout for integration tests
+jest.setTimeout(30000);
+
+const toDecimal = (value: any): Decimal => {
+  if (value instanceof Decimal) {
+    return value;
+  }
+  if (value && value.constructor && value.constructor.name === 'Decimal') {
+    return new Decimal(value);
+  }
+  return new Decimal(value);
+};
+
+expect.extend({
+  toBeDecimal(received: any) {
+    const pass =
+      received instanceof Decimal ||
+      (received && received.constructor && received.constructor.name === 'Decimal');
+    return {
+      pass,
+      message: () =>
+        pass
+          ? 'expected value not to be a Decimal instance'
+          : `expected ${received} to be a Decimal instance`,
+    };
+  },
+  toEqualDecimal(received: any, expected: string | number) {
+    try {
+      const pass = toDecimal(received).equals(toDecimal(expected));
+      return {
+        pass,
+        message: () =>
+          pass
+            ? `expected ${received} not to equal ${expected}`
+            : `expected ${received} to equal ${expected}`,
+      };
+    } catch (error) {
+      return {
+        pass: false,
+        message: () => `expected ${received} to be comparable as Decimal: ${error}`,
+      };
+    }
+  },
+  toBeGreaterThanDecimal(received: any, expected: string | number) {
+    try {
+      const pass = toDecimal(received).greaterThan(toDecimal(expected));
+      return {
+        pass,
+        message: () =>
+          pass
+            ? `expected ${received} not to be greater than ${expected}`
+            : `expected ${received} to be greater than ${expected}`,
+      };
+    } catch (error) {
+      return {
+        pass: false,
+        message: () => `expected ${received} to be comparable as Decimal: ${error}`,
+      };
+    }
+  },
 });
 
-afterAll(() => {
-  // Cleanup after all tests
-  jest.restoreAllMocks();
+// Global test utilities
+global.console = {
+  ...console,
+  // Silence console.log during tests unless debugging
+  log: jest.fn() as any,
+};
+
+beforeAll(async () => {
+  // Any global setup can go here
+  console.log('✓ Test environment initialized');
+});
+
+afterAll(async () => {
+  // Any global cleanup can go here
+  console.log('✓ Test environment cleaned up');
 });

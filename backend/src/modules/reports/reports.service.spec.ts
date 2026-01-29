@@ -6,16 +6,16 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import Decimal from 'decimal.js';
 
 function createMockPrisma() {
   return {
-    order: {
+    salesOrder: {
       findMany: jest.fn(),
     },
-    session: {
+    registerSession: {
       findUnique: jest.fn(),
     },
     orderItem: {
@@ -46,7 +46,7 @@ describe('ReportsService', () => {
   // ==================== DAILY SALES REPORT ====================
   describe('generateDailySalesReport', () => {
     it('should calculate total sales and tax using Decimal.js', async () => {
-      prisma.order.findMany.mockResolvedValue([
+      prisma.salesOrder.findMany.mockResolvedValue([
         { id: 'order-1', grandTotal: 100, taxAmount: 15, status: 'COMPLETED' },
         { id: 'order-2', grandTotal: 200, taxAmount: 30, status: 'COMPLETED' },
         { id: 'order-3', grandTotal: 150, taxAmount: 22.5, status: 'PAID' },
@@ -64,7 +64,7 @@ describe('ReportsService', () => {
     });
 
     it('should handle no orders for the day', async () => {
-      prisma.order.findMany.mockResolvedValue([]);
+      prisma.salesOrder.findMany.mockResolvedValue([]);
 
       const result = await service.generateDailySalesReport(
         new Date('2026-01-18'),
@@ -77,13 +77,13 @@ describe('ReportsService', () => {
     });
 
     it('should filter by COMPLETED and PAID status', async () => {
-      prisma.order.findMany.mockResolvedValue([]);
+      prisma.salesOrder.findMany.mockResolvedValue([]);
 
       await service.generateDailySalesReport(new Date('2026-01-18'));
 
-      expect(prisma.order.findMany).toHaveBeenCalledWith({
+      expect(prisma.salesOrder.findMany).toHaveBeenCalledWith({
         where: {
-          createdAt: {
+          orderDate: {
             gte: expect.any(Date),
             lte: expect.any(Date),
           },
@@ -93,7 +93,7 @@ describe('ReportsService', () => {
     });
 
     it('should handle orders with null grandTotal', async () => {
-      prisma.order.findMany.mockResolvedValue([
+      prisma.salesOrder.findMany.mockResolvedValue([
         {
           id: 'order-1',
           grandTotal: null,
@@ -114,38 +114,47 @@ describe('ReportsService', () => {
   // ==================== Z-REPORT ====================
   describe('generateZReport', () => {
     it('should return session summary as Z-report', async () => {
-      prisma.session.findUnique.mockResolvedValue({
+      prisma.registerSession.findUnique.mockResolvedValue({
         id: 'session-1',
-        sessionNumber: 'S-001',
         openedAt: new Date('2026-01-18T08:00:00'),
         closedAt: new Date('2026-01-18T22:00:00'),
         openingBalance: 500,
-        closingBalance: 2500,
-        variance: 0,
-        totalSales: 2000,
-        orderCount: 50,
+        actualClosingBalance: 2500,
+        expectedCash: 2500,
+        discrepancy: 0,
+        totalCashSales: 1200,
+        totalCardSales: 700,
+        totalOtherSales: 100,
+        totalRefunds: 0,
+        ordersCount: 50,
       });
 
       const result = await service.generateZReport('session-1');
 
       expect(result).toEqual({
-        sessionNumber: 'S-001',
+        sessionId: 'session-1',
+        sessionNumber: 'session-1',
         openedAt: expect.any(Date),
         closedAt: expect.any(Date),
         openingBalance: 500,
         closingBalance: 2500,
+        expectedBalance: 2500,
         variance: 0,
         totalSales: 2000,
+        cashSales: 1200,
+        cardSales: 700,
+        otherSales: 100,
+        refunds: 0,
         orderCount: 50,
       });
     });
 
-    it('should return null for non-existent session', async () => {
-      prisma.session.findUnique.mockResolvedValue(null);
+    it('should throw NotFoundException for non-existent session', async () => {
+      prisma.registerSession.findUnique.mockResolvedValue(null);
 
-      const result = await service.generateZReport('nonexistent');
-
-      expect(result).toBeNull();
+      await expect(service.generateZReport('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -153,9 +162,9 @@ describe('ReportsService', () => {
   describe('getTopSellingItems', () => {
     it('should return top selling products by quantity', async () => {
       prisma.orderItem.groupBy.mockResolvedValue([
-        { productId: 'prod-1', _sum: { quantity: 100, total: 5000 } },
-        { productId: 'prod-2', _sum: { quantity: 75, total: 3750 } },
-        { productId: 'prod-3', _sum: { quantity: 50, total: 2500 } },
+        { productId: 'prod-1', _sum: { quantity: 100, lineTotal: 5000 } },
+        { productId: 'prod-2', _sum: { quantity: 75, lineTotal: 3750 } },
+        { productId: 'prod-3', _sum: { quantity: 50, lineTotal: 2500 } },
       ]);
 
       const result = await service.getTopSellingItems(
@@ -181,13 +190,14 @@ describe('ReportsService', () => {
 
       expect(prisma.orderItem.groupBy).toHaveBeenCalledWith({
         by: ['productId'],
-        _sum: { quantity: true, total: true },
+        _sum: { quantity: true, lineTotal: true },
         where: {
           order: {
-            createdAt: {
+            orderDate: {
               gte: expect.any(Date),
               lte: expect.any(Date),
             },
+            status: { in: ['COMPLETED', 'PAID'] },
           },
         },
         orderBy: { _sum: { quantity: 'desc' } },
@@ -202,15 +212,15 @@ describe('ReportsService', () => {
       prisma.inventoryItem.findMany.mockResolvedValue([
         {
           productId: 'prod-1',
-          quantity: 100,
-          cost: 10,
-          product: { name: 'Chicken' },
+          quantityOnHand: 100,
+          averageCost: 10,
+          product: { nameEn: 'Chicken' },
         },
         {
           productId: 'prod-2',
-          quantity: 50,
-          cost: 20,
-          product: { name: 'Beef' },
+          quantityOnHand: 50,
+          averageCost: 20,
+          product: { nameEn: 'Beef' },
         },
       ]);
 
@@ -235,9 +245,9 @@ describe('ReportsService', () => {
       prisma.inventoryItem.findMany.mockResolvedValue([
         {
           productId: 'prod-1',
-          quantity: null,
-          cost: null,
-          product: { name: 'Test' },
+          quantityOnHand: null,
+          averageCost: null,
+          product: { nameEn: 'Test' },
         },
       ]);
 
@@ -251,9 +261,9 @@ describe('ReportsService', () => {
       prisma.inventoryItem.findMany.mockResolvedValue([
         {
           productId: 'prod-1',
-          quantity: 10,
-          cost: 5,
-          product: { name: 'Chicken Wings' },
+          quantityOnHand: 10,
+          averageCost: 5,
+          product: { nameEn: 'Chicken Wings' },
         },
       ]);
 

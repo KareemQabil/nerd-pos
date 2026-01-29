@@ -1,6 +1,12 @@
 // Inventory Entities
 // Source: FINAL/BACKEND/04-MODULE-INVENTORY.md
 // Aligned with: prisma/schema.prisma
+// Type-safe: Using Prisma's Decimal type
+
+import { Prisma } from '@prisma/client';
+
+// Re-export Decimal type for convenience
+export type Decimal = Prisma.Decimal;
 
 export interface Warehouse {
   id: string;
@@ -15,12 +21,12 @@ export interface InventoryItem {
   id: string;
   productId: string;
   warehouseId: string;
-  quantityOnHand: number; // Decimal in DB
-  quantityReserved: number; // Decimal in DB
-  minimumLevel: number; // Decimal in DB
-  maximumLevel?: number | null;
-  reorderPoint: number; // Decimal in DB
-  averageCost: number; // Decimal in DB
+  quantityOnHand: Decimal;
+  quantityReserved: Decimal;
+  minimumLevel: Decimal;
+  maximumLevel?: Decimal | null;
+  reorderPoint: Decimal;
+  averageCost: Decimal;
 }
 
 export interface InventoryBatch {
@@ -29,9 +35,9 @@ export interface InventoryBatch {
   batchNumber?: string | null;
   receivedDate: Date;
   expiryDate?: Date | null;
-  quantityReceived: number; // Decimal in DB
-  quantityRemaining: number; // Decimal in DB
-  costPerUnit: number; // Decimal in DB
+  quantityReceived: Decimal;
+  quantityRemaining: Decimal;
+  costPerUnit: Decimal;
   isVirtualNegative: boolean;
 }
 
@@ -39,7 +45,7 @@ export interface InventoryBatch {
 export interface Recipe {
   id: string;
   productId: string; // Final product
-  yieldQuantity: number; // Matches schema
+  yieldQuantity: Decimal;
   yieldUnit: string; // PIECE, etc.
   isActive: boolean;
 }
@@ -47,10 +53,10 @@ export interface Recipe {
 export interface RecipeIngredient {
   id: string;
   recipeId: string;
-  ingredientProductId: string; // Matches schema
-  quantityRequired: number; // Matches schema
+  ingredientProductId: string;
+  quantityRequired: Decimal;
   unit: string; // kg, g, L, ml, pieces
-  isPrepared: boolean; // Matches schema
+  isPrepared: boolean;
 }
 
 // Response types with relations
@@ -68,22 +74,22 @@ export interface RecipeWithIngredients extends Recipe {
 // FIFO Deduction Result
 export interface DeductionResult {
   batchId: string | null; // Null for virtual deductions (allow negative stock)
-  quantity: number;
-  unitCost: number;
-  totalCost: number;
+  quantity: Decimal;
+  unitCost: Decimal;
+  totalCost: Decimal;
   isVirtual?: boolean;
 }
 
 // Movement entity for tracking all stock changes (internal type, may need to add to schema)
 export interface InventoryMovement {
   id: string;
-  type: 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER';
+  type: 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER' | string; // Allow string for Prisma compatibility
   productId: string;
   warehouseId: string;
   batchId?: string | null;
-  quantity: number; // Negative for OUT
-  unitCost?: number | null;
-  totalValue?: number | null;
+  quantity: Decimal; // Negative for OUT
+  unitCost?: Decimal | null;
+  totalValue?: Decimal | null;
   referenceType?: string | null; // ORDER, PURCHASE, ADJUSTMENT
   referenceId?: string | null;
   reason?: string | null;

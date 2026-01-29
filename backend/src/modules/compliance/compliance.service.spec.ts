@@ -29,6 +29,7 @@ function createMockRepository() {
     findLastInvoice: jest.fn(),
     findPending: jest.fn(),
     countInvoices: jest.fn(),
+    findAllOrdered: jest.fn(),
   };
 }
 
@@ -78,19 +79,20 @@ describe('ComplianceService', () => {
         currentHash: 'a'.repeat(64), // Previous invoice hash
       };
 
-      const mockInvoice = {
-        id: 'invoice-1',
-        orderId: 'order-1',
-        invoiceNumber: 'INV-2026-000001',
-        previousHash: lastInvoice.currentHash,
-        currentHash: expect.any(String),
-        submissionStatus: 'PENDING',
-      };
+    const mockInvoice = {
+      id: 'invoice-1',
+      orderId: 'order-1',
+      invoiceNumber: 'INV-2026-000001',
+      previousHash: lastInvoice.currentHash,
+      invoiceHash: expect.any(String),
+      submissionStatus: 'PENDING',
+    };
 
-      repo.findByOrder.mockResolvedValue(null); // No existing invoice
-      repo.findLastInvoice.mockResolvedValue(lastInvoice);
-      repo.countInvoices.mockResolvedValue(0);
-      repo.create.mockResolvedValue(mockInvoice);
+    repo.findByOrder.mockResolvedValue(null); // No existing invoice
+    repo.findLastInvoice.mockResolvedValue(lastInvoice);
+    repo.countInvoices.mockResolvedValue(0);
+    repo.findAllOrdered.mockResolvedValue([]);
+    repo.create.mockResolvedValue(mockInvoice);
 
       const result = await service.generateInvoice('order-1', orderData);
 
@@ -113,10 +115,11 @@ describe('ComplianceService', () => {
         currentHash: expect.any(String),
       };
 
-      repo.findByOrder.mockResolvedValue(null);
-      repo.findLastInvoice.mockResolvedValue(null); // First invoice
-      repo.countInvoices.mockResolvedValue(0);
-      repo.create.mockResolvedValue(mockInvoice);
+    repo.findByOrder.mockResolvedValue(null);
+    repo.findLastInvoice.mockResolvedValue(null); // First invoice
+    repo.countInvoices.mockResolvedValue(0);
+    repo.findAllOrdered.mockResolvedValue([]);
+    repo.create.mockResolvedValue(mockInvoice);
 
       const result = await service.generateInvoice('order-1', orderData);
 
@@ -124,13 +127,13 @@ describe('ComplianceService', () => {
     });
 
     it('should throw error if invoice already exists for order', async () => {
-      const existingInvoice = { id: 'invoice-existing', orderId: 'order-1' };
-      repo.findByOrder.mockResolvedValue(existingInvoice);
+    const existingInvoice = { id: 'invoice-existing', orderId: 'order-1' };
+    repo.findByOrder.mockResolvedValue(existingInvoice);
 
-      await expect(service.generateInvoice('order-1', {})).rejects.toThrow(
-        BadRequestException,
-      );
-    });
+    await expect(service.generateInvoice('order-1', {})).rejects.toThrow(
+      BadRequestException,
+    );
+  });
   });
 
   // ==================== HASH CALCULATION TESTS (CRITICAL) ====================
@@ -209,24 +212,35 @@ describe('ComplianceService', () => {
 
   describe('verifyHashChain', () => {
     it('should return valid status for correct chain', async () => {
-      const lastInvoice = {
-        id: 'invoice-3',
-        currentHash: 'abc'.repeat(21) + 'a', // 64 chars
-      };
+      const invoices = [
+        {
+          id: 'invoice-1',
+          invoiceHash: 'a'.repeat(64),
+          previousHash: '0'.repeat(64),
+        },
+        {
+          id: 'invoice-2',
+          invoiceHash: 'b'.repeat(64),
+          previousHash: 'a'.repeat(64),
+        },
+        {
+          id: 'invoice-3',
+          invoiceHash: 'c'.repeat(64),
+          previousHash: 'b'.repeat(64),
+        },
+      ];
 
-      repo.findLastInvoice.mockResolvedValue(lastInvoice);
-      repo.countInvoices.mockResolvedValue(3);
+      repo.findAllOrdered.mockResolvedValue(invoices);
 
       const result = await service.verifyHashChain();
 
       expect(result.chainValid).toBe(true);
       expect(result.totalInvoices).toBe(3);
-      expect(result.lastHash).toBe(lastInvoice.currentHash);
+      expect(result.lastHash).toBe('c'.repeat(64));
     });
 
     it('should return empty values for no invoices', async () => {
-      repo.findLastInvoice.mockResolvedValue(null);
-      repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
 
       const result = await service.verifyHashChain();
 

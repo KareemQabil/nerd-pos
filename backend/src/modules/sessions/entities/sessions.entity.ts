@@ -1,6 +1,12 @@
 // Sessions Entities
 // Source: FINAL/BACKEND/07-MODULE-SESSIONS.md
 // Aligned with: prisma/schema.prisma
+// Type-safe: Using Prisma's Decimal type
+
+import { Prisma } from '@prisma/client';
+
+// Re-export Decimal type for convenience
+export type Decimal = Prisma.Decimal;
 
 // ==================== REGISTER SESSION ====================
 
@@ -12,15 +18,15 @@ export interface RegisterSession {
   businessDate: Date;
 
   // Cash management
-  openingBalance: number; // Decimal in DB
-  expectedCash: number; // Decimal in DB
-  actualClosingBalance?: number | null; // Decimal in DB
-  discrepancy?: number | null; // Decimal in DB
+  openingBalance: Decimal;
+  expectedCash: Decimal;
+  actualClosingBalance?: Decimal | null;
+  discrepancy?: Decimal | null;
 
   // Backward-compatible cash management aliases
-  closingBalance?: number | null; // Alias for actualClosingBalance
-  expectedBalance?: number | null; // Alias for expectedCash
-  variance?: number | null; // Alias for discrepancy
+  closingBalance?: Decimal | null; // Alias for actualClosingBalance
+  expectedBalance?: Decimal | null; // Alias for expectedCash
+  variance?: Decimal | null; // Alias for discrepancy
 
   // Timestamps
   openedAt: Date;
@@ -30,19 +36,19 @@ export interface RegisterSession {
   status: string; // OPEN, CLOSED
 
   // Sales summary
-  totalCashSales: number; // Decimal in DB
-  totalCardSales: number; // Decimal in DB
-  totalOtherSales: number; // Decimal in DB
-  totalDrops: number; // Decimal in DB
-  totalPettyCash: number; // Decimal in DB
-  totalRefunds: number; // Decimal in DB
+  totalCashSales: Decimal;
+  totalCardSales: Decimal;
+  totalOtherSales: Decimal;
+  totalDrops: Decimal;
+  totalPettyCash: Decimal;
+  totalRefunds: Decimal;
   ordersCount: number;
   orderCount?: number; // Backward-compatible alias
 
   // Backward-compatible sales summary aliases
-  totalSales?: number; // Alias for sum of all sales
-  totalCash?: number; // Alias for totalCashSales
-  totalCard?: number; // Alias for totalCardSales
+  totalSales?: Decimal; // Alias for sum of all sales
+  totalCash?: Decimal; // Alias for totalCashSales
+  totalCard?: Decimal; // Alias for totalCardSales
 
   // Manager
   managerApprovalId?: string | null;
@@ -66,7 +72,7 @@ export interface CashMovement {
   id: string;
   sessionId: string;
   movementType: string; // DROP, FLOAT, PAYOUT, etc.
-  amount: number; // Decimal in DB
+  amount: Decimal;
   reason: string;
   approvedBy?: string | null;
   movementTime: Date;
@@ -77,9 +83,9 @@ export interface CashMovement {
 export interface DenominationCount {
   id: string;
   sessionId: string;
-  denomination: number; // Decimal in DB (200, 100, 50, etc.)
+  denomination: Decimal; // (200, 100, 50, etc.)
   count: number;
-  total: number; // Decimal in DB
+  total: Decimal;
 }
 
 // Backward-compatible alias
@@ -91,13 +97,13 @@ export interface SessionSummary {
   terminalId: string;
   openedAt: Date;
   closedAt?: Date | null;
-  openingBalance: number;
-  actualClosingBalance: number;
-  expectedCash: number;
-  discrepancy: number;
-  totalCashSales: number;
-  totalCardSales: number;
-  totalOtherSales: number;
-  totalRefunds: number;
+  openingBalance: Decimal;
+  actualClosingBalance: Decimal;
+  expectedCash: Decimal;
+  discrepancy: Decimal;
+  totalCashSales: Decimal;
+  totalCardSales: Decimal;
+  totalOtherSales: Decimal;
+  totalRefunds: Decimal;
   ordersCount: number;
 }

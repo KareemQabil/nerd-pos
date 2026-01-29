@@ -45,6 +45,10 @@ export class PaymentsService {
   async createPayment(dto: CreatePaymentDto): Promise<Payment> {
     const amount = new Decimal(dto.amount);
 
+    if (!Number.isFinite(dto.amount)) {
+      throw new BadRequestException('Payment amount must be a valid number');
+    }
+
     // FORENSIC AUDIT FIX: Validate positive amount
     if (amount.lte(0)) {
       throw new BadRequestException('Payment amount must be greater than 0');
@@ -62,22 +66,26 @@ export class PaymentsService {
       }
     }
 
+    const metadata: Record<string, unknown> = {};
+    if (dto.cardLast4) metadata.cardLast4 = dto.cardLast4;
+    if (dto.cardType) metadata.cardType = dto.cardType;
+    if (dto.transactionId) metadata.transactionId = dto.transactionId;
+    if (dto.tipAmount !== undefined) metadata.tipAmount = dto.tipAmount;
+
     const payment = await this.repo.create({
       orderId: dto.orderId,
-      method: dto.method,
+      paymentMethod: dto.method,
       amount: amount.toNumber(),
-      receivedAmount: dto.receivedAmount
+      amountReceived: dto.receivedAmount
         ? new Decimal(dto.receivedAmount).toNumber()
         : null,
-      changeAmount: changeAmount.toNumber(),
-      cardLast4: dto.cardLast4,
-      cardType: dto.cardType,
-      transactionId: dto.transactionId || uuidv4(),
-      tipAmount: dto.tipAmount ? new Decimal(dto.tipAmount).toNumber() : 0,
+      changeGiven: changeAmount.toNumber(),
+      referenceNumber: dto.transactionId || uuidv4(),
       status: 'COMPLETED',
-      paidAt: new Date(),
-      createdBy: dto.createdBy,
-      refundedAmount: 0,
+      paymentDate: new Date(),
+      sessionId: dto.sessionId,
+      processedBy: dto.createdBy,
+      ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
     });
 
     await this.eventBus.publish(
@@ -85,12 +93,12 @@ export class PaymentsService {
       new PaymentCreatedEvent(
         payment.id,
         dto.orderId,
-        dto.method,
+        payment.paymentMethod || dto.method,
         amount.toNumber(),
       ),
     );
 
-    return payment;
+    return this.normalizePayment(payment);
   }
 
   // ==================== SPLIT PAYMENT ====================
@@ -128,13 +136,15 @@ export class PaymentsService {
     });
 
     // FORENSIC AUDIT FIX: Events emitted AFTER transaction commits (not inside)
-    for (const payment of payments) {
+    const normalizedPayments = this.normalizePayments(payments);
+
+    for (const payment of normalizedPayments) {
       await this.eventBus.publish(
         'PaymentCreated',
         new PaymentCreatedEvent(
           payment.id,
           dto.orderId,
-          payment.method || 'UNKNOWN',
+          payment.method || payment.paymentMethod || 'UNKNOWN',
           payment.amount,
         ),
       );
@@ -149,7 +159,7 @@ export class PaymentsService {
       ),
     );
 
-    return payments;
+    return normalizedPayments;
   }
 
   /**
@@ -160,6 +170,10 @@ export class PaymentsService {
     tx: Prisma.TransactionClient,
     dto: CreatePaymentDto,
   ): Promise<Payment> {
+    if (!Number.isFinite(dto.amount)) {
+      throw new BadRequestException('Payment amount must be a valid number');
+    }
+
     const amount = new Decimal(dto.amount);
     let changeAmount = new Decimal(0);
 
@@ -173,30 +187,34 @@ export class PaymentsService {
       }
     }
 
+    const metadata: Record<string, unknown> = {};
+    if (dto.cardLast4) metadata.cardLast4 = dto.cardLast4;
+    if (dto.cardType) metadata.cardType = dto.cardType;
+    if (dto.transactionId) metadata.transactionId = dto.transactionId;
+    if (dto.tipAmount !== undefined) metadata.tipAmount = dto.tipAmount;
+
     const payment = await (tx as any).payment.create({
       data: {
         orderId: dto.orderId,
-        method: dto.method,
+        paymentMethod: dto.method,
         amount: amount.toNumber(),
-        receivedAmount: dto.receivedAmount
+        amountReceived: dto.receivedAmount
           ? new Decimal(dto.receivedAmount).toNumber()
           : null,
-        changeAmount: changeAmount.toNumber(),
-        cardLast4: dto.cardLast4,
-        cardType: dto.cardType,
-        transactionId: dto.transactionId || uuidv4(),
-        tipAmount: dto.tipAmount ? new Decimal(dto.tipAmount).toNumber() : 0,
+        changeGiven: changeAmount.toNumber(),
+        referenceNumber: dto.transactionId || uuidv4(),
         status: 'COMPLETED',
-        paidAt: new Date(),
-        createdBy: dto.createdBy,
-        refundedAmount: 0,
+        paymentDate: new Date(),
+        sessionId: dto.sessionId,
+        processedBy: dto.createdBy,
+        ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
       },
     });
 
     // FORENSIC AUDIT FIX: Removed event emission from inside transaction
     // Events are now emitted AFTER transaction commits in processSplitPayment
 
-    return payment;
+    return this.normalizePayment(payment);
   }
 
   // ==================== REFUNDS ====================
@@ -322,15 +340,17 @@ export class PaymentsService {
     if (!payment) {
       throw new NotFoundException(`Payment ${id} not found`);
     }
-    return payment;
+    return this.normalizePayment(payment);
   }
 
   async findByOrder(orderId: string): Promise<Payment[]> {
-    return this.repo.findByOrder(orderId);
+    const payments = await this.repo.findByOrder(orderId);
+    return this.normalizePayments(payments);
   }
 
   async findBySession(sessionId: string): Promise<Payment[]> {
-    return this.repo.findBySession(sessionId);
+    const payments = await this.repo.findBySession(sessionId);
+    return this.normalizePayments(payments);
   }
 
   // ==================== PAYMENT METHODS ====================
@@ -350,5 +370,31 @@ export class PaymentsService {
     dto: UpdatePaymentMethodDto,
   ): Promise<PaymentMethod> {
     return this.repo.updateMethod(id, dto);
+  }
+
+  private normalizePayment(payment: Payment): Payment {
+    if (!payment) {
+      return payment;
+    }
+
+    const metadata = (payment as any).metadata || {};
+
+    return {
+      ...payment,
+      method: (payment as any).method ?? payment.paymentMethod,
+      receivedAmount:
+        (payment as any).receivedAmount ?? payment.amountReceived ?? null,
+      changeAmount: (payment as any).changeAmount ?? payment.changeGiven ?? null,
+      paidAt: (payment as any).paidAt ?? payment.paymentDate ?? null,
+      createdBy: (payment as any).createdBy ?? payment.processedBy,
+      cardLast4: metadata.cardLast4 ?? (payment as any).cardLast4,
+      cardType: metadata.cardType ?? (payment as any).cardType,
+      transactionId: metadata.transactionId ?? (payment as any).transactionId,
+      tipAmount: metadata.tipAmount ?? (payment as any).tipAmount,
+    };
+  }
+
+  private normalizePayments(payments: Payment[]): Payment[] {
+    return payments.map(payment => this.normalizePayment(payment));
   }
 }

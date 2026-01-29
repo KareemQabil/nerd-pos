@@ -63,6 +63,7 @@ model Product {
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   category          Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  kitchenStation    KitchenStation?        @relation(fields: [kitchenStationId], references: [id])
   modifierGroups    ProductModifierGroup[]
   inventoryItems    InventoryItem[]
   recipe            Recipe?
@@ -101,7 +102,8 @@ model ModifierOption {
   sortOrder Int     @default(0) @map("sort_order")
   isActive  Boolean @default(true) @map("is_active")
 
-  group ModifierGroup @relation(fields: [groupId], references: [id])
+  group     ModifierGroup        @relation(fields: [groupId], references: [id])
+  modifiers OrderItemModifier[]  @relation("ModifierOptionRelation")
 
   @@index([groupId])
   @@map("modifier_options")
@@ -262,6 +264,10 @@ model SalesOrder {
   metadata            Json?
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
+  confirmedAt         DateTime? @map("confirmed_at")
+  completedAt         DateTime? @map("completed_at")
+  cancelledAt         DateTime? @map("cancelled_at")
+  orderedAt           DateTime? @map("ordered_at") // Alias for orderDate
   sessionId           String   @map("session_id")
   session             RegisterSession @relation(fields: [sessionId], references: [id])
   payments            Payment[]
@@ -310,9 +316,11 @@ model OrderItemModifier {
   name        String  @db.VarChar(255)
   price       Decimal @db.Decimal(12, 3)
 
-  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  orderItem OrderItem     @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifier  ModifierOption @relation("ModifierOptionRelation", fields: [modifierId], references: [id])
 
   @@index([orderItemId])
+  @@index([modifierId])
   @@map("order_item_modifiers")
 }
 
@@ -320,7 +328,7 @@ model OrderItemModifier {
 // MODULE 04: PAYMENTS
 // ============================================================================
 
-model PaymentMethodConfig {
+model PaymentMethod {
   id                  String  @id @default(uuid())
   code                String  @unique @db.VarChar(30)
   nameAr              String  @map("name_ar") @db.VarChar(100)
@@ -595,7 +603,8 @@ model KitchenStation {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  tickets KitchenTicket[]
+  tickets  KitchenTicket[]
+  products Product[]
 
   @@index([displayOrder])
   @@map("kitchen_stations")
@@ -771,6 +780,27 @@ model DiscountUsage {
 // MODULE 15: DELIVERY
 // ============================================================================
 
+model Address {
+  id         String   @id @default(uuid())
+  street     String   @db.VarChar(255)
+  city       String   @db.VarChar(100)
+  state      String?  @db.VarChar(100)
+  postalCode String?  @map("postal_code") @db.VarChar(20)
+  country    String   @default("SA") @db.VarChar(50)
+  latitude   Decimal? @db.Decimal(10, 8)
+  longitude  Decimal? @db.Decimal(11, 8)
+  building   String?  @db.VarChar(100)
+  floor      String?  @db.VarChar(20)
+  apartment  String?  @db.VarChar(50)
+  landmark   String?  @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  deliveries Delivery[]
+
+  @@map("addresses")
+}
+
 model DeliveryZone {
   id                    String   @id @default(uuid())
   name                  String   @db.VarChar(100)
@@ -831,11 +861,13 @@ model Delivery {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  zone   DeliveryZone? @relation(fields: [zoneId], references: [id])
-  driver Driver?       @relation(fields: [driverId], references: [id])
+  address Address        @relation(fields: [addressId], references: [id])
+  zone    DeliveryZone?  @relation(fields: [zoneId], references: [id])
+  driver  Driver?        @relation(fields: [driverId], references: [id])
 
   @@index([status])
   @@index([driverId])
+  @@index([addressId])
   @@map("deliveries")
 }
 

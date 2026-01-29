@@ -10,6 +10,7 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { SalesRepository } from './sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
@@ -117,6 +118,7 @@ export class SalesService {
 
     // 4. Build HARDENED item data with ?? fallbacks
     // Map DTO fields to Prisma OrderItem schema fields with SAFE defaults
+    // Using checked input for nested create (no orderId needed - set automatically by relation)
     const itemsWithSubtotals = dto.items.map((item) => {
       // AUDIT FIX: Use Decimal.js for precision-safe financial math
       const modifierTotalDecimal = (item.modifiers ?? []).reduce(
@@ -131,7 +133,7 @@ export class SalesService {
         .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
       return {
-        productId: item.productId,
+        productId: item.productId, // Required scalar field
         productNameEn: item.name ?? 'Unknown',
         productNameAr: item.nameAr ?? 'غير معروف',
         unitPrice: unitPriceDecimal.toNumber(),
@@ -165,7 +167,7 @@ export class SalesService {
       orderType: dto.type ?? 'DINE_IN', // HARDENED: fallback to DINE_IN
       businessDate: new Date(), // HARDENED: always set to now
       status: OrderStatus.DRAFT, // HARDENED: explicit status
-      sessionId: sessionId, // REQUIRED: Link order to session
+      session: { connect: { id: sessionId } }, // REQUIRED: Link order to session
       // Calculated values with SAFE fallbacks
       itemSubtotal: safeToNumber(calculated.itemSubtotal, 0),
       serviceChargeRate: safeDivide100(calculated.serviceChargePercent, 0),
@@ -184,6 +186,11 @@ export class SalesService {
     });
 
     // 7. Event Emission - AFTER TRANSACTION COMMITS
+    const eventItems = dto.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity ?? 1,
+    }));
+
     await this.eventBus.publish(
       'OrderCreated',
       new OrderCreatedEvent(
@@ -191,6 +198,7 @@ export class SalesService {
         order.orderNumber,
         order.orderType,
         safeToNumber(calculated.grandTotal, 0),
+        eventItems,
       ),
     );
 
@@ -200,7 +208,18 @@ export class SalesService {
   // ==================== ORDER STATUS ====================
 
   async confirmOrder(orderId: string): Promise<Order> {
-    const order = await this.findOrderById(orderId);
+    const order = await this.findOrderByIdWithItems(orderId);
+
+    const eventItems = order.items.map((item) => ({
+      productId: item.productId,
+      productName: item.productNameEn ?? 'Unknown',
+      productNameAr: item.productNameAr ?? '',
+      quantity: typeof item.quantity === 'number'
+        ? item.quantity
+        : new Decimal(item.quantity).toNumber(),
+      notes: item.notes ?? undefined,
+      modifiers: (item.modifiers || []).map((m) => m.name),
+    }));
 
     if (order.status !== OrderStatus.DRAFT) {
       throw new BadRequestException('Only DRAFT orders can be confirmed');
@@ -213,7 +232,12 @@ export class SalesService {
 
     await this.eventBus.publish(
       'OrderConfirmed',
-      new OrderConfirmedEvent(orderId, order.orderNumber),
+      new OrderConfirmedEvent(
+        orderId,
+        order.orderNumber,
+        eventItems,
+        order.orderType || order.type,
+      ),
     );
 
     await this.eventBus.publish(
@@ -229,6 +253,7 @@ export class SalesService {
     dto: UpdateOrderStatusDto,
   ): Promise<Order> {
     const order = await this.findOrderById(orderId);
+
     const previousStatus = order.status as OrderStatus;
     const newStatus = dto.status as OrderStatus;
 
@@ -255,7 +280,13 @@ export class SalesService {
     if (dto.status === OrderStatus.COMPLETED) {
       await this.eventBus.publish(
         'OrderCompleted',
-        new OrderCompletedEvent(orderId, order.orderNumber, order.grandTotal),
+        new OrderCompletedEvent(
+          orderId,
+          order.orderNumber,
+          typeof order.grandTotal === 'number'
+            ? order.grandTotal
+            : new Decimal(order.grandTotal).toNumber(),
+        ),
       );
     }
 
@@ -315,10 +346,17 @@ export class SalesService {
       .toNumber();
 
     const item = await this.repo.addItem(orderId, {
-      ...dto,
-      subtotal,
+      orderId: orderId, // Required by OrderItemUncheckedCreateInput type
+      productId: dto.productId,
+      productNameEn: dto.name || 'Unknown',
+      productNameAr: dto.nameAr || '',
+      unitPrice: typeof dto.price === 'number' ? dto.price : new Decimal(dto.price || 0),
+      quantity: typeof dto.quantity === 'number' ? dto.quantity : new Decimal(dto.quantity || 1).toNumber(),
+      lineTotal: subtotal,
+      modifiersAmount: new Decimal(modifierTotal).toNumber(),
+      notes: dto.notes,
       status: KitchenItemStatus.PENDING,
-    });
+    } as Prisma.OrderItemUncheckedCreateInput);
 
     // Recalculate order
     await this.recalculateOrder(orderId);
@@ -409,9 +447,13 @@ export class SalesService {
     return this.repo.findByStatusPaginated(status || '', options);
   }
 
+  // NOTE: findOrdersByCustomer is disabled - customerId field not in Prisma schema
+  // TODO: Implement customer order lookup through sessionId if needed
+  /*
   async findOrdersByCustomer(customerId: string): Promise<Order[]> {
     return this.repo.findByCustomer(customerId);
   }
+  */
 
   // ==================== PRIVATE METHODS ====================
 
@@ -462,15 +504,22 @@ export class SalesService {
     if (!order) return;
 
     // Build context from existing order
+    // CalculationItem requires: name, price (not productNameEn, unitPrice)
     const context: CalculationContext = {
       items: order.items.map((item) => ({
         productId: item.productId,
         name: item.name || item.productNameEn || 'Unknown',
-        price: new Decimal(item.price || item.unitPrice || 0),
-        quantity: item.quantity,
+        price: typeof item.price === 'number'
+          ? new Decimal(item.price)
+          : new Decimal(item.price || item.unitPrice || 0),
+        quantity: typeof item.quantity === 'number'
+          ? item.quantity
+          : new Decimal(item.quantity).toNumber(),
         modifiers:
           item.modifiers?.map((m: any) => ({
-            price: new Decimal(m.price || 0),
+            price: typeof m.price === 'number'
+              ? new Decimal(m.price)
+              : new Decimal(m.price || 0),
           })) || [],
       })),
       orderType: (order.type || order.orderType || 'DINE_IN') as

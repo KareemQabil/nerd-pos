@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { createValidationPipe } from './common/pipes/validation.pipe';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
@@ -26,6 +27,9 @@ async function bootstrap() {
 
   // AUDIT FIX: Register global error filter for standardized JSON responses
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // MVP FIX: Register global transform interceptor for standard success response envelope
+  app.useGlobalInterceptors(new TransformInterceptor());
 
   // API Prefix - MUST be set BEFORE Swagger for correct path documentation
   // Exclude health (for K8s probes) and swagger paths
@@ -116,3 +120,4 @@ Most endpoints require a Bearer token obtained from \`POST /auth/login\`
   console.log(`❤️  Health Check at http://localhost:${port}/health`);
 }
 bootstrap();
+// reload prisma client

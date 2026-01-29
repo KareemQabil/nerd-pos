@@ -27,6 +27,7 @@ function createMockRepository() {
     findLastInvoice: jest.fn(),
     findPending: jest.fn(),
     countInvoices: jest.fn(),
+    findAllOrdered: jest.fn(),
   };
 }
 
@@ -75,6 +76,7 @@ describe('Workflow 11: ZATCA E-Invoicing', () => {
         currentHash: 'a'.repeat(64),
       });
       repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
       repo.create.mockImplementation((data) =>
         Promise.resolve({
           id: 'inv-2',
@@ -99,6 +101,7 @@ describe('Workflow 11: ZATCA E-Invoicing', () => {
       repo.findByOrder.mockResolvedValue(null);
       repo.findLastInvoice.mockResolvedValue(null); // No previous invoice
       repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
       repo.create.mockImplementation((data) =>
         Promise.resolve({
           id: 'inv-1',
@@ -127,6 +130,7 @@ describe('Workflow 11: ZATCA E-Invoicing', () => {
       repo.findByOrder.mockResolvedValue(null);
       repo.findLastInvoice.mockResolvedValue(null);
       repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
       repo.create.mockResolvedValue(mockInvoice);
 
       const invoice = await service.generateInvoice('order-1', orderData);
@@ -173,16 +177,23 @@ describe('Workflow 11: ZATCA E-Invoicing', () => {
   // ==================== 11.5: HASH CHAIN VERIFICATION ====================
   describe('11.5: Hash Chain Verification', () => {
     it('should verify hash chain status', async () => {
-      repo.findLastInvoice.mockResolvedValue({
-        id: 'inv-10',
-        currentHash: 'b'.repeat(64),
-      });
-      repo.countInvoices.mockResolvedValue(10);
+      repo.findAllOrdered.mockResolvedValue([
+        {
+          id: 'inv-1',
+          invoiceHash: 'a'.repeat(64),
+          previousHash: '0'.repeat(64),
+        },
+        {
+          id: 'inv-2',
+          invoiceHash: 'b'.repeat(64),
+          previousHash: 'a'.repeat(64),
+        },
+      ]);
 
       const status = await service.verifyHashChain();
 
       expect(status.chainValid).toBe(true);
-      expect(status.totalInvoices).toBe(10);
+      expect(status.totalInvoices).toBe(2);
       expect(status.lastHash).toBe('b'.repeat(64));
     });
   });
@@ -211,6 +222,7 @@ describe('Workflow 11: ZATCA E-Invoicing', () => {
       repo.findByOrder.mockResolvedValue(null);
       repo.findLastInvoice.mockResolvedValue(null);
       repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
       repo.create.mockImplementation((data) =>
         Promise.resolve({
           id: 'inv-1',

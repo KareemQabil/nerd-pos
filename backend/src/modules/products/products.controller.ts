@@ -43,6 +43,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { examples } from '../../common/fixtures/swagger-examples';
+import { ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
@@ -59,28 +61,10 @@ export class ProductsController {
   @Post()
   @Permissions(PERMISSIONS.PRODUCTS_CREATE) // Manager+
   @ApiOperation({ summary: 'Create a new product' })
-  @ApiResponse({
-    status: 201,
-    description: 'Product created successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'Product created successfully',
-        data: {
-          id: '123e4567-e89b-12d3-a456-426614174000',
-          nameEn: 'Cheeseburger',
-          nameAr: 'تشيز برجر',
-          sku: 'BRG-1001',
-          price: 25.0,
-          isActive: true,
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-        path: '/api/v1/products',
-        requestId: 'req_123456',
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Validation error - invalid input data' })
+  @ApiBody({ schema: { example: examples.products.createProductRequest.value } })
+  @ApiResponse({ status: 201, description: 'Product created successfully', content: { 'application/json': { example: examples.products.createProductSuccess.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
   async createProduct(@Body() dto: CreateProductDto) {
     return this.service.createProduct(dto);
   }
@@ -243,24 +227,10 @@ export class CategoriesController {
   @Post()
   @Permissions(PERMISSIONS.CATEGORIES_CREATE) // Manager+
   @ApiOperation({ summary: 'Create category' })
-  @ApiResponse({
-    status: 201,
-    description: 'Category created successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'Category created successfully',
-        data: {
-          id: 'cat_123',
-          nameEn: 'Drinks',
-          nameAr: 'مشروبات',
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-        path: '/api/v1/categories',
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Validation error' })
+  @ApiBody({ schema: { example: examples.products.createCategoryRequest.value } })
+  @ApiResponse({ status: 201, description: 'Category created successfully', content: { 'application/json': { example: examples.products.createCategorySuccess.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
   async createCategory(@Body() dto: CreateCategoryDto) {
     return this.service.createCategory(dto);
   }

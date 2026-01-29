@@ -1,6 +1,6 @@
 // Reports Service
 // BLOCK 3 FIX: Replaced magic strings with OrderStatus enum
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
@@ -15,9 +15,9 @@ export class ReportsService {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const orders = await (this.prisma as any).order.findMany({
+    const orders = await (this.prisma as any).salesOrder.findMany({
       where: {
-        createdAt: { gte: startOfDay, lte: endOfDay },
+        orderDate: { gte: startOfDay, lte: endOfDay },
         status: { in: [OrderStatus.COMPLETED, OrderStatus.PAID] },
       },
     });
@@ -43,19 +43,34 @@ export class ReportsService {
   }
 
   async generateZReport(sessionId: string): Promise<any> {
-    const session = await (this.prisma as any).session.findUnique({
+    const session = await (this.prisma as any).registerSession.findUnique({
       where: { id: sessionId },
     });
-    if (!session) return null;
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    const cashSales = new Decimal(session.totalCashSales || 0);
+    const cardSales = new Decimal(session.totalCardSales || 0);
+    const otherSales = new Decimal(session.totalOtherSales || 0);
+    const refunds = new Decimal(session.totalRefunds || 0);
+    const totalSales = cashSales.plus(cardSales).plus(otherSales);
+
     return {
-      sessionNumber: session.sessionNumber,
+      sessionId: session.id,
+      sessionNumber: session.id,
       openedAt: session.openedAt,
       closedAt: session.closedAt,
       openingBalance: session.openingBalance,
-      closingBalance: session.closingBalance,
-      variance: session.variance,
-      totalSales: session.totalSales,
-      orderCount: session.orderCount,
+      closingBalance: session.actualClosingBalance,
+      expectedBalance: session.expectedCash,
+      variance: session.discrepancy,
+      totalSales: totalSales.toNumber(),
+      cashSales: cashSales.toNumber(),
+      cardSales: cardSales.toNumber(),
+      otherSales: otherSales.toNumber(),
+      refunds: refunds.toNumber(),
+      orderCount: session.ordersCount,
     };
   }
 
@@ -67,8 +82,13 @@ export class ReportsService {
     // Simplified - would use aggregation in production
     const items = await (this.prisma as any).orderItem.groupBy({
       by: ['productId'],
-      _sum: { quantity: true, total: true },
-      where: { order: { createdAt: { gte: startDate, lte: endDate } } },
+      _sum: { quantity: true, lineTotal: true },
+      where: {
+        order: {
+          orderDate: { gte: startDate, lte: endDate },
+          status: { in: [OrderStatus.COMPLETED, OrderStatus.PAID] },
+        },
+      },
       orderBy: { _sum: { quantity: 'desc' } },
       take: limit,
     });
@@ -79,15 +99,17 @@ export class ReportsService {
     const items = await (this.prisma as any).inventoryItem.findMany({
       include: { product: true },
     });
-    const valuation = items.map((i: any) => ({
-      productId: i.productId,
-      productName: i.product?.name,
-      quantity: i.quantity,
-      cost: i.cost,
-      value: new Decimal(i.quantity || 0)
-        .times(new Decimal(i.cost || 0))
-        .toNumber(),
-    }));
+    const valuation = items.map((i: any) => {
+      const quantity = new Decimal(i.quantityOnHand || 0);
+      const cost = new Decimal(i.averageCost || 0);
+      return {
+        productId: i.productId,
+        productName: i.product?.nameEn || i.product?.nameAr || null,
+        quantity: quantity.toNumber(),
+        cost: cost.toNumber(),
+        value: quantity.times(cost).toNumber(),
+      };
+    });
     const totalValue = valuation.reduce(
       (sum: Decimal, v: any) => sum.plus(v.value),
       new Decimal(0),

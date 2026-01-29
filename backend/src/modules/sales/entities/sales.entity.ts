@@ -1,6 +1,12 @@
 // Sales Entities
 // Source: FINAL/BACKEND/05-MODULE-SALES.md
 // Aligned with: prisma/schema.prisma
+// Type-safe: Using Prisma's Decimal type
+
+import { Prisma } from '@prisma/client';
+
+// Re-export Decimal type for convenience
+export type Decimal = Prisma.Decimal;
 
 // ==================== SALES ORDER ====================
 
@@ -20,25 +26,25 @@ export interface SalesOrder {
   guestCount?: number | null;
 
   // 7-Step Calculation Results
-  itemSubtotal: number; // Decimal in DB
-  serviceChargeRate: number; // Decimal in DB (0.15 = 15%)
-  serviceChargeAmount: number; // Decimal in DB
-  serviceCharge?: number; // Alias for serviceChargeAmount
-  serviceChargePercent?: number; // Alias for serviceChargeRate
-  deliveryCharge: number; // Decimal in DB
-  subtotalBeforeTax: number; // Decimal in DB
-  taxRate: number; // Decimal in DB (0.15 = 15%)
-  taxAmount: number; // Decimal in DB
-  taxPercent?: number; // Alias for taxRate
-  discountAmount: number; // Decimal in DB
+  itemSubtotal: Decimal;
+  serviceChargeRate: Decimal;
+  serviceChargeAmount: Decimal;
+  serviceCharge?: Decimal; // Alias for serviceChargeAmount
+  serviceChargePercent?: Decimal; // Alias for serviceChargeRate
+  deliveryCharge: Decimal;
+  subtotalBeforeTax: Decimal;
+  taxRate: Decimal;
+  taxAmount: Decimal;
+  taxPercent?: Decimal; // Alias for taxRate
+  discountAmount: Decimal;
   discountCode?: string | null; // For tracking applied discount
-  grandTotal: number; // Decimal in DB
-  tipAmount: number; // Decimal in DB
-  totalWithTip: number; // Decimal in DB
+  grandTotal: Decimal;
+  tipAmount: Decimal;
+  totalWithTip: Decimal;
 
   // Payment tracking
-  paidAmount?: number;
-  changeAmount?: number;
+  paidAmount?: Decimal;
+  changeAmount?: Decimal;
 
   // Status
   status: string; // DRAFT, CONFIRMED, PREPARING, READY, COMPLETED, CANCELLED
@@ -65,7 +71,7 @@ export interface SalesOrder {
   confirmedAt?: Date | null;
   completedAt?: Date | null;
   cancelledAt?: Date | null;
-  orderedAt?: Date; // Alias for orderDate
+  orderedAt?: Date | null; // Alias for orderDate
 
   // Audit
   sessionId?: string | null;
@@ -87,14 +93,14 @@ export interface OrderItem {
   productNameEn?: string | null; // Matches schema
   name?: string; // Alias for productNameEn
   nameAr?: string; // Alias for productNameAr
-  quantity: number; // Decimal in DB
-  unitPrice: number; // Decimal in DB
-  price?: number; // Alias for unitPrice
-  modifiersAmount: number; // Decimal in DB
-  lineTotal: number; // Decimal in DB
-  subtotal?: number; // Alias for lineTotal
-  costPerUnit: number; // Decimal in DB
-  totalCost: number; // Decimal in DB
+  quantity: Decimal;
+  unitPrice: Decimal;
+  price?: Decimal; // Alias for unitPrice
+  modifiersAmount: Decimal;
+  lineTotal: Decimal;
+  subtotal?: Decimal; // Alias for lineTotal
+  costPerUnit: Decimal;
+  totalCost: Decimal;
   notes?: string | null;
   status: string; // NEW, PREPARING, READY
   createdAt: Date;
@@ -107,7 +113,7 @@ export interface OrderItemModifier {
   modifierId: string;
   optionId: string;
   name: string;
-  price: number;
+  price: Decimal;
 }
 
 // ==================== CALCULATION CONTEXT ====================
@@ -116,23 +122,23 @@ export interface CalculationItem {
   productId: string;
   productNameEn: string;
   productNameAr: string;
-  unitPrice: number;
-  quantity: number;
-  modifiersAmount?: number;
+  unitPrice: Decimal | number;
+  quantity: Decimal | number;
+  modifiersAmount?: Decimal | number;
 }
 
 export interface CalculationResult {
-  itemSubtotal: number;
-  serviceChargeRate: number;
-  serviceChargeAmount: number;
-  deliveryCharge: number;
-  subtotalBeforeTax: number;
-  taxRate: number;
-  taxAmount: number;
-  discountAmount: number;
-  grandTotal: number;
-  tipAmount: number;
-  totalWithTip: number;
+  itemSubtotal: Decimal;
+  serviceChargeRate: Decimal;
+  serviceChargeAmount: Decimal;
+  deliveryCharge: Decimal;
+  subtotalBeforeTax: Decimal;
+  taxRate: Decimal;
+  taxAmount: Decimal;
+  discountAmount: Decimal;
+  grandTotal: Decimal;
+  tipAmount: Decimal;
+  totalWithTip: Decimal;
 }
 
 // Backward-compatible aliases for existing code
@@ -153,21 +159,21 @@ export interface CreateOrderData {
   createdBy?: string;
   status?: string;
   paymentStatus?: string;
-  itemSubtotal?: number;
-  serviceChargeRate?: number;
-  serviceChargePercent?: number; // Alias for serviceChargeRate
-  serviceChargeAmount?: number;
-  serviceCharge?: number;
-  deliveryCharge?: number;
-  subtotalBeforeTax?: number;
-  taxRate?: number;
-  taxPercent?: number; // Alias for taxRate
-  taxAmount?: number;
-  discountAmount?: number;
+  itemSubtotal?: Decimal;
+  serviceChargeRate?: Decimal;
+  serviceChargePercent?: Decimal; // Alias for serviceChargeRate
+  serviceChargeAmount?: Decimal;
+  serviceCharge?: Decimal;
+  deliveryCharge?: Decimal;
+  subtotalBeforeTax?: Decimal;
+  taxRate?: Decimal;
+  taxPercent?: Decimal; // Alias for taxRate
+  taxAmount?: Decimal;
+  discountAmount?: Decimal;
   discountCode?: string | null;
-  grandTotal?: number;
-  tipAmount?: number;
-  totalWithTip?: number;
+  grandTotal?: Decimal;
+  tipAmount?: Decimal;
+  totalWithTip?: Decimal;
   notes?: string | null;
   [key: string]: unknown; // Allow additional fields from calculation
 }
@@ -176,14 +182,14 @@ export interface CreateOrderItemData {
   productId: string;
   productNameAr?: string;
   productNameEn?: string;
-  quantity: number;
-  unitPrice?: number;
-  price?: number; // Alias for unitPrice
-  modifiersAmount?: number;
-  lineTotal?: number;
-  subtotal?: number; // Alias for lineTotal
-  costPerUnit?: number;
-  totalCost?: number;
+  quantity: Decimal;
+  unitPrice?: Decimal;
+  price?: Decimal; // Alias for unitPrice
+  modifiersAmount?: Decimal;
+  lineTotal?: Decimal;
+  subtotal?: Decimal; // Alias for lineTotal
+  costPerUnit?: Decimal;
+  totalCost?: Decimal;
   notes?: string | null;
   status?: string;
   modifiers?: CreateModifierData[];
@@ -194,5 +200,5 @@ export interface CreateModifierData {
   modifierId: string;
   optionId: string;
   name: string;
-  price: number;
+  price: Decimal;
 }

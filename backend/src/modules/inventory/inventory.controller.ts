@@ -38,6 +38,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { examples } from '../../common/fixtures/swagger-examples';
+import { ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Inventory')
 @ApiBearerAuth('JWT')
@@ -130,26 +132,10 @@ export class InventoryController {
   @Post('receive')
   @Permissions(PERMISSIONS.INVENTORY_RECEIVE) // Cashier+
   @ApiOperation({ summary: 'Receive stock', description: 'Records stock received from supplier' })
-  @ApiResponse({
-    status: 201,
-    description: 'Stock received successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'Stock received successfully',
-        data: {
-          id: 'mv_123',
-          productId: 'prod_123',
-          warehouseId: 'wh_123',
-          quantity: 100,
-          type: 'IN',
-          reason: 'SUPPLIER_DELIVERY',
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Validation error' })
+  @ApiBody({ schema: { example: examples.inventory.receiveStockRequest.value } })
+  @ApiResponse({ status: 201, description: 'Stock received successfully', content: { 'application/json': { example: examples.inventory.stockLevelResponse.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
   async receiveStock(
     @Body() dto: ReceiveStockDto,
     @CurrentUser('sub') userId: string,

@@ -13,7 +13,7 @@ interface OrderItem {
   productId: string;
   productName: string;
   productNameAr: string;
-  categoryId: string;
+  categoryId?: string;
   quantity: number;
   notes?: string;
   modifiers?: string[];
@@ -45,11 +45,20 @@ export class KitchenEventHandlers {
     );
 
     try {
+      if (!payload.items || payload.items.length === 0) {
+        this.logger.warn(`OrderConfirmed event missing items for order ${payload.orderId}`);
+        return;
+      }
+
       // Only route to kitchen for dine-in and take-away orders
       if (['DINE_IN', 'TAKE_AWAY'].includes(payload.orderType)) {
+        const items = payload.items.map((item) => ({
+          ...item,
+          categoryId: item.categoryId ?? '',
+        }));
         await this.kitchenService.routeOrderToKitchen(
           payload.orderId,
-          payload.items,
+          items,
           payload.orderType,
         );
         this.logger.log(`Order ${payload.orderId} routed to kitchen`);
