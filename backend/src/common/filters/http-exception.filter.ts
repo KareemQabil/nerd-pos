@@ -77,7 +77,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         }
       } else {
         title = this.getStatusText(status);
-        detail = exceptionResponse as string;
+        detail = exceptionResponse;
       }
     } else if (exception instanceof Error) {
       detail = exception.message;
@@ -99,7 +99,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       detail,
       instance: request.url,
       timestamp: new Date().toISOString(),
-      requestId: (request as any).id || request.headers['x-request-id'] as string,
+      requestId:
+        (request as any).id || (request.headers['x-request-id'] as string),
     };
 
     // Add validation errors if present
@@ -131,4 +132,3 @@ export class HttpExceptionFilter implements ExceptionFilter {
     return statusTexts[status] || 'Error';
   }
 }
-

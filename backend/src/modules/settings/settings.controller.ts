@@ -47,7 +47,10 @@ export class SettingsController {
 
   @Get('store')
   @Permissions(PERMISSIONS.SETTINGS_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get store settings', description: 'Returns store configuration. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get store settings',
+    description: 'Returns store configuration. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Store settings retrieved',
@@ -72,7 +75,10 @@ export class SettingsController {
 
   @Put('store')
   @Permissions(PERMISSIONS.SETTINGS_UPDATE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Update store settings', description: 'Updates store configuration. Admin only.' })
+  @ApiOperation({
+    summary: 'Update store settings',
+    description: 'Updates store configuration. Admin only.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Store settings updated',
@@ -98,7 +104,10 @@ export class SettingsController {
 
   @Get('taxes')
   @Permissions(PERMISSIONS.SETTINGS_TAX_VIEW) // Manager+
-  @ApiOperation({ summary: 'Get tax settings', description: 'Returns all tax configurations. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get tax settings',
+    description: 'Returns all tax configurations. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Tax settings retrieved',
@@ -125,7 +134,10 @@ export class SettingsController {
 
   @Get('taxes/default')
   @Permissions(PERMISSIONS.SETTINGS_TAX_VIEW) // Manager+
-  @ApiOperation({ summary: 'Get default tax', description: 'Returns the default tax rate. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get default tax',
+    description: 'Returns the default tax rate. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Default tax retrieved',
@@ -149,16 +161,24 @@ export class SettingsController {
 
   @Post('taxes')
   @Permissions(PERMISSIONS.SETTINGS_TAX_MANAGE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Create tax setting', description: 'Creates a new tax rate. Admin only.' })
+  @ApiOperation({
+    summary: 'Create tax setting',
+    description: 'Creates a new tax rate. Admin only.',
+  })
   @ApiResponse({ status: 201, description: 'Tax setting created' })
-  @ApiBadRequestResponse({ description: 'Validation error or duplicate tax name' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or duplicate tax name',
+  })
   async createTaxSetting(@Body() dto: CreateTaxSettingDto) {
     return this.service.createTaxSetting(dto);
   }
 
   @Put('taxes/:id')
   @Permissions(PERMISSIONS.SETTINGS_TAX_MANAGE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Update tax setting', description: 'Updates tax rate. Admin only.' })
+  @ApiOperation({
+    summary: 'Update tax setting',
+    description: 'Updates tax rate. Admin only.',
+  })
   @ApiParam({ name: 'id', description: 'Tax Setting UUID' })
   @ApiResponse({ status: 200, description: 'Tax setting updated' })
   @ApiNotFoundResponse({ description: 'Tax setting not found' })
@@ -173,7 +193,10 @@ export class SettingsController {
 
   @Get('terminals')
   @Permissions(PERMISSIONS.SETTINGS_TERMINAL_VIEW) // Manager+
-  @ApiOperation({ summary: 'Get all terminals', description: 'Returns all POS terminals. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get all terminals',
+    description: 'Returns all POS terminals. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Terminals retrieved',
@@ -200,7 +223,10 @@ export class SettingsController {
 
   @Get('terminals/:code')
   @Permissions(PERMISSIONS.SETTINGS_TERMINAL_VIEW) // Manager+
-  @ApiOperation({ summary: 'Get terminal by code', description: 'Returns terminal by code. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get terminal by code',
+    description: 'Returns terminal by code. Manager+ required.',
+  })
   @ApiParam({ name: 'code', description: 'Terminal code' })
   @ApiResponse({ status: 200, description: 'Terminal found' })
   @ApiNotFoundResponse({ description: 'Terminal not found' })
@@ -210,16 +236,24 @@ export class SettingsController {
 
   @Post('terminals')
   @Permissions(PERMISSIONS.SETTINGS_TERMINAL_MANAGE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Register terminal', description: 'Registers a new POS terminal. Admin only.' })
+  @ApiOperation({
+    summary: 'Register terminal',
+    description: 'Registers a new POS terminal. Admin only.',
+  })
   @ApiResponse({ status: 201, description: 'Terminal registered' })
-  @ApiBadRequestResponse({ description: 'Validation error or terminal code exists' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or terminal code exists',
+  })
   async registerTerminal(@Body() dto: CreatePOSTerminalDto) {
     return this.service.registerTerminal(dto);
   }
 
   @Put('terminals/:id')
   @Permissions(PERMISSIONS.SETTINGS_TERMINAL_MANAGE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Update terminal', description: 'Updates terminal configuration. Admin only.' })
+  @ApiOperation({
+    summary: 'Update terminal',
+    description: 'Updates terminal configuration. Admin only.',
+  })
   @ApiParam({ name: 'id', description: 'Terminal UUID' })
   @ApiResponse({ status: 200, description: 'Terminal updated' })
   @ApiNotFoundResponse({ description: 'Terminal not found' })
@@ -232,20 +266,30 @@ export class SettingsController {
 
   @Post('terminals/:code/heartbeat')
   @Permissions(PERMISSIONS.SESSIONS_OPEN) // Cashier+ (terminal heartbeat)
-  @ApiOperation({ summary: 'Terminal heartbeat', description: 'Updates terminal last-seen timestamp' })
+  @ApiOperation({
+    summary: 'Terminal heartbeat',
+    description: 'Updates terminal last-seen timestamp',
+  })
   @ApiParam({ name: 'code', description: 'Terminal code' })
   @ApiResponse({ status: 200, description: 'Heartbeat received' })
   async heartbeat(@Param('code') code: string) {
     await this.service.heartbeat(code);
-    return { success: true };
+    return null; // Success - let interceptor wrap response
   }
 
   // ==================== MODULE SETTINGS ====================
 
   @Get('modules/:module')
   @Permissions(PERMISSIONS.SETTINGS_MODULE_VIEW) // Manager+
-  @ApiOperation({ summary: 'Get module settings', description: 'Returns configuration for specific module. Manager+ required.' })
-  @ApiParam({ name: 'module', description: 'Module name (e.g., kitchen, delivery)' })
+  @ApiOperation({
+    summary: 'Get module settings',
+    description:
+      'Returns configuration for specific module. Manager+ required.',
+  })
+  @ApiParam({
+    name: 'module',
+    description: 'Module name (e.g., kitchen, delivery)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Module settings retrieved',
@@ -269,7 +313,10 @@ export class SettingsController {
 
   @Put('modules/:module')
   @Permissions(PERMISSIONS.SETTINGS_MODULE_MANAGE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Update module settings', description: 'Updates module configuration. Admin only.' })
+  @ApiOperation({
+    summary: 'Update module settings',
+    description: 'Updates module configuration. Admin only.',
+  })
   @ApiParam({ name: 'module', description: 'Module name' })
   @ApiResponse({ status: 200, description: 'Module settings updated' })
   @ApiBadRequestResponse({ description: 'Validation error' })
@@ -280,4 +327,3 @@ export class SettingsController {
     return this.service.updateModuleSettings(module, config);
   }
 }
-
