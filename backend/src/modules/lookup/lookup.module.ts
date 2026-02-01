@@ -12,9 +12,9 @@ import { LookupService } from './lookup.service';
 import { PrismaModule } from '../../core/prisma/prisma.module';
 
 @Module({
-    imports: [PrismaModule],
-    controllers: [LookupController],
-    providers: [LookupService],
-    exports: [LookupService],
+  imports: [PrismaModule],
+  controllers: [LookupController],
+  providers: [LookupService],
+  exports: [LookupService],
 })
-export class LookupModule { }
+export class LookupModule {}

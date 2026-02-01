@@ -49,7 +49,9 @@ export function validateSuccessResponse(
 
   // Check statusCode
   if (typeof r.statusCode !== 'number') {
-    throw new Error(`Response must have statusCode as number, got: ${typeof r.statusCode}`);
+    throw new Error(
+      `Response must have statusCode as number, got: ${typeof r.statusCode}`,
+    );
   }
 
   // Check data field exists
@@ -59,13 +61,17 @@ export function validateSuccessResponse(
 
   // Check timestamp is ISO 8601 string
   if (typeof r.timestamp !== 'string') {
-    throw new Error(`Response must have timestamp as string, got: ${typeof r.timestamp}`);
+    throw new Error(
+      `Response must have timestamp as string, got: ${typeof r.timestamp}`,
+    );
   }
 
   // Validate ISO 8601 format (basic check)
   const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
   if (!isoRegex.test(r.timestamp)) {
-    throw new Error(`Response timestamp must be ISO 8601 format, got: ${r.timestamp}`);
+    throw new Error(
+      `Response timestamp must be ISO 8601 format, got: ${r.timestamp}`,
+    );
   }
 
   // Check path field
@@ -75,7 +81,9 @@ export function validateSuccessResponse(
 
   // requestId is optional
   if (r.requestId !== undefined && typeof r.requestId !== 'string') {
-    throw new Error(`Response requestId must be string if present, got: ${typeof r.requestId}`);
+    throw new Error(
+      `Response requestId must be string if present, got: ${typeof r.requestId}`,
+    );
   }
 }
 
@@ -92,48 +100,66 @@ export function validateErrorResponse(response: unknown): void {
 
   // Check success field
   if (r.success !== false) {
-    throw new Error(`Error response must have success: false, got: ${r.success}`);
+    throw new Error(
+      `Error response must have success: false, got: ${r.success}`,
+    );
   }
 
   // Check type (URI)
   if (typeof r.type !== 'string') {
-    throw new Error(`Error response must have type as string (URI), got: ${typeof r.type}`);
+    throw new Error(
+      `Error response must have type as string (URI), got: ${typeof r.type}`,
+    );
   }
 
   // Check title
   if (typeof r.title !== 'string') {
-    throw new Error(`Error response must have title as string, got: ${typeof r.title}`);
+    throw new Error(
+      `Error response must have title as string, got: ${typeof r.title}`,
+    );
   }
 
   // Check status
   if (typeof r.status !== 'number') {
-    throw new Error(`Error response must have status as number, got: ${typeof r.status}`);
+    throw new Error(
+      `Error response must have status as number, got: ${typeof r.status}`,
+    );
   }
 
   // Check detail
   if (typeof r.detail !== 'string') {
-    throw new Error(`Error response must have detail as string, got: ${typeof r.detail}`);
+    throw new Error(
+      `Error response must have detail as string, got: ${typeof r.detail}`,
+    );
   }
 
   // Check instance
   if (typeof r.instance !== 'string') {
-    throw new Error(`Error response must have instance as string, got: ${typeof r.instance}`);
+    throw new Error(
+      `Error response must have instance as string, got: ${typeof r.instance}`,
+    );
   }
 
   // Check timestamp
   if (typeof r.timestamp !== 'string') {
-    throw new Error(`Error response must have timestamp as string, got: ${typeof r.timestamp}`);
+    throw new Error(
+      `Error response must have timestamp as string, got: ${typeof r.timestamp}`,
+    );
   }
 
   // Validate ISO 8601 format
   const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
   if (!isoRegex.test(r.timestamp)) {
-    throw new Error(`Error response timestamp must be ISO 8601 format, got: ${r.timestamp}`);
+    throw new Error(
+      `Error response timestamp must be ISO 8601 format, got: ${r.timestamp}`,
+    );
   }
 
   // errors array is optional
   if (r.errors !== undefined && !Array.isArray(r.errors)) {
-    throw new Error(`Error response errors must be an array if present, got: ${typeof r.errors}`);
+    throw new Error(
+      `Error response errors must be an array if present, got: ${typeof r.errors}`,
+    );
   }
 }
 
@@ -153,7 +179,9 @@ export function validateResponse(response: unknown): boolean {
   } else if (r.success === false) {
     validateErrorResponse(response);
   } else {
-    throw new Error(`Response must have success field as boolean, got: ${r.success}`);
+    throw new Error(
+      `Response must have success field as boolean, got: ${r.success}`,
+    );
   }
 
   return true;
@@ -192,7 +220,9 @@ export function validateResponses(
 /**
  * Type guard for success response
  */
-export function isSuccessResponse(response: unknown): response is SuccessResponse {
+export function isSuccessResponse(
+  response: unknown,
+): response is SuccessResponse {
   try {
     validateSuccessResponse(response);
     return true;

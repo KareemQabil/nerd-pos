@@ -70,15 +70,15 @@ export class SessionsRepository extends BaseRepository<Session> {
     });
   }
 
-
-
   // ==================== DENOMINATION ====================
 
   async createDenomination(data: any): Promise<Denomination> {
     return (this.prismaClient as any).sessionDenomination.create({ data });
   }
 
-  async findDenominationsBySession(registerSessionId: string): Promise<Denomination[]> {
+  async findDenominationsBySession(
+    registerSessionId: string,
+  ): Promise<Denomination[]> {
     return (this.prismaClient as any).sessionDenomination.findMany({
       where: { registerSessionId },
       orderBy: { denomination: 'desc' },

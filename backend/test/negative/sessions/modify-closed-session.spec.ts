@@ -21,7 +21,10 @@ describe('SES-08: Modify Closed Session', () => {
         SessionsService,
         SessionsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -42,15 +45,17 @@ describe('SES-08: Modify Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Act: Try to update closing balance
-    const result = await prisma.registerSession.update({
-      where: { id: session.id },
-      data: { actualClosingBalance: 2000 }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.registerSession
+      .update({
+        where: { id: session.id },
+        data: { actualClosingBalance: 2000 },
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject (application validation needed)
     // For now, verify the operation
@@ -72,21 +77,23 @@ describe('SES-08: Modify Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Act: Try to create order in closed session
-    const result = await prisma.salesOrder.create({
-      data: {
-        orderNumber: `ORD-${Date.now()}`,
-        orderType: 'TAKEAWAY',
-        status: 'DRAFT',
-        sessionId: session.id,
-        businessDate: new Date(),
-        grandTotal: 100
-      }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.salesOrder
+      .create({
+        data: {
+          orderNumber: `ORD-${Date.now()}`,
+          orderType: 'TAKEAWAY',
+          status: 'DRAFT',
+          sessionId: session.id,
+          businessDate: new Date(),
+          grandTotal: 100,
+        },
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject
     expect('error' in result).toBe(true);
@@ -100,16 +107,18 @@ describe('SES-08: Modify Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Try to change status back to OPEN
-    const result = await sessionsService.openSession({
-      terminalId: 'terminal-1',
-      userId: 'user-1',
-      openingBalance: 1500
-    }).catch(e => ({ error: e }));
+    const result = await sessionsService
+      .openSession({
+        terminalId: 'terminal-1',
+        userId: 'user-1',
+        openingBalance: 1500,
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject - must create new session instead
     // Implementation dependent
@@ -125,13 +134,13 @@ describe('SES-08: Modify Closed Session', () => {
         actualClosingBalance: 1500,
         expectedCash: 1500,
         discrepancy: 0,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Query closed session
     const closedSession = await prisma.registerSession.findUnique({
-      where: { id: session.id }
+      where: { id: session.id },
     });
 
     // Verify all data preserved
@@ -152,8 +161,8 @@ describe('SES-08: Modify Closed Session', () => {
         openingBalance: 1000,
         actualClosingBalance: 1500,
         closedAt: new Date(),
-        closedBy: closedBy
-      }
+        closedBy: closedBy,
+      },
     });
 
     expect(session.closedBy).toBe(closedBy);
@@ -167,22 +176,24 @@ describe('SES-08: Modify Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Try to update denominations (if tracked)
-    const result = await prisma.registerSession.update({
-      where: { id: session.id },
-      data: {
-        // Assuming denomination data is tracked
-        denominations: {
-          100: 5,
-          50: 10,
-          20: 5
-        } as any
-      }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.registerSession
+      .update({
+        where: { id: session.id },
+        data: {
+          // Assuming denomination data is tracked
+          denominations: {
+            100: 5,
+            50: 10,
+            20: 5,
+          } as any,
+        },
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject modification
     if (!('error' in result)) {
@@ -198,13 +209,13 @@ describe('SES-08: Modify Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Should be able to query
     const queried = await prisma.registerSession.findUnique({
-      where: { id: session.id }
+      where: { id: session.id },
     });
 
     expect(queried).toBeDefined();
@@ -220,8 +231,8 @@ describe('SES-08: Modify Closed Session', () => {
         openingBalance: 1000,
         actualClosingBalance: 1500,
         closedAt: new Date(),
-        closedBy: 'manager-1'
-      }
+        closedBy: 'manager-1',
+      },
     });
 
     // Verify audit fields
@@ -241,14 +252,16 @@ describe('SES-08: Modify Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Try to delete
-    const result = await prisma.registerSession.delete({
-      where: { id: session.id }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.registerSession
+      .delete({
+        where: { id: session.id },
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject - closed sessions are permanent records
     // Implementation may use soft delete instead
@@ -263,12 +276,13 @@ describe('SES-08: Modify Closed Session', () => {
         openingBalance: 1000,
         actualClosingBalance: 1500,
         expectedCash: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Calculate summary
-    const sales = session.closingBalance!.toNumber() - session.openingBalance.toNumber();
+    const sales =
+      session.closingBalance!.toNumber() - session.openingBalance.toNumber();
 
     expect(sales).toBe(500);
     expect(session.discrepancy?.toString()).toBe('0');

@@ -25,7 +25,11 @@ import {
 } from '../../../src/modules/sales/calculation-steps';
 import { SessionsService } from '../../../src/modules/sessions/sessions.service';
 import { RaceConditionTester } from '../../helpers/race-condition';
-import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('INV-01: Overselling Last Item (Race Condition)', () => {
   let salesService: SalesService;
@@ -58,7 +62,10 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
         TaxStep,
         DiscountStep,
         GrandTotalStep,
-        { provide: SessionsService, useValue: { getCurrentSession: jest.fn() } },
+        {
+          provide: SessionsService,
+          useValue: { getCurrentSession: jest.fn() },
+        },
         { provide: 'IEventBus', useExisting: EventBusService },
       ],
     }).compile();
@@ -96,7 +103,9 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
     orderNumberCounter = 0;
     orderNumberSpy = jest
       .spyOn(salesService as any, 'generateOrderNumber')
-      .mockImplementation(async () => `TEST-${Date.now()}-${orderNumberCounter++}`);
+      .mockImplementation(
+        async () => `TEST-${Date.now()}-${orderNumberCounter++}`,
+      );
 
     const product = await createTestProduct(prisma, {
       nameEn: 'Test Product for Overselling',
@@ -168,12 +177,12 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
     const { terminalAResult, terminalBResult, bothSucceeded } =
       await RaceConditionTester.simulateDualTerminalRequest(
         () => salesService.createOrder(terminalAOrder as any, 'terminal-a'),
-        () => salesService.createOrder(terminalBOrder as any, 'terminal-b')
+        () => salesService.createOrder(terminalBOrder as any, 'terminal-b'),
       );
 
     const results = [terminalAResult, terminalBResult];
-    const successCount = results.filter(r => !('error' in (r as any))).length;
-    const errorCount = results.filter(r => 'error' in (r as any)).length;
+    const successCount = results.filter((r) => !('error' in (r as any))).length;
+    const errorCount = results.filter((r) => 'error' in (r as any)).length;
 
     expect(successCount).toBe(1);
     expect(errorCount).toBe(1);
@@ -202,21 +211,24 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
 
     const { successful, failed } = await RaceConditionTester.floodEndpoint(
       async () => {
-        return salesService.createOrder({
-          type: 'TAKEAWAY',
-          sessionId,
-          items: [
-            {
-              productId,
-              name: 'Test Product',
-              nameAr: 'Test Product AR',
-              price: 50,
-              quantity: 1,
-            },
-          ],
-        } as any, 'user-1');
+        return salesService.createOrder(
+          {
+            type: 'TAKEAWAY',
+            sessionId,
+            items: [
+              {
+                productId,
+                name: 'Test Product',
+                nameAr: 'Test Product AR',
+                price: 50,
+                quantity: 1,
+              },
+            ],
+          } as any,
+          'user-1',
+        );
       },
-      concurrency
+      concurrency,
     );
 
     expect(successful).toBe(expectedSuccess);
@@ -253,6 +265,8 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
       ],
     };
 
-    await expect(salesService.createOrder(order as any, 'user')).rejects.toThrow();
+    await expect(
+      salesService.createOrder(order as any, 'user'),
+    ).rejects.toThrow();
   });
 });

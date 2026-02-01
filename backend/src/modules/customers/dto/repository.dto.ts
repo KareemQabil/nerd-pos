@@ -1,7 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCustomerAddressData {
-  @ApiProperty({ description: 'Customer UUID', example: 'c23e4567-e89b-12d3-a456-426614174011' })
+  @ApiProperty({
+    description: 'Customer UUID',
+    example: 'c23e4567-e89b-12d3-a456-426614174011',
+  })
   customerId: string;
 
   @ApiProperty({ description: 'Address label', example: 'Home' })
@@ -10,7 +13,10 @@ export class CreateCustomerAddressData {
   @ApiProperty({ description: 'Street address', example: 'King Fahd Road' })
   street: string;
 
-  @ApiPropertyOptional({ description: 'Building name/number', example: 'Tower 5' })
+  @ApiPropertyOptional({
+    description: 'Building name/number',
+    example: 'Tower 5',
+  })
   building?: string;
 
   @ApiPropertyOptional({ description: 'Floor number', example: '12' })
@@ -40,10 +46,16 @@ export class CreateCustomerAddressData {
   @ApiPropertyOptional({ description: 'Postal code', example: '12345' })
   postalCode?: string;
 
-  @ApiPropertyOptional({ description: 'Delivery instructions', example: 'Ring bell twice' })
+  @ApiPropertyOptional({
+    description: 'Delivery instructions',
+    example: 'Ring bell twice',
+  })
   instructions?: string;
 
-  @ApiPropertyOptional({ description: 'Mark as default address', example: true })
+  @ApiPropertyOptional({
+    description: 'Mark as default address',
+    example: true,
+  })
   isDefault?: boolean;
 }
 
@@ -75,6 +87,9 @@ export class CreateLoyaltyTierData {
   @ApiProperty({ description: 'Display order', example: 2 })
   displayOrder: number;
 
-  @ApiPropertyOptional({ description: 'Whether the tier is active', example: true })
+  @ApiPropertyOptional({
+    description: 'Whether the tier is active',
+    example: true,
+  })
   isActive?: boolean;
 }

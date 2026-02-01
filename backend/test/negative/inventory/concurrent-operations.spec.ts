@@ -26,9 +26,19 @@ describe('MT-05: Transfer Same Stock Twice', () => {
       providers: [
         InventoryService,
         InventoryRepository,
-        { provide: FIFOStrategy, useValue: { getAvailableStock: jest.fn(), deduct: jest.fn(), getCOGS: jest.fn() } },
+        {
+          provide: FIFOStrategy,
+          useValue: {
+            getAvailableStock: jest.fn(),
+            deduct: jest.fn(),
+            getCOGS: jest.fn(),
+          },
+        },
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -37,21 +47,31 @@ describe('MT-05: Transfer Same Stock Twice', () => {
 
     (inventoryService as any).fifoStrategy = {
       getAvailableStock: jest.fn().mockResolvedValue(10),
-      deduct: jest.fn().mockResolvedValue([
-        { batchId: 'batch-1', quantity: 10 },
-      ]),
+      deduct: jest
+        .fn()
+        .mockResolvedValue([{ batchId: 'batch-1', quantity: 10 }]),
     };
   });
 
   beforeEach(async () => {
     const codeSuffix = Date.now();
     const warehouseA = await prisma.warehouse.create({
-      data: { nameEn: 'Warehouse A', nameAr: 'Warehouse A AR', code: `WH-A-${codeSuffix}`, isActive: true },
+      data: {
+        nameEn: 'Warehouse A',
+        nameAr: 'Warehouse A AR',
+        code: `WH-A-${codeSuffix}`,
+        isActive: true,
+      },
     });
     warehouseAId = warehouseA.id;
 
     const warehouseB = await prisma.warehouse.create({
-      data: { nameEn: 'Warehouse B', nameAr: 'Warehouse B AR', code: `WH-B-${codeSuffix}`, isActive: true },
+      data: {
+        nameEn: 'Warehouse B',
+        nameAr: 'Warehouse B AR',
+        code: `WH-B-${codeSuffix}`,
+        isActive: true,
+      },
     });
     warehouseBId = warehouseB.id;
 
@@ -92,21 +112,40 @@ describe('MT-05: Transfer Same Stock Twice', () => {
 
   it('should prevent overselling during concurrent transfers', async () => {
     const transferA = () =>
-      inventoryService.transferStock(
-        { productId, fromWarehouseId: warehouseAId, toWarehouseId: warehouseBId, quantity: 10 },
-        'user-1'
-      ).then(() => ({ ok: true }));
+      inventoryService
+        .transferStock(
+          {
+            productId,
+            fromWarehouseId: warehouseAId,
+            toWarehouseId: warehouseBId,
+            quantity: 10,
+          },
+          'user-1',
+        )
+        .then(() => ({ ok: true }));
 
     const transferB = () =>
-      inventoryService.transferStock(
-        { productId, fromWarehouseId: warehouseAId, toWarehouseId: warehouseBId, quantity: 10 },
-        'user-2'
-      ).then(() => ({ ok: true }));
+      inventoryService
+        .transferStock(
+          {
+            productId,
+            fromWarehouseId: warehouseAId,
+            toWarehouseId: warehouseBId,
+            quantity: 10,
+          },
+          'user-2',
+        )
+        .then(() => ({ ok: true }));
 
     const { terminalAResult, terminalBResult, bothSucceeded } =
-      await RaceConditionTester.simulateDualTerminalRequest(transferA, transferB);
+      await RaceConditionTester.simulateDualTerminalRequest(
+        transferA,
+        transferB,
+      );
 
-    const successCount = [terminalAResult, terminalBResult].filter(r => !('error' in (r as any))).length;
+    const successCount = [terminalAResult, terminalBResult].filter(
+      (r) => !('error' in (r as any)),
+    ).length;
     expect(successCount).toBe(1);
     expect(bothSucceeded).toBe(false);
 
@@ -118,13 +157,26 @@ describe('MT-05: Transfer Same Stock Twice', () => {
 
   it('should reject transfer from empty warehouse', async () => {
     const warehouseC = await prisma.warehouse.create({
-      data: { nameEn: 'Warehouse C', nameAr: 'Warehouse C AR', code: `WH-C-${Date.now()}`, isActive: true },
+      data: {
+        nameEn: 'Warehouse C',
+        nameAr: 'Warehouse C AR',
+        code: `WH-C-${Date.now()}`,
+        isActive: true,
+      },
     });
 
-    const result = await inventoryService.transferStock(
-      { productId, fromWarehouseId: warehouseC.id, toWarehouseId: warehouseBId, quantity: 10 },
-      'user-1'
-    ).then(() => ({ ok: true })).catch(e => ({ error: e }));
+    const result = await inventoryService
+      .transferStock(
+        {
+          productId,
+          fromWarehouseId: warehouseC.id,
+          toWarehouseId: warehouseBId,
+          quantity: 10,
+        },
+        'user-1',
+      )
+      .then(() => ({ ok: true }))
+      .catch((e) => ({ error: e }));
 
     expect('error' in result).toBe(true);
   });

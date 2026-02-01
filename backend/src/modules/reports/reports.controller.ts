@@ -26,12 +26,19 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly service: ReportsService) { }
+  constructor(private readonly service: ReportsService) {}
 
   @Get('daily-sales')
   @Permissions(PERMISSIONS.REPORTS_SALES_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get daily sales report', description: 'Generates daily sales summary. Manager+ required.' })
-  @ApiQuery({ name: 'date', required: true, description: 'Date in ISO format (YYYY-MM-DD)' })
+  @ApiOperation({
+    summary: 'Get daily sales report',
+    description: 'Generates daily sales summary. Manager+ required.',
+  })
+  @ApiQuery({
+    name: 'date',
+    required: true,
+    description: 'Date in ISO format (YYYY-MM-DD)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Daily sales report generated',
@@ -46,8 +53,8 @@ export class ReportsController {
           averageOrderValue: 33.33,
           categoryBreakdown: {
             'Main Dishes': 3000.0,
-            'Beverages': 1000.0,
-            'Desserts': 1000.0,
+            Beverages: 1000.0,
+            Desserts: 1000.0,
           },
         },
         timestamp: '2026-01-23T12:00:00Z',
@@ -61,7 +68,11 @@ export class ReportsController {
 
   @Get('z-report/:sessionId')
   @Permissions(PERMISSIONS.REPORTS_SALES_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Generate Z-Report', description: 'Generates end-of-day Z-Report for session. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Generate Z-Report',
+    description:
+      'Generates end-of-day Z-Report for session. Manager+ required.',
+  })
   @ApiParam({ name: 'sessionId', description: 'Session UUID' })
   @ApiResponse({
     status: 200,
@@ -93,10 +104,26 @@ export class ReportsController {
 
   @Get('top-selling')
   @Permissions(PERMISSIONS.REPORTS_SALES_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get top selling items', description: 'Returns best-selling products in date range. Manager+ required.' })
-  @ApiQuery({ name: 'startDate', required: true, description: 'Start date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'endDate', required: true, description: 'End date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Number of items to return (default: 10)' })
+  @ApiOperation({
+    summary: 'Get top selling items',
+    description:
+      'Returns best-selling products in date range. Manager+ required.',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: true,
+    description: 'Start date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: true,
+    description: 'End date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of items to return (default: 10)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Top selling items retrieved',
@@ -131,7 +158,10 @@ export class ReportsController {
 
   @Get('inventory-valuation')
   @Permissions(PERMISSIONS.REPORTS_INVENTORY_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get inventory valuation', description: 'Returns current inventory value. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get inventory valuation',
+    description: 'Returns current inventory value. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Inventory valuation retrieved',
@@ -152,4 +182,3 @@ export class ReportsController {
     return this.service.getInventoryValuation();
   }
 }
-

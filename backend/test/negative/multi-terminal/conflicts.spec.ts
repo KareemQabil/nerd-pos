@@ -11,7 +11,12 @@ import { PaymentsRepository } from '../../../src/modules/payments/payments.repos
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
-import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  createTestOrder,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 import { OrderStatus } from '../../../src/core/constants/enums';
 
 describe('MT-02: Pay Same Order Twice', () => {
@@ -26,7 +31,10 @@ describe('MT-02: Pay Same Order Twice', () => {
         PaymentsRepository,
         SalesRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -48,7 +56,7 @@ describe('MT-02: Pay Same Order Twice', () => {
     // Setup: Create order with total = 100
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Mock payment processing
@@ -59,8 +67,8 @@ describe('MT-02: Pay Same Order Twice', () => {
           orderId: order.id,
           amount,
           paymentMethod: 'CASH',
-          reference: `PAY-${Date.now()}`
-        }
+          reference: `PAY-${Date.now()}`,
+        },
       });
     };
 
@@ -68,20 +76,20 @@ describe('MT-02: Pay Same Order Twice', () => {
     const { terminalAResult, terminalBResult } =
       await RaceConditionTester.simulateDualTerminalRequest(
         () => processPayment(100),
-        () => processPayment(100)
+        () => processPayment(100),
       );
 
     // Assert: Only one payment should succeed
     const results = [terminalAResult, terminalBResult];
-    const successCount = results.filter(r => !('error' in r)).length;
-    const errorCount = results.filter(r => 'error' in r).length;
+    const successCount = results.filter((r) => !('error' in r)).length;
+    const errorCount = results.filter((r) => 'error' in r).length;
 
     expect(successCount).toBe(1);
     expect(errorCount).toBe(1);
 
     // Verify: Order status should still be PAID (not OVERPAID)
     const payments = await prisma.payment.findMany({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     // Only one payment record should exist
@@ -92,7 +100,7 @@ describe('MT-02: Pay Same Order Twice', () => {
     // Setup: Create order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // First payment succeeds
@@ -101,14 +109,14 @@ describe('MT-02: Pay Same Order Twice', () => {
         orderId: order.id,
         amount: 100,
         paymentMethod: 'CASH',
-        referenceNumber: 'PAY-1'
-      }
+        referenceNumber: 'PAY-1',
+      },
     });
 
     // Update order to PAID
     await prisma.salesOrder.update({
       where: { id: order.id },
-      data: { status: OrderStatus.PAID, paidAt: new Date() }
+      data: { status: OrderStatus.PAID, paidAt: new Date() },
     });
 
     // Second payment should fail
@@ -117,7 +125,7 @@ describe('MT-02: Pay Same Order Twice', () => {
 
     // Verify order is PAID
     const updatedOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(updatedOrder?.status).toBe(OrderStatus.PAID);
@@ -127,7 +135,7 @@ describe('MT-02: Pay Same Order Twice', () => {
     // Setup: Create order with total = 50
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 50
+      grandTotal: 50,
     });
 
     // Try to pay 100 on a 50 order

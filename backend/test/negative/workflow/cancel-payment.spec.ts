@@ -11,7 +11,12 @@ import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  createTestOrder,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('WF-04: Pay Cancelled Order', () => {
   let salesService: SalesService;
@@ -23,7 +28,10 @@ describe('WF-04: Pay Cancelled Order', () => {
         SalesService,
         SalesRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -48,7 +56,7 @@ describe('WF-04: Pay Cancelled Order', () => {
     // Setup: Create a cancelled order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CANCELLED,
-      cancelledAt: new Date()
+      cancelledAt: new Date(),
     });
 
     // Act & Assert - payment should be rejected
@@ -60,7 +68,7 @@ describe('WF-04: Pay Cancelled Order', () => {
   it('should reject payment on VOIDED order', async () => {
     // Setup: Create a voided order (using CANCELLED as proxy)
     const order = await createTestOrder(prisma, {
-      status: OrderStatus.CANCELLED
+      status: OrderStatus.CANCELLED,
     });
 
     // Verify order status

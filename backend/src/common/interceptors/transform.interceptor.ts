@@ -37,9 +37,10 @@ export interface SuccessResponse<T = any> {
 }
 
 @Injectable()
-export class TransformInterceptor<T>
-  implements NestInterceptor<T, SuccessResponse<T>>
-{
+export class TransformInterceptor<T> implements NestInterceptor<
+  T,
+  SuccessResponse<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
@@ -61,7 +62,8 @@ export class TransformInterceptor<T>
           data,
           timestamp: new Date().toISOString(),
           path: request.url,
-          requestId: (request as any).id || request.headers['x-request-id'] as string,
+          requestId:
+            (request as any).id || (request.headers['x-request-id'] as string),
         };
       }),
     );

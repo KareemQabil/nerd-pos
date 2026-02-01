@@ -48,23 +48,47 @@ import { ApiBody } from '@nestjs/swagger';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated - JWT token missing or invalid' })
+@ApiUnauthorizedResponse({
+  description: 'Not authenticated - JWT token missing or invalid',
+})
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @ApiTags('Products')
 @ApiBearerAuth()
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly service: ProductsService) { }
+  constructor(private readonly service: ProductsService) {}
 
   // ==================== PRODUCT ====================
 
   @Post()
   @Permissions(PERMISSIONS.PRODUCTS_CREATE) // Manager+
   @ApiOperation({ summary: 'Create a new product' })
-  @ApiBody({ schema: { example: examples.products.createProductRequest.value } })
-  @ApiResponse({ status: 201, description: 'Product created successfully', content: { 'application/json': { example: examples.products.createProductSuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
-  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
+  @ApiBody({
+    schema: { example: examples.products.createProductRequest.value },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Product created successfully',
+    content: {
+      'application/json': {
+        example: examples.products.createProductSuccess.value,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    content: {
+      'application/json': { example: examples.errors.unauthorizedError.value },
+    },
+  })
+  @ApiResponse({
+    status: 422,
+    description: 'Validation error',
+    content: {
+      'application/json': { example: examples.errors.validationError.value },
+    },
+  })
   async createProduct(@Body() dto: CreateProductDto) {
     return this.service.createProduct(dto);
   }
@@ -222,23 +246,51 @@ export class ProductsController {
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('categories')
 export class CategoriesController {
-  constructor(private readonly service: ProductsService) { }
+  constructor(private readonly service: ProductsService) {}
 
   @Post()
   @Permissions(PERMISSIONS.CATEGORIES_CREATE) // Manager+
   @ApiOperation({ summary: 'Create category' })
-  @ApiBody({ schema: { example: examples.products.createCategoryRequest.value } })
-  @ApiResponse({ status: 201, description: 'Category created successfully', content: { 'application/json': { example: examples.products.createCategorySuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
-  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
+  @ApiBody({
+    schema: { example: examples.products.createCategoryRequest.value },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Category created successfully',
+    content: {
+      'application/json': {
+        example: examples.products.createCategorySuccess.value,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    content: {
+      'application/json': { example: examples.errors.unauthorizedError.value },
+    },
+  })
+  @ApiResponse({
+    status: 422,
+    description: 'Validation error',
+    content: {
+      'application/json': { example: examples.errors.validationError.value },
+    },
+  })
   async createCategory(@Body() dto: CreateCategoryDto) {
     return this.service.createCategory(dto);
   }
 
   @Get()
   @Permissions(PERMISSIONS.CATEGORIES_VIEW) // All roles
-  @ApiOperation({ summary: 'Get all categories', description: 'Returns paginated list of categories' })
-  @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
+  @ApiOperation({
+    summary: 'Get all categories',
+    description: 'Returns paginated list of categories',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Categories retrieved successfully',
+  })
   async findAllCategories(@Query() pagination: PaginationDto) {
     const result = await this.service.findAllCategoriesPaginated({
       page: pagination.page,
@@ -313,7 +365,7 @@ export class CategoriesController {
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('modifier-groups')
 export class ModifierGroupsController {
-  constructor(private readonly service: ProductsService) { }
+  constructor(private readonly service: ProductsService) {}
 
   @Post()
   @Permissions(PERMISSIONS.MODIFIERS_CREATE) // Manager+
@@ -326,7 +378,10 @@ export class ModifierGroupsController {
 
   @Get()
   @Permissions(PERMISSIONS.MODIFIERS_VIEW) // All roles
-  @ApiOperation({ summary: 'Get all modifier groups', description: 'Returns paginated list of modifier groups' })
+  @ApiOperation({
+    summary: 'Get all modifier groups',
+    description: 'Returns paginated list of modifier groups',
+  })
   @ApiResponse({ status: 200, description: 'Modifier groups retrieved' })
   async findAllModifierGroups(@Query() pagination: PaginationDto) {
     const result = await this.service.findAllModifierGroupsPaginated({

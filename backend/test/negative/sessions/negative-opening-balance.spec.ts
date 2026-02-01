@@ -10,9 +10,9 @@ import { SessionsRepository } from '../../../src/modules/sessions/sessions.repos
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { cleanupTestData } from '../../helpers/test-helpers';
-import { Prisma } from '@prisma/client'
-const PrismaClient = require('@prisma/client').PrismaClient
-type Decimal = PrismaClient.Decimal
+import { Prisma } from '@prisma/client';
+const PrismaClient = require('@prisma/client').PrismaClient;
+type Decimal = PrismaClient.Decimal;
 type Decimal = Prisma.Decimal;
 
 describe('SES-04: Negative Opening Balance', () => {
@@ -25,7 +25,10 @@ describe('SES-04: Negative Opening Balance', () => {
         SessionsService,
         SessionsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -42,20 +45,21 @@ describe('SES-04: Negative Opening Balance', () => {
       userId: 'user-1',
       terminalId: 'terminal-1',
       openingBalance: -100, // Negative!
-      status: 'OPEN'
+      status: 'OPEN',
     };
 
     // Act: Try to create session with negative balance
-    const result = await prisma.registerSession.create({
-      data: sessionData
-    }).catch(e => ({ error: e }));
+    const result = await prisma.registerSession
+      .create({
+        data: sessionData,
+      })
+      .catch((e) => ({ error: e }));
 
     // Assert: Should reject
     expect('error' in result).toBe(true);
 
     // Verify no session created
-    const sessions = await prisma.registerSession.findMany({
-    });
+    const sessions = await prisma.registerSession.findMany({});
 
     expect(sessions.length).toBe(0);
   });
@@ -66,8 +70,8 @@ describe('SES-04: Negative Opening Balance', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 0
-      }
+        openingBalance: 0,
+      },
     });
 
     expect(session.openingBalance.toString()).toBe('0');
@@ -80,8 +84,8 @@ describe('SES-04: Negative Opening Balance', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     expect(session.openingBalance.toString()).toBe('1000');
@@ -94,22 +98,24 @@ describe('SES-04: Negative Opening Balance', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 500
-      }
+        openingBalance: 500,
+      },
     });
 
     // Try to update to negative
-    const result = await prisma.registerSession.update({
-      where: { id: session.id },
-      data: { openingBalance: -200 }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.registerSession
+      .update({
+        where: { id: session.id },
+        data: { openingBalance: -200 },
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject (validation should prevent this)
     expect('error' in result).toBe(true);
 
     // Verify original balance unchanged
     const unchanged = await prisma.registerSession.findUnique({
-      where: { id: session.id }
+      where: { id: session.id },
     });
 
     expect(unchanged?.openingBalance.toString()).toBe('500');
@@ -122,8 +128,8 @@ describe('SES-04: Negative Opening Balance', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 100000 // 100,000
-      }
+        openingBalance: 100000, // 100,000
+      },
     });
 
     expect(session.openingBalance.toString()).toBe('100000');
@@ -131,14 +137,16 @@ describe('SES-04: Negative Opening Balance', () => {
 
   it('should validate opening balance type', async () => {
     // Opening balance must be a number/Decimal
-    const result = await prisma.registerSession.create({
-      data: {
-        userId: 'user-1',
-        terminalId: 'terminal-1',
-        status: 'OPEN',
-        openingBalance: NaN as any
-      }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.registerSession
+      .create({
+        data: {
+          userId: 'user-1',
+          terminalId: 'terminal-1',
+          status: 'OPEN',
+          openingBalance: NaN as any,
+        },
+      })
+      .catch((e) => ({ error: e }));
 
     expect('error' in result).toBe(true);
   });
@@ -151,8 +159,8 @@ describe('SES-04: Negative Opening Balance', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Simulate sales
@@ -170,8 +178,8 @@ describe('SES-04: Negative Opening Balance', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 100
-      }
+        openingBalance: 100,
+      },
     });
 
     const openingBalance = new Decimal(session.openingBalance);
@@ -188,8 +196,8 @@ describe('SES-04: Negative Opening Balance', () => {
         userId: 'user-1',
         terminalId: 'new-terminal',
         status: 'OPEN',
-        openingBalance: 0
-      }
+        openingBalance: 0,
+      },
     });
 
     // First sale would bring balance to positive
@@ -205,8 +213,8 @@ describe('SES-04: Negative Opening Balance', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Session summary should include:
@@ -218,7 +226,7 @@ describe('SES-04: Negative Opening Balance', () => {
       openingBalance: session.openingBalance.toNumber(),
       terminal: session.terminalId,
       user: session.userId,
-      status: session.status
+      status: session.status,
     };
 
     expect(summary.openingBalance).toBe(1000);
@@ -226,22 +234,19 @@ describe('SES-04: Negative Opening Balance', () => {
   });
 
   it('should prevent session creation with invalid balance formats', async () => {
-    const invalidBalances = [
-      null,
-      undefined,
-      'invalid' as any,
-      {} as any
-    ];
+    const invalidBalances = [null, undefined, 'invalid' as any, {} as any];
 
     for (const balance of invalidBalances) {
-      const result = await prisma.registerSession.create({
-        data: {
-          userId: 'user-1',
-          terminalId: 'terminal-1',
-          status: 'OPEN',
-          openingBalance: balance as any
-        }
-      }).catch(e => ({ error: e }));
+      const result = await prisma.registerSession
+        .create({
+          data: {
+            userId: 'user-1',
+            terminalId: 'terminal-1',
+            status: 'OPEN',
+            openingBalance: balance,
+          },
+        })
+        .catch((e) => ({ error: e }));
 
       expect('error' in result).toBe(true);
     }

@@ -14,7 +14,9 @@ export class ComplianceRepository extends BaseRepository<ZATCAInvoice> {
   }
 
   async findByOrder(orderId: string): Promise<ZATCAInvoice | null> {
-    return (this.prisma as any).complianceInvoice.findUnique({ where: { orderId } });
+    return (this.prisma as any).complianceInvoice.findUnique({
+      where: { orderId },
+    });
   }
 
   async findLastInvoice(): Promise<ZATCAInvoice | null> {

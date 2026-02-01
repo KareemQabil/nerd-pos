@@ -33,7 +33,7 @@ export const RESPONSE_MESSAGE_KEY = 'responseMessage';
 
 @Injectable()
 export class DecimalTransformInterceptor implements NestInterceptor {
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const ctx = context.switchToHttp();

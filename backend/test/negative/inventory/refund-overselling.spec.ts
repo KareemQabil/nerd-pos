@@ -12,7 +12,12 @@ import { InventoryRepository } from '../../../src/modules/inventory/inventory.re
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  createTestOrder,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe.skip('INV-03: Negative Stock After Refund', () => {
   let salesService: SalesService;
@@ -26,7 +31,10 @@ describe.skip('INV-03: Negative Stock After Refund', () => {
         InventoryService,
         InventoryRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -74,7 +82,7 @@ describe.skip('INV-03: Negative Stock After Refund', () => {
           reason: 'Customer request',
           items: [{ orderItemId: 'item-1', quantity: 1 }],
         },
-        'user-1'
+        'user-1',
       )
       .catch((e: any) => ({ error: e }));
 
@@ -110,7 +118,7 @@ describe.skip('INV-03: Negative Stock After Refund', () => {
           reason: 'Customer request',
           items: [{ orderItemId: 'item-1', quantity: 1 }],
         },
-        'user-1'
+        'user-1',
       )
       .catch((e: any) => ({ error: e }));
 
@@ -160,7 +168,7 @@ describe.skip('INV-03: Negative Stock After Refund', () => {
           reason: 'Customer request',
           items: [{ orderItemId: 'item-1', quantity: 1 }],
         },
-        'user-1'
+        'user-1',
       )
       .catch((e: any) => ({ error: e }));
 
@@ -192,7 +200,7 @@ describe.skip('INV-03: Negative Stock After Refund', () => {
           reason: 'Customer request',
           items: [{ orderItemId: 'item-1', quantity: 2 }],
         },
-        'user-1'
+        'user-1',
       )
       .catch((e: any) => ({ error: e }));
 
@@ -234,7 +242,7 @@ describe.skip('INV-03: Negative Stock After Refund', () => {
           reason: 'Customer request',
           items: [{ orderItemId: 'item-1', quantity: 3 }],
         },
-        'user-1'
+        'user-1',
       )
       .catch((e: any) => ({ error: e }));
 
@@ -245,7 +253,7 @@ describe.skip('INV-03: Negative Stock After Refund', () => {
           reason: 'Customer request',
           items: [{ orderItemId: 'item-1', quantity: 3 }],
         },
-        'user-2'
+        'user-2',
       )
       .catch((e: any) => ({ error: e }));
 

@@ -45,13 +45,16 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('customers')
 export class CustomersController {
-  constructor(private readonly service: CustomersService) { }
+  constructor(private readonly service: CustomersService) {}
 
   // ==================== CUSTOMER CRUD ====================
 
   @Post()
   @Permissions(PERMISSIONS.CUSTOMERS_CREATE) // Cashier+
-  @ApiOperation({ summary: 'Create customer', description: 'Creates a new customer record' })
+  @ApiOperation({
+    summary: 'Create customer',
+    description: 'Creates a new customer record',
+  })
   @ApiResponse({
     status: 201,
     description: 'Customer created successfully',
@@ -77,17 +80,30 @@ export class CustomersController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error or phone number already exists' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or phone number already exists',
+  })
   async create(@Body() dto: CreateCustomerDto) {
     return this.service.create(dto);
   }
 
   @Get('search')
   @Permissions(PERMISSIONS.CUSTOMERS_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Search customers', description: 'Searches customers by name, phone, or email with pagination' })
+  @ApiOperation({
+    summary: 'Search customers',
+    description: 'Searches customers by name, phone, or email with pagination',
+  })
   @ApiQuery({ name: 'q', required: false, description: 'Search query string' })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20)' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page (default: 20)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated customer results',
@@ -115,10 +131,7 @@ export class CustomersController {
       },
     },
   })
-  async search(
-    @Query('q') query: string,
-    @Query() pagination: PaginationDto,
-  ) {
+  async search(@Query('q') query: string, @Query() pagination: PaginationDto) {
     const result = await this.service.searchPaginated(query || '', {
       page: pagination.page,
       limit: pagination.limit,
@@ -134,7 +147,10 @@ export class CustomersController {
 
   @Get('phone/:phone')
   @Permissions(PERMISSIONS.CUSTOMERS_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Find customer by phone', description: 'Looks up customer by phone number' })
+  @ApiOperation({
+    summary: 'Find customer by phone',
+    description: 'Looks up customer by phone number',
+  })
   @ApiParam({ name: 'phone', description: 'Phone number' })
   @ApiResponse({
     status: 200,
@@ -160,7 +176,10 @@ export class CustomersController {
 
   @Get(':id')
   @Permissions(PERMISSIONS.CUSTOMERS_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Get customer by ID', description: 'Returns customer details by UUID' })
+  @ApiOperation({
+    summary: 'Get customer by ID',
+    description: 'Returns customer details by UUID',
+  })
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   @ApiResponse({ status: 200, description: 'Customer found' })
   @ApiNotFoundResponse({ description: 'Customer not found' })
@@ -170,7 +189,10 @@ export class CustomersController {
 
   @Get(':id/details')
   @Permissions(PERMISSIONS.CUSTOMERS_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Get customer with tier', description: 'Returns customer with loyalty tier information' })
+  @ApiOperation({
+    summary: 'Get customer with tier',
+    description: 'Returns customer with loyalty tier information',
+  })
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   @ApiResponse({
     status: 200,
@@ -199,7 +221,10 @@ export class CustomersController {
 
   @Put(':id')
   @Permissions(PERMISSIONS.CUSTOMERS_UPDATE) // Cashier+
-  @ApiOperation({ summary: 'Update customer', description: 'Updates customer information' })
+  @ApiOperation({
+    summary: 'Update customer',
+    description: 'Updates customer information',
+  })
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   @ApiResponse({ status: 200, description: 'Customer updated' })
   @ApiNotFoundResponse({ description: 'Customer not found' })
@@ -212,7 +237,10 @@ export class CustomersController {
 
   @Post(':id/addresses')
   @Permissions(PERMISSIONS.CUSTOMERS_UPDATE) // Cashier+
-  @ApiOperation({ summary: 'Add customer address', description: 'Adds a delivery address for customer' })
+  @ApiOperation({
+    summary: 'Add customer address',
+    description: 'Adds a delivery address for customer',
+  })
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   @ApiResponse({
     status: 201,
@@ -240,7 +268,10 @@ export class CustomersController {
 
   @Get(':id/addresses')
   @Permissions(PERMISSIONS.CUSTOMERS_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Get customer addresses', description: 'Returns all addresses for customer' })
+  @ApiOperation({
+    summary: 'Get customer addresses',
+    description: 'Returns all addresses for customer',
+  })
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   @ApiResponse({ status: 200, description: 'Addresses retrieved' })
   @ApiNotFoundResponse({ description: 'Customer not found' })
@@ -252,7 +283,10 @@ export class CustomersController {
 
   @Post(':id/loyalty/redeem')
   @Permissions(PERMISSIONS.CUSTOMERS_LOYALTY_ADJUST) // 🔒 Manager only
-  @ApiOperation({ summary: 'Redeem loyalty points', description: 'Redeems customer loyalty points. Manager only.' })
+  @ApiOperation({
+    summary: 'Redeem loyalty points',
+    description: 'Redeems customer loyalty points. Manager only.',
+  })
   @ApiParam({ name: 'id', description: 'Customer UUID' })
   @ApiResponse({
     status: 200,
@@ -280,7 +314,10 @@ export class CustomersController {
 
   @Get('tiers')
   @Permissions(PERMISSIONS.CUSTOMERS_LOYALTY_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Get all loyalty tiers', description: 'Returns all loyalty tier configurations' })
+  @ApiOperation({
+    summary: 'Get all loyalty tiers',
+    description: 'Returns all loyalty tier configurations',
+  })
   @ApiResponse({
     status: 200,
     description: 'Loyalty tiers retrieved',
@@ -303,16 +340,24 @@ export class CustomersController {
 
   @Post('tiers')
   @Permissions(PERMISSIONS.SETTINGS_UPDATE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Create loyalty tier', description: 'Creates a new loyalty tier. Admin only.' })
+  @ApiOperation({
+    summary: 'Create loyalty tier',
+    description: 'Creates a new loyalty tier. Admin only.',
+  })
   @ApiResponse({ status: 201, description: 'Tier created' })
-  @ApiBadRequestResponse({ description: 'Validation error or duplicate tier name' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or duplicate tier name',
+  })
   async createTier(@Body() dto: CreateLoyaltyTierDto) {
     return this.service.createTier(dto);
   }
 
   @Put('tiers/:id')
   @Permissions(PERMISSIONS.SETTINGS_UPDATE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Update loyalty tier', description: 'Updates loyalty tier. Admin only.' })
+  @ApiOperation({
+    summary: 'Update loyalty tier',
+    description: 'Updates loyalty tier. Admin only.',
+  })
   @ApiParam({ name: 'id', description: 'Tier UUID' })
   @ApiResponse({ status: 200, description: 'Tier updated' })
   @ApiNotFoundResponse({ description: 'Tier not found' })
@@ -320,4 +365,3 @@ export class CustomersController {
     return this.service.updateTier(id, dto);
   }
 }
-

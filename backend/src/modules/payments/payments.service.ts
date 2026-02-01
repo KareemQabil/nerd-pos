@@ -40,7 +40,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
     @Inject('IEventBus') private readonly eventBus: IEventBus,
     private readonly sessionsService: SessionsService,
-  ) { }
+  ) {}
 
   // ==================== SINGLE PAYMENT ====================
 
@@ -409,7 +409,8 @@ export class PaymentsService {
       method: (payment as any).method ?? payment.paymentMethod,
       receivedAmount:
         (payment as any).receivedAmount ?? payment.amountReceived ?? null,
-      changeAmount: (payment as any).changeAmount ?? payment.changeGiven ?? null,
+      changeAmount:
+        (payment as any).changeAmount ?? payment.changeGiven ?? null,
       paidAt: (payment as any).paidAt ?? payment.paymentDate ?? null,
       createdBy: (payment as any).createdBy ?? payment.processedBy,
       cardLast4: metadata.cardLast4 ?? (payment as any).cardLast4,
@@ -420,6 +421,6 @@ export class PaymentsService {
   }
 
   private normalizePayments(payments: Payment[]): Payment[] {
-    return payments.map(payment => this.normalizePayment(payment));
+    return payments.map((payment) => this.normalizePayment(payment));
   }
 }

@@ -41,7 +41,8 @@ async function bootstrap() {
   // Production Cleanup 2026-01-23: Enhanced with full description and servers
   const config = new DocumentBuilder()
     .setTitle('NerdPOS API')
-    .setDescription(`
+    .setDescription(
+      `
 # NerdPOS API Documentation
 
 Point of Sale & ERP System for MENA Region (Saudi Arabia & Egypt)
@@ -71,13 +72,10 @@ All errors follow RFC 9457 Problem Details format.
 
 ## Authentication
 Most endpoints require a Bearer token obtained from \`POST /auth/login\`
-    `)
-    .setVersion('1.0.0')
-    .setContact(
-      'NerdPOS Support',
-      'https://nerdpos.com',
-      'support@nerdpos.com',
+    `,
     )
+    .setVersion('1.0.0')
+    .setContact('NerdPOS Support', 'https://nerdpos.com', 'support@nerdpos.com')
     .addServer('http://localhost:3001', 'Local Development')
     .addServer('https://api-staging.nerdpos.com', 'Staging')
     .addServer('https://api.nerdpos.com', 'Production')

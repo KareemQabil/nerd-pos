@@ -11,7 +11,12 @@ import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  createTestOrder,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('WF-02: Cancel Paid Order', () => {
   let salesService: SalesService;
@@ -23,7 +28,10 @@ describe('WF-02: Cancel Paid Order', () => {
         SalesService,
         SalesRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -49,16 +57,17 @@ describe('WF-02: Cancel Paid Order', () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.PAID,
       paidAt: new Date(),
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Act & Assert: Should not allow direct cancellation
-    await expect(salesService.cancelOrder(order.id, 'user-1'))
-      .rejects.toThrow();
+    await expect(
+      salesService.cancelOrder(order.id, 'user-1'),
+    ).rejects.toThrow();
 
     // Verify order status is still PAID
     const unchangedOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(unchangedOrder?.status).toBe(OrderStatus.PAID);
@@ -69,7 +78,7 @@ describe('WF-02: Cancel Paid Order', () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.PAID,
       paidAt: new Date(),
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Create a payment record
@@ -78,15 +87,21 @@ describe('WF-02: Cancel Paid Order', () => {
         orderId: order.id,
         amount: 100,
         paymentMethod: 'CASH',
-        referenceNumber: 'PAY-1'
-      }
+        referenceNumber: 'PAY-1',
+      },
     });
 
     // Act: Try to refund (not cancel)
-    const refundResult = await salesService.refundOrder(order.id, {
-      reason: 'Customer request',
-      items: [{ orderItemId: 'item-1', quantity: 1 }]
-    }, 'user-1').catch(e => ({ error: e }));
+    const refundResult = await salesService
+      .refundOrder(
+        order.id,
+        {
+          reason: 'Customer request',
+          items: [{ orderItemId: 'item-1', quantity: 1 }],
+        },
+        'user-1',
+      )
+      .catch((e) => ({ error: e }));
 
     // Refund should be the correct path
     if ('error' in refundResult) {
@@ -102,17 +117,18 @@ describe('WF-02: Cancel Paid Order', () => {
     // Setup: Create a CONFIRMED order (not yet paid)
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Act: Cancel the order
-    const result = await salesService.cancelOrder(order.id, 'user-1')
-      .catch(e => ({ error: e }));
+    const result = await salesService
+      .cancelOrder(order.id, 'user-1')
+      .catch((e) => ({ error: e }));
 
     if (!('error' in result)) {
       // Verify order status is now CANCELLED
       const cancelledOrder = await prisma.salesOrder.findUnique({
-        where: { id: order.id }
+        where: { id: order.id },
       });
 
       expect(cancelledOrder?.status).toBe(OrderStatus.CANCELLED);
@@ -124,17 +140,18 @@ describe('WF-02: Cancel Paid Order', () => {
     // Setup: Create a DRAFT order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 0
+      grandTotal: 0,
     });
 
     // Act: Cancel the order
-    const result = await salesService.cancelOrder(order.id, 'user-1')
-      .catch(e => ({ error: e }));
+    const result = await salesService
+      .cancelOrder(order.id, 'user-1')
+      .catch((e) => ({ error: e }));
 
     if (!('error' in result)) {
       // Verify order status is now CANCELLED
       const cancelledOrder = await prisma.salesOrder.findUnique({
-        where: { id: order.id }
+        where: { id: order.id },
       });
 
       expect(cancelledOrder?.status).toBe(OrderStatus.CANCELLED);
@@ -146,16 +163,17 @@ describe('WF-02: Cancel Paid Order', () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.COMPLETED,
       completedAt: new Date(),
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Act & Assert: Should not allow cancellation
-    await expect(salesService.cancelOrder(order.id, 'user-1'))
-      .rejects.toThrow();
+    await expect(
+      salesService.cancelOrder(order.id, 'user-1'),
+    ).rejects.toThrow();
 
     // Verify order status is still COMPLETED
     const unchangedOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(unchangedOrder?.status).toBe(OrderStatus.COMPLETED);
@@ -165,19 +183,20 @@ describe('WF-02: Cancel Paid Order', () => {
     // Setup: Create a DRAFT order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 0
+      grandTotal: 0,
     });
 
     const cancellationReason = 'Customer changed mind';
 
     // Act: Cancel with reason
-    const result = await salesService.cancelOrder(order.id, 'user-1', cancellationReason)
-      .catch(e => ({ error: e }));
+    const result = await salesService
+      .cancelOrder(order.id, 'user-1', cancellationReason)
+      .catch((e) => ({ error: e }));
 
     if (!('error' in result)) {
       // Verify cancellation was recorded
       const cancelledOrder = await prisma.salesOrder.findUnique({
-        where: { id: order.id }
+        where: { id: order.id },
       });
 
       expect(cancelledOrder?.status).toBe(OrderStatus.CANCELLED);
@@ -190,7 +209,7 @@ describe('WF-02: Cancel Paid Order', () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.PAID,
       paidAt: new Date(),
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     const payment = await prisma.payment.create({
@@ -198,19 +217,25 @@ describe('WF-02: Cancel Paid Order', () => {
         orderId: order.id,
         amount: 100,
         paymentMethod: 'CASH',
-        referenceNumber: 'PAY-1'
-      }
+        referenceNumber: 'PAY-1',
+      },
     });
 
     // Act: Refund the order
-    const refundResult = await salesService.refundOrder(order.id, {
-      reason: 'Customer request',
-      items: [{ orderItemId: 'item-1', quantity: 1 }]
-    }, 'user-1').catch(e => ({ error: e }));
+    const refundResult = await salesService
+      .refundOrder(
+        order.id,
+        {
+          reason: 'Customer request',
+          items: [{ orderItemId: 'item-1', quantity: 1 }],
+        },
+        'user-1',
+      )
+      .catch((e) => ({ error: e }));
 
     // Verify original payment still exists
     const originalPayment = await prisma.payment.findUnique({
-      where: { id: payment.id }
+      where: { id: payment.id },
     });
 
     expect(originalPayment).toBeDefined();
@@ -221,16 +246,18 @@ describe('WF-02: Cancel Paid Order', () => {
     // Setup: Create and cancel an order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 0
+      grandTotal: 0,
     });
 
     // First cancellation
-    await salesService.cancelOrder(order.id, 'user-1')
-      .catch(e => ({ error: e }));
+    await salesService
+      .cancelOrder(order.id, 'user-1')
+      .catch((e) => ({ error: e }));
 
     // Second cancellation should fail
-    const result = await salesService.cancelOrder(order.id, 'user-1')
-      .catch(e => ({ error: e }));
+    const result = await salesService
+      .cancelOrder(order.id, 'user-1')
+      .catch((e) => ({ error: e }));
 
     // Should error because already cancelled
     expect('error' in result).toBe(true);

@@ -50,8 +50,10 @@ export class EventSpy {
    * Check if an event was NOT fired
    */
   assertEventNotFired(eventName: string): boolean {
-    return !this.capturedEvents.has(eventName) ||
-           this.capturedEvents.get(eventName)!.length === 0;
+    return (
+      !this.capturedEvents.has(eventName) ||
+      this.capturedEvents.get(eventName)!.length === 0
+    );
   }
 
   /**
@@ -100,7 +102,7 @@ export class EventSpy {
 
     allEvents.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
-    const actualOrder = allEvents.map(e => e.name);
+    const actualOrder = allEvents.map((e) => e.name);
     return JSON.stringify(actualOrder) === JSON.stringify(eventNames);
   }
 

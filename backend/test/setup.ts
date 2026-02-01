@@ -8,7 +8,9 @@ import Decimal from 'decimal.js';
 import { PrismaService } from '../src/core/prisma/prisma.service';
 
 // Set test environment variables
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/nerdpos_test';
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL ||
+  'postgresql://postgres:postgres@localhost:5432/nerdpos_test';
 process.env.NODE_ENV = 'test';
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   process.env.JWT_SECRET = 'test-jwt-secret-32-characters-minimum';
@@ -31,7 +33,9 @@ expect.extend({
   toBeDecimal(received: any) {
     const pass =
       received instanceof Decimal ||
-      (received && received.constructor && received.constructor.name === 'Decimal');
+      (received &&
+        received.constructor &&
+        received.constructor.name === 'Decimal');
     return {
       pass,
       message: () =>
@@ -53,7 +57,8 @@ expect.extend({
     } catch (error) {
       return {
         pass: false,
-        message: () => `expected ${received} to be comparable as Decimal: ${error}`,
+        message: () =>
+          `expected ${received} to be comparable as Decimal: ${error}`,
       };
     }
   },
@@ -70,7 +75,8 @@ expect.extend({
     } catch (error) {
       return {
         pass: false,
-        message: () => `expected ${received} to be comparable as Decimal: ${error}`,
+        message: () =>
+          `expected ${received} to be comparable as Decimal: ${error}`,
       };
     }
   },

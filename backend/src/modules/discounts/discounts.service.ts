@@ -28,7 +28,7 @@ export class DiscountsService {
   constructor(
     private readonly repo: DiscountsRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) { }
+  ) {}
 
   // ==================== DISCOUNT CRUD ====================
 
@@ -71,7 +71,10 @@ export class DiscountsService {
   }
 
   // Paginated version for API endpoints
-  async getActiveDiscountsPaginated(options: { page?: number; limit?: number }): Promise<{
+  async getActiveDiscountsPaginated(options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
     data: Discount[];
     total: number;
     page: number;

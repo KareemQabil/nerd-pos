@@ -13,7 +13,12 @@ import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  createTestOrder,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe.skip('FIN-03: Double Refund', () => {
   let salesService: SalesService;
@@ -25,7 +30,10 @@ describe.skip('FIN-03: Double Refund', () => {
         SalesService,
         SalesRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -59,7 +67,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund1 = await (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Customer request', items: [{ orderItemId: 'item-1', quantity: 1 }] },
+        {
+          reason: 'Customer request',
+          items: [{ orderItemId: 'item-1', quantity: 1 }],
+        },
         'user-1',
       )
       .catch((e: any) => ({ error: e }));
@@ -67,7 +78,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund2 = await (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Duplicate refund attempt', items: [{ orderItemId: 'item-1', quantity: 1 }] },
+        {
+          reason: 'Duplicate refund attempt',
+          items: [{ orderItemId: 'item-1', quantity: 1 }],
+        },
         'user-1',
       )
       .catch((e: any) => ({ error: e }));
@@ -102,7 +116,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund2 = await (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Second refund attempt', items: [{ orderItemId: 'item-1', quantity: 1 }] },
+        {
+          reason: 'Second refund attempt',
+          items: [{ orderItemId: 'item-1', quantity: 1 }],
+        },
         'user-1',
       )
       .catch((e: any) => ({ error: e }));
@@ -131,7 +148,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund1 = await (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Partial refund', items: [{ orderItemId: 'item-1', quantity: 3 }] },
+        {
+          reason: 'Partial refund',
+          items: [{ orderItemId: 'item-1', quantity: 3 }],
+        },
         'user-1',
       )
       .catch((e: any) => ({ error: e }));
@@ -139,7 +159,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund2 = await (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Another partial refund', items: [{ orderItemId: 'item-1', quantity: 3 }] },
+        {
+          reason: 'Another partial refund',
+          items: [{ orderItemId: 'item-1', quantity: 3 }],
+        },
         'user-1',
       )
       .catch((e: any) => ({ error: e }));
@@ -169,7 +192,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund1 = await (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Partial refund', items: [{ orderItemId: 'item-1', quantity: 3 }] },
+        {
+          reason: 'Partial refund',
+          items: [{ orderItemId: 'item-1', quantity: 3 }],
+        },
         'user-1',
       )
       .catch((e: any) => ({ error: e }));
@@ -177,7 +203,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund2 = await (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Complete remaining refund', items: [{ orderItemId: 'item-1', quantity: 7 }] },
+        {
+          reason: 'Complete remaining refund',
+          items: [{ orderItemId: 'item-1', quantity: 7 }],
+        },
         'user-1',
       )
       .catch((e: any) => ({ error: e }));
@@ -254,7 +283,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund1 = (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Concurrent refund 1', items: [{ orderItemId: 'item-1', quantity: 1 }] },
+        {
+          reason: 'Concurrent refund 1',
+          items: [{ orderItemId: 'item-1', quantity: 1 }],
+        },
         'user-1',
       )
       .catch((e: any) => ({ error: e }));
@@ -262,7 +294,10 @@ describe.skip('FIN-03: Double Refund', () => {
     const refund2 = (salesService as any)
       .refundOrder(
         order.id,
-        { reason: 'Concurrent refund 2', items: [{ orderItemId: 'item-1', quantity: 1 }] },
+        {
+          reason: 'Concurrent refund 2',
+          items: [{ orderItemId: 'item-1', quantity: 1 }],
+        },
         'user-2',
       )
       .catch((e: any) => ({ error: e }));

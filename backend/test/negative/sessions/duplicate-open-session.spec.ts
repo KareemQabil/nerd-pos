@@ -21,7 +21,10 @@ describe('SES-01: Open Session While Another Open', () => {
         SessionsService,
         SessionsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -40,16 +43,18 @@ describe('SES-01: Open Session While Another Open', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Act: Try to open another session on same terminal
-    const result = await sessionsService.openSession({
-      terminalId: 'terminal-1',
-      userId: 'user-1',
-      openingBalance: 500
-    }).catch(e => ({ error: e }));
+    const result = await sessionsService
+      .openSession({
+        terminalId: 'terminal-1',
+        userId: 'user-1',
+        openingBalance: 500,
+      })
+      .catch((e) => ({ error: e }));
 
     // Assert: Should reject
     expect('error' in result).toBe(true);
@@ -58,8 +63,8 @@ describe('SES-01: Open Session While Another Open', () => {
     const openSessions = await prisma.registerSession.findMany({
       where: {
         terminalId: 'terminal-1',
-        status: 'OPEN'
-      }
+        status: 'OPEN',
+      },
     });
 
     expect(openSessions.length).toBe(1);
@@ -73,8 +78,8 @@ describe('SES-01: Open Session While Another Open', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Act: Open session on terminal-2
@@ -83,17 +88,17 @@ describe('SES-01: Open Session While Another Open', () => {
         userId: 'user-1',
         terminalId: 'terminal-2',
         status: 'OPEN',
-        openingBalance: 500
-      }
+        openingBalance: 500,
+      },
     });
 
     // Assert: Both terminals should have open sessions
     const terminal1Sessions = await prisma.registerSession.findMany({
-      where: { terminalId: 'terminal-1', status: 'OPEN' }
+      where: { terminalId: 'terminal-1', status: 'OPEN' },
     });
 
     const terminal2Sessions = await prisma.registerSession.findMany({
-      where: { terminalId: 'terminal-2', status: 'OPEN' }
+      where: { terminalId: 'terminal-2', status: 'OPEN' },
     });
 
     expect(terminal1Sessions.length).toBe(1);
@@ -110,8 +115,8 @@ describe('SES-01: Open Session While Another Open', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Act: Open new session on same terminal
@@ -120,8 +125,8 @@ describe('SES-01: Open Session While Another Open', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1500
-      }
+        openingBalance: 1500,
+      },
     });
 
     // Assert: Should succeed
@@ -130,7 +135,7 @@ describe('SES-01: Open Session While Another Open', () => {
 
     // Verify only one OPEN session
     const openSessions = await prisma.registerSession.findMany({
-      where: { terminalId: 'terminal-1', status: 'OPEN' }
+      where: { terminalId: 'terminal-1', status: 'OPEN' },
     });
 
     expect(openSessions.length).toBe(1);
@@ -148,8 +153,8 @@ describe('SES-01: Open Session While Another Open', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     const openSession2 = prisma.registerSession.create({
@@ -157,20 +162,20 @@ describe('SES-01: Open Session While Another Open', () => {
         userId: 'user-2',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Execute concurrently
     const results = await Promise.allSettled([openSession1, openSession2]);
 
     // At least one should succeed
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
     expect(successCount).toBeGreaterThanOrEqual(1);
 
     // Verify only one OPEN session exists
     const openSessions = await prisma.registerSession.findMany({
-      where: { terminalId: 'terminal-1', status: 'OPEN' }
+      where: { terminalId: 'terminal-1', status: 'OPEN' },
     });
 
     expect(openSessions.length).toBe(1);
@@ -183,8 +188,8 @@ describe('SES-01: Open Session While Another Open', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Verify initial status
@@ -196,8 +201,8 @@ describe('SES-01: Open Session While Another Open', () => {
       data: {
         status: 'CLOSED',
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Assert: Status should be CLOSED
@@ -214,16 +219,16 @@ describe('SES-01: Open Session While Another Open', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Act: Try to get current session
     const currentSession = await prisma.registerSession.findFirst({
       where: {
         terminalId: 'terminal-1',
-        status: 'OPEN'
-      }
+        status: 'OPEN',
+      },
     });
 
     // Assert: No OPEN session should be found

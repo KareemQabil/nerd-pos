@@ -16,11 +16,7 @@ export const envValidationSchema = Joi.object({
     .default('development')
     .description('Application environment'),
 
-  PORT: Joi.number()
-    .default(3001)
-    .min(1)
-    .max(65535)
-    .description('Server port'),
+  PORT: Joi.number().default(3001).min(1).max(65535).description('Server port'),
 
   // ==================== DATABASE ====================
   DATABASE_URL: Joi.string()
@@ -80,19 +76,14 @@ export const envValidationSchema = Joi.object({
     .description('Enable distributed tracing'),
 
   // ==================== REDIS (Optional) ====================
-  REDIS_URL: Joi.string()
-    .uri()
-    .optional()
-    .description('Redis connection URL'),
+  REDIS_URL: Joi.string().uri().optional().description('Redis connection URL'),
 
   // ==================== ZATCA INTEGRATION (Optional) ====================
   ZATCA_CSID: Joi.string()
     .optional()
     .description('ZATCA Compliance Security ID'),
 
-  ZATCA_SECRET: Joi.string()
-    .optional()
-    .description('ZATCA secret key'),
+  ZATCA_SECRET: Joi.string().optional().description('ZATCA secret key'),
 
   ZATCA_CERTIFICATE: Joi.string()
     .optional()
@@ -103,17 +94,11 @@ export const envValidationSchema = Joi.object({
     .description('ZATCA private key (PEM format)'),
 
   // ==================== ETA INTEGRATION (Optional) ====================
-  ETA_CLIENT_ID: Joi.string()
-    .optional()
-    .description('ETA client ID'),
+  ETA_CLIENT_ID: Joi.string().optional().description('ETA client ID'),
 
-  ETA_CLIENT_SECRET: Joi.string()
-    .optional()
-    .description('ETA client secret'),
+  ETA_CLIENT_SECRET: Joi.string().optional().description('ETA client secret'),
 
-  ETA_TAX_ID: Joi.string()
-    .optional()
-    .description('ETA tax ID'),
+  ETA_TAX_ID: Joi.string().optional().description('ETA tax ID'),
 
   // ==================== MONITORING (Optional) ====================
   SENTRY_DSN: Joi.string()

@@ -95,7 +95,9 @@ describe('Reports API (e2e)', () => {
     roleAllowedId = allowedRole.id;
 
     for (const code of reportPermissions) {
-      const permission = await prisma.permission.findUnique({ where: { code } });
+      const permission = await prisma.permission.findUnique({
+        where: { code },
+      });
       if (!permission) continue;
       await prisma.rolePermission.create({
         data: {
@@ -210,7 +212,9 @@ describe('Reports API (e2e)', () => {
 
   afterAll(async () => {
     if (roleAllowedId) {
-      await prisma.rolePermission.deleteMany({ where: { roleId: roleAllowedId } });
+      await prisma.rolePermission.deleteMany({
+        where: { roleId: roleAllowedId },
+      });
       await prisma.role.deleteMany({ where: { id: roleAllowedId } });
     }
     if (roleDeniedId) {

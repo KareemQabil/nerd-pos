@@ -43,11 +43,14 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('discounts')
 export class DiscountsController {
-  constructor(private readonly service: DiscountsService) { }
+  constructor(private readonly service: DiscountsService) {}
 
   @Post()
   @Permissions(PERMISSIONS.DISCOUNTS_CREATE) // Manager+
-  @ApiOperation({ summary: 'Create discount', description: 'Creates a new discount rule. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Create discount',
+    description: 'Creates a new discount rule. Manager+ required.',
+  })
   @ApiResponse({
     status: 201,
     description: 'Discount created',
@@ -66,14 +69,19 @@ export class DiscountsController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error or code already exists' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or code already exists',
+  })
   async create(@Body() dto: CreateDiscountDto) {
     return this.service.create(dto);
   }
 
   @Get()
   @Permissions(PERMISSIONS.DISCOUNTS_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Get active discounts', description: 'Returns paginated active discounts' })
+  @ApiOperation({
+    summary: 'Get active discounts',
+    description: 'Returns paginated active discounts',
+  })
   @ApiQuery({ name: 'page', required: false, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
   @ApiResponse({
@@ -118,7 +126,10 @@ export class DiscountsController {
 
   @Get(':id')
   @Permissions(PERMISSIONS.DISCOUNTS_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Get discount by ID', description: 'Returns discount details' })
+  @ApiOperation({
+    summary: 'Get discount by ID',
+    description: 'Returns discount details',
+  })
   @ApiParam({ name: 'id', description: 'Discount UUID' })
   @ApiResponse({
     status: 200,
@@ -146,7 +157,10 @@ export class DiscountsController {
 
   @Put(':id')
   @Permissions(PERMISSIONS.DISCOUNTS_UPDATE) // Manager+
-  @ApiOperation({ summary: 'Update discount', description: 'Updates discount rules. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Update discount',
+    description: 'Updates discount rules. Manager+ required.',
+  })
   @ApiParam({ name: 'id', description: 'Discount UUID' })
   @ApiResponse({ status: 200, description: 'Discount updated' })
   @ApiNotFoundResponse({ description: 'Discount not found' })
@@ -157,7 +171,10 @@ export class DiscountsController {
 
   @Post('validate')
   @Permissions(PERMISSIONS.DISCOUNTS_APPLY) // Cashier+
-  @ApiOperation({ summary: 'Validate discount code', description: 'Validates discount code and calculates savings' })
+  @ApiOperation({
+    summary: 'Validate discount code',
+    description: 'Validates discount code and calculates savings',
+  })
   @ApiResponse({
     status: 200,
     description: 'Discount validated and calculated',
@@ -168,14 +185,16 @@ export class DiscountsController {
         data: {
           code: 'SUMMER2026',
           isValid: true,
-          discountAmount: 15.50,
-          finalTotal: 139.50,
+          discountAmount: 15.5,
+          finalTotal: 139.5,
         },
         timestamp: '2026-01-23T12:00:00Z',
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Invalid code, expired, or conditions not met' })
+  @ApiBadRequestResponse({
+    description: 'Invalid code, expired, or conditions not met',
+  })
   async validate(@Body() dto: ValidateDiscountDto) {
     return this.service.validateAndCalculate(
       dto.code,
@@ -186,7 +205,10 @@ export class DiscountsController {
 
   @Post('apply')
   @Permissions(PERMISSIONS.DISCOUNTS_APPLY) // Cashier+
-  @ApiOperation({ summary: 'Apply discount to order', description: 'Applies validated discount to order' })
+  @ApiOperation({
+    summary: 'Apply discount to order',
+    description: 'Applies validated discount to order',
+  })
   @ApiResponse({
     status: 200,
     description: 'Discount applied',
@@ -197,7 +219,7 @@ export class DiscountsController {
         data: {
           orderId: 'ord_123',
           discountId: 'disc_123',
-          appliedAmount: 15.50,
+          appliedAmount: 15.5,
         },
         timestamp: '2026-01-23T12:00:00Z',
       },
@@ -210,9 +232,20 @@ export class DiscountsController {
 
   @Get('valid')
   @Permissions(PERMISSIONS.DISCOUNTS_VIEW) // Cashier+
-  @ApiOperation({ summary: 'Get valid discounts for order', description: 'Returns discounts applicable to order total' })
-  @ApiQuery({ name: 'orderTotal', required: true, description: 'Order total amount' })
-  @ApiQuery({ name: 'customerId', required: false, description: 'Customer UUID for tier-based discounts' })
+  @ApiOperation({
+    summary: 'Get valid discounts for order',
+    description: 'Returns discounts applicable to order total',
+  })
+  @ApiQuery({
+    name: 'orderTotal',
+    required: true,
+    description: 'Order total amount',
+  })
+  @ApiQuery({
+    name: 'customerId',
+    required: false,
+    description: 'Customer UUID for tier-based discounts',
+  })
   @ApiResponse({
     status: 200,
     description: 'Valid discounts retrieved',
@@ -238,4 +271,3 @@ export class DiscountsController {
     return this.service.getValidDiscountsForOrder(orderTotal, customerId);
   }
 }
-

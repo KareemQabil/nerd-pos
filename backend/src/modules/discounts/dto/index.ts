@@ -23,7 +23,10 @@ export class CreateDiscountDto {
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'Discount name (English)', example: 'Ramadan Special' })
+  @ApiProperty({
+    description: 'Discount name (English)',
+    example: 'Ramadan Special',
+  })
   @IsString()
   name: string;
 
@@ -31,12 +34,19 @@ export class CreateDiscountDto {
   @IsString()
   nameAr: string;
 
-  @ApiPropertyOptional({ description: 'Description', example: '15% off all orders during Ramadan' })
+  @ApiPropertyOptional({
+    description: 'Description',
+    example: '15% off all orders during Ramadan',
+  })
   @IsOptional()
   @IsString()
   description?: string;
 
-  @ApiProperty({ description: 'Discount type', enum: ['PERCENTAGE', 'FIXED_AMOUNT'], example: 'PERCENTAGE' })
+  @ApiProperty({
+    description: 'Discount type',
+    enum: ['PERCENTAGE', 'FIXED_AMOUNT'],
+    example: 'PERCENTAGE',
+  })
   @IsIn(['PERCENTAGE', 'FIXED_AMOUNT'])
   type: 'PERCENTAGE' | 'FIXED_AMOUNT';
 
@@ -44,40 +54,62 @@ export class CreateDiscountDto {
   @IsNumber()
   value: number;
 
-  @ApiPropertyOptional({ description: 'Minimum order amount (SAR)', example: 100 })
+  @ApiPropertyOptional({
+    description: 'Minimum order amount (SAR)',
+    example: 100,
+  })
   @IsOptional()
   @IsNumber()
   minOrderAmount?: number;
 
-  @ApiPropertyOptional({ description: 'Maximum discount amount (SAR)', example: 50 })
+  @ApiPropertyOptional({
+    description: 'Maximum discount amount (SAR)',
+    example: 50,
+  })
   @IsOptional()
   @IsNumber()
   maxDiscount?: number;
 
-  @ApiPropertyOptional({ description: 'Discount scope', enum: ['ORDER', 'CATEGORY', 'PRODUCT'], example: 'ORDER' })
+  @ApiPropertyOptional({
+    description: 'Discount scope',
+    enum: ['ORDER', 'CATEGORY', 'PRODUCT'],
+    example: 'ORDER',
+  })
   @IsOptional()
   @IsIn(['ORDER', 'CATEGORY', 'PRODUCT'])
   applicableOn?: 'ORDER' | 'CATEGORY' | 'PRODUCT';
 
-  @ApiPropertyOptional({ description: 'Category UUIDs (if scope is CATEGORY)', example: ['723e4567-e89b-12d3-a456-426614174006'] })
+  @ApiPropertyOptional({
+    description: 'Category UUIDs (if scope is CATEGORY)',
+    example: ['723e4567-e89b-12d3-a456-426614174006'],
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   categoryIds?: string[];
 
-  @ApiPropertyOptional({ description: 'Product UUIDs (if scope is PRODUCT)', example: ['123e4567-e89b-12d3-a456-426614174000'] })
+  @ApiPropertyOptional({
+    description: 'Product UUIDs (if scope is PRODUCT)',
+    example: ['123e4567-e89b-12d3-a456-426614174000'],
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   productIds?: string[];
 
-  @ApiPropertyOptional({ description: 'Start date (ISO)', example: '2026-03-01T00:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Start date (ISO)',
+    example: '2026-03-01T00:00:00Z',
+  })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   startDate?: Date;
 
-  @ApiPropertyOptional({ description: 'End date (ISO)', example: '2026-03-31T23:59:59Z' })
+  @ApiPropertyOptional({
+    description: 'End date (ISO)',
+    example: '2026-03-31T23:59:59Z',
+  })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
@@ -93,29 +125,44 @@ export class CreateDiscountDto {
   @IsString()
   endTime?: string;
 
-  @ApiPropertyOptional({ description: 'Days of week (0=Sun..6=Sat)', example: [5, 6] })
+  @ApiPropertyOptional({
+    description: 'Days of week (0=Sun..6=Sat)',
+    example: [5, 6],
+  })
   @IsOptional()
   @IsArray()
   @IsInt({ each: true })
   daysOfWeek?: number[];
 
-  @ApiPropertyOptional({ description: 'Corporate discount flag', example: false })
+  @ApiPropertyOptional({
+    description: 'Corporate discount flag',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   isCorporate?: boolean;
 
-  @ApiPropertyOptional({ description: 'Corporate customer UUIDs', example: ['c23e4567-e89b-12d3-a456-426614174011'] })
+  @ApiPropertyOptional({
+    description: 'Corporate customer UUIDs',
+    example: ['c23e4567-e89b-12d3-a456-426614174011'],
+  })
   @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   corporateIds?: string[];
 
-  @ApiPropertyOptional({ description: 'Requires manager approval', example: true })
+  @ApiPropertyOptional({
+    description: 'Requires manager approval',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
   requiresApproval?: boolean;
 
-  @ApiPropertyOptional({ description: 'Approval threshold (SAR)', example: 200 })
+  @ApiPropertyOptional({
+    description: 'Approval threshold (SAR)',
+    example: 200,
+  })
   @IsOptional()
   @IsNumber()
   approvalThreshold?: number;
@@ -130,12 +177,15 @@ export class CreateDiscountDto {
   @IsNumber()
   maxUsesPerCustomer?: number;
 
-  @ApiProperty({ description: 'User UUID who created the discount', example: 'u23e4567-e89b-12d3-a456-426614174020' })
+  @ApiProperty({
+    description: 'User UUID who created the discount',
+    example: 'u23e4567-e89b-12d3-a456-426614174020',
+  })
   @IsString()
   createdBy: string;
 }
 
-export class UpdateDiscountDto extends PartialType(CreateDiscountDto) { }
+export class UpdateDiscountDto extends PartialType(CreateDiscountDto) {}
 
 // ==================== VALIDATE DISCOUNT ====================
 
@@ -144,11 +194,17 @@ export class ValidateDiscountDto {
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'Order total before discount (SAR)', example: 250 })
+  @ApiProperty({
+    description: 'Order total before discount (SAR)',
+    example: 250,
+  })
   @IsNumber()
   orderTotal: number;
 
-  @ApiPropertyOptional({ description: 'Customer UUID (optional)', example: 'c23e4567-e89b-12d3-a456-426614174011' })
+  @ApiPropertyOptional({
+    description: 'Customer UUID (optional)',
+    example: 'c23e4567-e89b-12d3-a456-426614174011',
+  })
   @IsOptional()
   @IsUUID()
   customerId?: string;
@@ -157,11 +213,17 @@ export class ValidateDiscountDto {
 // ==================== APPLY DISCOUNT ====================
 
 export class ApplyDiscountDto {
-  @ApiProperty({ description: 'Discount UUID', example: 'd23e4567-e89b-12d3-a456-426614174099' })
+  @ApiProperty({
+    description: 'Discount UUID',
+    example: 'd23e4567-e89b-12d3-a456-426614174099',
+  })
   @IsUUID()
   discountId: string;
 
-  @ApiProperty({ description: 'Order UUID', example: 'o23e4567-e89b-12d3-a456-426614174023' })
+  @ApiProperty({
+    description: 'Order UUID',
+    example: 'o23e4567-e89b-12d3-a456-426614174023',
+  })
   @IsUUID()
   orderId: string;
 
@@ -169,15 +231,24 @@ export class ApplyDiscountDto {
   @IsNumber()
   amount: number;
 
-  @ApiProperty({ description: 'Order total before discount (SAR)', example: 250 })
+  @ApiProperty({
+    description: 'Order total before discount (SAR)',
+    example: 250,
+  })
   @IsNumber()
   orderTotal: number;
 
-  @ApiProperty({ description: 'User UUID applying the discount', example: 'u23e4567-e89b-12d3-a456-426614174020' })
+  @ApiProperty({
+    description: 'User UUID applying the discount',
+    example: 'u23e4567-e89b-12d3-a456-426614174020',
+  })
   @IsString()
   userId: string;
 
-  @ApiPropertyOptional({ description: 'Approver UUID (if approval required)', example: 'm23e4567-e89b-12d3-a456-426614174025' })
+  @ApiPropertyOptional({
+    description: 'Approver UUID (if approval required)',
+    example: 'm23e4567-e89b-12d3-a456-426614174025',
+  })
   @IsOptional()
   @IsString()
   approvedBy?: string;

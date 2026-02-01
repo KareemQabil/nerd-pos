@@ -26,7 +26,10 @@ describe('FIN-04: Negative Price', () => {
         ProductsService,
         ProductsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -53,7 +56,7 @@ describe('FIN-04: Negative Price', () => {
     // Act: Try to create product with negative price
     const result = await productsService
       .createProduct(productData as any)
-      .catch(e => ({ error: e }));
+      .catch((e) => ({ error: e }));
 
     // Assert: Should reject
     expect('error' in result).toBe(true);
@@ -78,7 +81,7 @@ describe('FIN-04: Negative Price', () => {
       .updateProduct(product.id, {
         price: -20,
       })
-      .catch(e => ({ error: e }));
+      .catch((e) => ({ error: e }));
 
     // Assert: Should reject
     expect('error' in result).toBe(true);
@@ -107,7 +110,7 @@ describe('FIN-04: Negative Price', () => {
     // Act: Create product with zero price
     const result = await productsService
       .createProduct(productData as any)
-      .catch(e => ({ error: e }));
+      .catch((e) => ({ error: e }));
 
     if (!('error' in result)) {
       expect(Number(result.price)).toBe(0);
@@ -129,7 +132,7 @@ describe('FIN-04: Negative Price', () => {
           price,
           isActive: true,
         } as any)
-        .catch(e => ({ error: e }));
+        .catch((e) => ({ error: e }));
 
       // Should reject negative prices
       expect('error' in result).toBe(true);
@@ -147,7 +150,7 @@ describe('FIN-04: Negative Price', () => {
     ];
 
     const results = await Promise.allSettled(
-      products.map(p =>
+      products.map((p) =>
         productsService.createProduct({
           nameEn: p.name,
           nameAr: 'Ù…Ù†ØªØ¬',
@@ -160,8 +163,8 @@ describe('FIN-04: Negative Price', () => {
     );
 
     // Two should succeed, one should fail
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
-    const failureCount = results.filter(r => r.status === 'rejected').length;
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
+    const failureCount = results.filter((r) => r.status === 'rejected').length;
 
     expect(successCount).toBe(2);
     expect(failureCount).toBe(1);
@@ -176,11 +179,13 @@ describe('FIN-04: Negative Price', () => {
     // Try multiple negative values
     const negativeUpdates = [-1, -50, -100];
     const results = await Promise.allSettled(
-      negativeUpdates.map(price => productsService.updateProduct(product.id, { price })),
+      negativeUpdates.map((price) =>
+        productsService.updateProduct(product.id, { price }),
+      ),
     );
 
     // All should fail
-    const failureCount = results.filter(r => r.status === 'rejected').length;
+    const failureCount = results.filter((r) => r.status === 'rejected').length;
     expect(failureCount).toBe(3);
 
     // Original price should remain
@@ -202,7 +207,7 @@ describe('FIN-04: Negative Price', () => {
         price: NaN as any,
         isActive: true,
       } as any)
-      .catch(e => ({ error: e }));
+      .catch((e) => ({ error: e }));
 
     expect('error' in result).toBe(true);
   });

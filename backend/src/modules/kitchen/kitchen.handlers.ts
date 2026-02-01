@@ -46,7 +46,9 @@ export class KitchenEventHandlers {
 
     try {
       if (!payload.items || payload.items.length === 0) {
-        this.logger.warn(`OrderConfirmed event missing items for order ${payload.orderId}`);
+        this.logger.warn(
+          `OrderConfirmed event missing items for order ${payload.orderId}`,
+        );
         return;
       }
 

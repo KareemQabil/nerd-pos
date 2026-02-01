@@ -57,7 +57,7 @@ export class CreateKitchenStationDto {
 
 export class UpdateKitchenStationDto extends PartialType(
   CreateKitchenStationDto,
-) { }
+) {}
 
 // ==================== TICKET OPERATIONS ====================
 

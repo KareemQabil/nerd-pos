@@ -21,7 +21,10 @@ describe('WF-07: Reopen Closed Session', () => {
         SessionsService,
         SessionsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -42,20 +45,22 @@ describe('WF-07: Reopen Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Act: Try to update status back to OPEN
-    const result = await prisma.registerSession.update({
-      where: { id: session.id },
-      data: { status: 'OPEN' }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.registerSession
+      .update({
+        where: { id: session.id },
+        data: { status: 'OPEN' },
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject (application validation needed)
     // For now, verify session is still CLOSED
     const checkSession = await prisma.registerSession.findUnique({
-      where: { id: session.id }
+      where: { id: session.id },
     });
 
     if (!('error' in result)) {
@@ -73,8 +78,8 @@ describe('WF-07: Reopen Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Act: Create a new session (correct approach)
@@ -83,8 +88,8 @@ describe('WF-07: Reopen Closed Session', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1500 // Use previous closing balance as opening
-      }
+        openingBalance: 1500, // Use previous closing balance as opening
+      },
     });
 
     // Assert: New session created successfully
@@ -92,8 +97,7 @@ describe('WF-07: Reopen Closed Session', () => {
     expect(newSession.openingBalance.toString()).toBe('1500');
 
     // Verify old session still closed
-    const oldSession = await prisma.registerSession.findFirst({
-    });
+    const oldSession = await prisma.registerSession.findFirst({});
 
     expect(oldSession?.status).toBe('CLOSED');
   });
@@ -110,8 +114,8 @@ describe('WF-07: Reopen Closed Session', () => {
         openingBalance: 1000,
         actualClosingBalance: 1500,
         closedAt: closedAt,
-        closedBy: closedBy
-      }
+        closedBy: closedBy,
+      },
     });
 
     // Verify audit fields
@@ -128,21 +132,23 @@ describe('WF-07: Reopen Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Try to create order in closed session
-    const result = await prisma.salesOrder.create({
-      data: {
-        orderNumber: `ORD-${Date.now()}`,
-        orderType: 'TAKEAWAY',
-        status: 'DRAFT',
-        sessionId: session.id,
-        businessDate: new Date(),
-        grandTotal: 100
-      }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.salesOrder
+      .create({
+        data: {
+          orderNumber: `ORD-${Date.now()}`,
+          orderType: 'TAKEAWAY',
+          status: 'DRAFT',
+          sessionId: session.id,
+          businessDate: new Date(),
+          grandTotal: 100,
+        },
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject
     expect('error' in result).toBe(true);
@@ -157,8 +163,8 @@ describe('WF-07: Reopen Closed Session', () => {
         openingBalance: 1000,
         actualClosingBalance: 1500,
         closedAt: new Date(),
-        closeReason: 'End of shift' // Optional field
-      }
+        closeReason: 'End of shift', // Optional field
+      },
     });
 
     expect(session.status).toBe('CLOSED');
@@ -172,16 +178,18 @@ describe('WF-07: Reopen Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Try to change status to OPEN
-    const result = await sessionsService.openSession({
-      terminalId: 'terminal-1',
-      userId: 'user-1',
-      openingBalance: 1500
-    }).catch(e => ({ error: e }));
+    const result = await sessionsService
+      .openSession({
+        terminalId: 'terminal-1',
+        userId: 'user-1',
+        openingBalance: 1500,
+      })
+      .catch((e) => ({ error: e }));
 
     // Should reject - must create new session
     // Implementation dependent
@@ -196,8 +204,8 @@ describe('WF-07: Reopen Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Open second session
@@ -206,8 +214,8 @@ describe('WF-07: Reopen Closed Session', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1500 // Carry over balance
-      }
+        openingBalance: 1500, // Carry over balance
+      },
     });
 
     // Verify continuity
@@ -223,21 +231,23 @@ describe('WF-07: Reopen Closed Session', () => {
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Try to create a transaction (order) in closed session
-    const result = await prisma.salesOrder.create({
-      data: {
-        orderNumber: `ORD-${Date.now()}`,
-        orderType: 'TAKEAWAY',
-        status: 'DRAFT',
-        sessionId: session.id,
-        businessDate: new Date(),
-        grandTotal: 100
-      }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.salesOrder
+      .create({
+        data: {
+          orderNumber: `ORD-${Date.now()}`,
+          orderType: 'TAKEAWAY',
+          status: 'DRAFT',
+          sessionId: session.id,
+          businessDate: new Date(),
+          grandTotal: 100,
+        },
+      })
+      .catch((e) => ({ error: e }));
 
     expect('error' in result).toBe(true);
   });

@@ -65,7 +65,7 @@ describe('FIN-02: Tax Calculation Precision', () => {
   it('should calculate tax on discount correctly', async () => {
     // Setup: Original price = 100, discount = 10%
     const originalPrice = new Decimal(100);
-    const discountRate = new Decimal(0.10);
+    const discountRate = new Decimal(0.1);
     const discount = originalPrice.mul(discountRate).toDecimalPlaces(2); // 10.00
     const discountedPrice = originalPrice.sub(discount); // 90.00
 
@@ -79,7 +79,7 @@ describe('FIN-02: Tax Calculation Precision', () => {
 
   it('should handle compound tax scenarios (tax on tax)', async () => {
     const basePrice = new Decimal(100);
-    const tax1Rate = new Decimal(0.10); // 10% first tax
+    const tax1Rate = new Decimal(0.1); // 10% first tax
     const tax2Rate = new Decimal(0.05); // 5% second tax (on base + first tax)
 
     const tax1 = basePrice.mul(tax1Rate).toDecimalPlaces(2); // 10.00

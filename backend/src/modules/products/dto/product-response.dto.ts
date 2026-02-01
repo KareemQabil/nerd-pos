@@ -14,7 +14,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 @Exclude()
 export class ProductResponseDto {
   @Expose()
-  @ApiProperty({ description: 'Product ID (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Product ID (UUID)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   id: string;
 
   @Expose()
@@ -22,7 +25,10 @@ export class ProductResponseDto {
   sku: string;
 
   @Expose()
-  @ApiProperty({ description: 'Product name in default language', example: 'Shawarma Plate' })
+  @ApiProperty({
+    description: 'Product name in default language',
+    example: 'Shawarma Plate',
+  })
   name: string;
 
   @Expose()
@@ -30,11 +36,17 @@ export class ProductResponseDto {
   nameAr: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Product description', example: 'Beef shawarma plate with rice and salad' })
+  @ApiPropertyOptional({
+    description: 'Product description',
+    example: 'Beef shawarma plate with rice and salad',
+  })
   description?: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Product description in Arabic', example: '??? ?????? ??? ?? ????? ???????' })
+  @ApiPropertyOptional({
+    description: 'Product description in Arabic',
+    example: '??? ?????? ??? ?? ????? ???????',
+  })
   descriptionAr?: string;
 
   @Expose()
@@ -44,15 +56,25 @@ export class ProductResponseDto {
   // ? EXCLUDED: costPrice - business confidential margin data
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Category ID', example: '723e4567-e89b-12d3-a456-426614174006' })
+  @ApiPropertyOptional({
+    description: 'Category ID',
+    example: '723e4567-e89b-12d3-a456-426614174006',
+  })
   categoryId?: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Product barcode', example: '6281234567890' })
+  @ApiPropertyOptional({
+    description: 'Product barcode',
+    example: '6281234567890',
+  })
   barcode?: string;
 
   @Expose()
-  @ApiProperty({ description: 'Product type', enum: ['SIMPLE', 'COMPOSITE', 'VARIANT'], example: 'SIMPLE' })
+  @ApiProperty({
+    description: 'Product type',
+    enum: ['SIMPLE', 'COMPOSITE', 'VARIANT'],
+    example: 'SIMPLE',
+  })
   type: string;
 
   @Expose()
@@ -60,7 +82,10 @@ export class ProductResponseDto {
   isActive: boolean;
 
   @Expose()
-  @ApiProperty({ description: 'Whether inventory tracking is enabled', example: true })
+  @ApiProperty({
+    description: 'Whether inventory tracking is enabled',
+    example: true,
+  })
   trackInventory: boolean;
 
   @Expose()
@@ -68,7 +93,10 @@ export class ProductResponseDto {
   minStockLevel?: number;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Product image URL', example: 'https://cdn.example.com/shawarma.jpg' })
+  @ApiPropertyOptional({
+    description: 'Product image URL',
+    example: 'https://cdn.example.com/shawarma.jpg',
+  })
   imageUrl?: string;
 
   @Expose()
@@ -76,15 +104,24 @@ export class ProductResponseDto {
   displayOrder?: number;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Tax group ID', example: 'a23e4567-e89b-12d3-a456-426614174009' })
+  @ApiPropertyOptional({
+    description: 'Tax group ID',
+    example: 'a23e4567-e89b-12d3-a456-426614174009',
+  })
   taxGroupId?: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Created timestamp', example: '2026-01-15T10:30:00Z' })
+  @ApiPropertyOptional({
+    description: 'Created timestamp',
+    example: '2026-01-15T10:30:00Z',
+  })
   createdAt?: Date;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Last updated timestamp', example: '2026-01-20T14:45:00Z' })
+  @ApiPropertyOptional({
+    description: 'Last updated timestamp',
+    example: '2026-01-20T14:45:00Z',
+  })
   updatedAt?: Date;
 }
 
@@ -94,7 +131,10 @@ export class ProductResponseDto {
 @Exclude()
 export class ProductListItemDto {
   @Expose()
-  @ApiProperty({ description: 'Product ID (UUID)', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiProperty({
+    description: 'Product ID (UUID)',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   id: string;
 
   @Expose()
@@ -102,7 +142,10 @@ export class ProductListItemDto {
   sku: string;
 
   @Expose()
-  @ApiProperty({ description: 'Product name (English)', example: 'Shawarma Plate' })
+  @ApiProperty({
+    description: 'Product name (English)',
+    example: 'Shawarma Plate',
+  })
   name: string;
 
   @Expose()
@@ -114,7 +157,10 @@ export class ProductListItemDto {
   price: number;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Category ID', example: '723e4567-e89b-12d3-a456-426614174006' })
+  @ApiPropertyOptional({
+    description: 'Category ID',
+    example: '723e4567-e89b-12d3-a456-426614174006',
+  })
   categoryId?: string;
 
   @Expose()
@@ -122,6 +168,9 @@ export class ProductListItemDto {
   isActive: boolean;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Product image URL', example: 'https://cdn.example.com/shawarma.jpg' })
+  @ApiPropertyOptional({
+    description: 'Product image URL',
+    example: 'https://cdn.example.com/shawarma.jpg',
+  })
   imageUrl?: string;
 }

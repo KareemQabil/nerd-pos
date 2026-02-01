@@ -40,8 +40,7 @@ describe('Payments API (e2e)', () => {
     const { AppModule } = await import('../../../src/app.module');
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    })
-      .compile();
+    }).compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(createValidationPipe());
@@ -86,7 +85,9 @@ describe('Payments API (e2e)', () => {
     roleId = role.id;
 
     for (const code of paymentPermissions) {
-      const permission = await prisma.permission.findUnique({ where: { code } });
+      const permission = await prisma.permission.findUnique({
+        where: { code },
+      });
       if (!permission) {
         continue;
       }

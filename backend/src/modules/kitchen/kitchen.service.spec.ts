@@ -53,10 +53,18 @@ function createMockGateway() {
 // PrismaService mock for transaction support
 function createMockPrismaService() {
   return {
-    $transaction: jest.fn((callback) => callback({
-      kitchenTicket: { create: jest.fn().mockResolvedValue({ id: 'ticket-mock', stationId: 'station-1' }) },
-      kitchenTicketItem: { create: jest.fn().mockResolvedValue({ id: 'item-mock' }) },
-    })),
+    $transaction: jest.fn((callback) =>
+      callback({
+        kitchenTicket: {
+          create: jest
+            .fn()
+            .mockResolvedValue({ id: 'ticket-mock', stationId: 'station-1' }),
+        },
+        kitchenTicketItem: {
+          create: jest.fn().mockResolvedValue({ id: 'item-mock' }),
+        },
+      }),
+    ),
   };
 }
 

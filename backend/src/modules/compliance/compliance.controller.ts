@@ -26,11 +26,14 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('compliance')
 export class ComplianceController {
-  constructor(private readonly service: ComplianceService) { }
+  constructor(private readonly service: ComplianceService) {}
 
   @Post('invoice/generate')
   @Permissions(PERMISSIONS.COMPLIANCE_GENERATE) // Cashier+
-  @ApiOperation({ summary: 'Generate tax invoice', description: 'Generates ETA/ZATCA compliant invoice for order' })
+  @ApiOperation({
+    summary: 'Generate tax invoice',
+    description: 'Generates ETA/ZATCA compliant invoice for order',
+  })
   @ApiResponse({
     status: 201,
     description: 'Invoice generated',
@@ -58,7 +61,10 @@ export class ComplianceController {
 
   @Post('invoice/submit')
   @Permissions(PERMISSIONS.COMPLIANCE_GENERATE) // Cashier+
-  @ApiOperation({ summary: 'Submit invoice to tax authority', description: 'Submits invoice to ETA/ZATCA for approval' })
+  @ApiOperation({
+    summary: 'Submit invoice to tax authority',
+    description: 'Submits invoice to ETA/ZATCA for approval',
+  })
   @ApiResponse({
     status: 200,
     description: 'Invoice submitted',
@@ -77,14 +83,19 @@ export class ComplianceController {
     },
   })
   @ApiNotFoundResponse({ description: 'Invoice not found' })
-  @ApiBadRequestResponse({ description: 'Invoice already submitted or invalid' })
+  @ApiBadRequestResponse({
+    description: 'Invoice already submitted or invalid',
+  })
   async submit(@Body() dto: SubmitInvoiceDto) {
     return this.service.submitInvoice(dto.invoiceId);
   }
 
   @Get('invoice/order/:orderId')
   @Permissions(PERMISSIONS.COMPLIANCE_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get invoice by order', description: 'Returns compliance invoice for order. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get invoice by order',
+    description: 'Returns compliance invoice for order. Manager+ required.',
+  })
   @ApiParam({ name: 'orderId', description: 'Order UUID' })
   @ApiResponse({
     status: 200,
@@ -110,7 +121,10 @@ export class ComplianceController {
 
   @Get('invoice/pending')
   @Permissions(PERMISSIONS.COMPLIANCE_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get pending invoices', description: 'Returns invoices pending submission. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get pending invoices',
+    description: 'Returns invoices pending submission. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Pending invoices retrieved',
@@ -136,7 +150,10 @@ export class ComplianceController {
 
   @Get('hash-chain/verify')
   @Permissions(PERMISSIONS.COMPLIANCE_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Verify hash chain', description: 'Verifies integrity of invoice hash chain. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Verify hash chain',
+    description: 'Verifies integrity of invoice hash chain. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Hash chain verification result',
@@ -157,4 +174,3 @@ export class ComplianceController {
     return this.service.verifyHashChain();
   }
 }
-

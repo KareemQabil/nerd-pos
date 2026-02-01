@@ -30,7 +30,7 @@ export class SettingsService {
   constructor(
     private readonly repo: SettingsRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) { }
+  ) {}
 
   // ==================== STORE SETTINGS ====================
 
@@ -97,7 +97,9 @@ export class SettingsService {
     id: string,
     dto: UpdateTaxSettingDto,
   ): Promise<TaxSetting> {
-    const updateData: Partial<UpdateTaxSettingDto> & { rate?: number } = { ...dto };
+    const updateData: Partial<UpdateTaxSettingDto> & { rate?: number } = {
+      ...dto,
+    };
     if (dto.rate !== undefined) {
       updateData.rate = new Decimal(dto.rate).toNumber();
     }
@@ -189,7 +191,10 @@ export class SettingsService {
     return settings.config as Record<string, unknown>;
   }
 
-  async updateModuleSettings(module: string, config: Record<string, unknown>): Promise<Record<string, unknown>> {
+  async updateModuleSettings(
+    module: string,
+    config: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
     await this.repo.upsertModuleSetting(module, config);
     return config;
   }

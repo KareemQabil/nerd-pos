@@ -44,7 +44,7 @@ export class CreatePaymentDto {
 
   @ApiProperty({
     description: 'Payment amount (SAR)',
-    example: 125.50,
+    example: 125.5,
     maximum: 999999,
   })
   @IsNumber()
@@ -277,4 +277,4 @@ export class CreatePaymentMethodDto {
 
 export class UpdatePaymentMethodDto extends PartialType(
   CreatePaymentMethodDto,
-) { }
+) {}

@@ -205,7 +205,10 @@ export class CreateProductDto {
 
   @ApiPropertyOptional({
     description: 'Array of modifier group UUIDs to assign',
-    example: ['523e4567-e89b-12d3-a456-426614174004', '623e4567-e89b-12d3-a456-426614174005'],
+    example: [
+      '523e4567-e89b-12d3-a456-426614174004',
+      '623e4567-e89b-12d3-a456-426614174005',
+    ],
   })
   @IsOptional()
   @IsArray()
@@ -213,7 +216,7 @@ export class CreateProductDto {
   modifierGroupIds?: string[];
 }
 
-export class UpdateProductDto extends PartialType(CreateProductDto) { }
+export class UpdateProductDto extends PartialType(CreateProductDto) {}
 
 // ==================== CATEGORY DTOs ====================
 
@@ -267,7 +270,7 @@ export class CreateCategoryDto {
   isActive?: boolean = true;
 }
 
-export class UpdateCategoryDto extends PartialType(CreateCategoryDto) { }
+export class UpdateCategoryDto extends PartialType(CreateCategoryDto) {}
 
 // ==================== MODIFIER GROUP DTOs ====================
 
@@ -341,7 +344,7 @@ export class CreateModifierGroupDto {
 
 export class UpdateModifierGroupDto extends PartialType(
   CreateModifierGroupDto,
-) { }
+) {}
 
 // ==================== MODIFIER OPTION DTOs ====================
 
@@ -397,7 +400,7 @@ export class CreateModifierOptionDto {
 
 export class UpdateModifierOptionDto extends PartialType(
   CreateModifierOptionDto,
-) { }
+) {}
 
 // ==================== ASSIGNMENT DTOs ====================
 

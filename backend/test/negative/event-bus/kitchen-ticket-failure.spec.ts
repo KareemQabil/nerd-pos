@@ -9,9 +9,16 @@ import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
 import { KitchenService } from '../../../src/modules/kitchen/kitchen.service';
 import { KitchenRepository } from '../../../src/modules/kitchen/kitchen.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { IEventBus, IEventHandler } from '../../../src/core/event-bus/event-bus.interface';
+import {
+  IEventBus,
+  IEventHandler,
+} from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('EB-03: Kitchen Ticket Failure', () => {
   let eventBus: EventBusService;
@@ -71,15 +78,15 @@ describe('EB-03: Kitchen Ticket Failure', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 100
-      }
+        grandTotal: 100,
+      },
     });
 
     // Publish event
     await eventBus.publish('OrderConfirmed', {
       orderId: order.id,
       orderType: 'DINE_IN',
-      items: [{ productId: 'prod-1', quantity: 2 }]
+      items: [{ productId: 'prod-1', quantity: 2 }],
     });
 
     // Check for failures
@@ -101,13 +108,13 @@ describe('EB-03: Kitchen Ticket Failure', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 100
-      }
+        grandTotal: 100,
+      },
     });
 
     // Order should exist even if kitchen ticket failed
     const foundOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(foundOrder).toBeDefined();
@@ -115,7 +122,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
 
     // But kitchen ticket should be null/missing
     const kitchenTicket = await prisma.kitchenTicket.findFirst({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     expect(kitchenTicket).toBeNull();
@@ -126,7 +133,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
 
     await eventBus.publish('OrderConfirmed', {
       orderId: 'test-order',
-      orderType: 'DINE_IN'
+      orderType: 'DINE_IN',
     });
 
     const failures = (eventBus as any).getFailures?.() ?? [];
@@ -147,13 +154,13 @@ describe('EB-03: Kitchen Ticket Failure', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 50
-      }
+        grandTotal: 50,
+      },
     });
 
     await eventBus.publish('OrderConfirmed', {
       orderId: order.id,
-      orderType: 'TAKEAWAY'
+      orderType: 'TAKEAWAY',
     });
 
     // No failures should occur (no handler should be called for TAKEAWAY)
@@ -172,14 +179,14 @@ describe('EB-03: Kitchen Ticket Failure', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 100
-      }
+        grandTotal: 100,
+      },
     });
 
     await eventBus.publish('OrderConfirmed', {
       orderId: order.id,
       orderType: 'DINE_IN',
-      items: [{ productId: 'prod-1', quantity: 2, name: 'Burger' }]
+      items: [{ productId: 'prod-1', quantity: 2, name: 'Burger' }],
     });
 
     // Should not fail
@@ -228,10 +235,10 @@ describe('EB-03: Kitchen Ticket Failure', () => {
           orderType: 'DINE_IN',
           status: OrderStatus.CONFIRMED,
           sessionId: 'test-session',
-        businessDate: new Date(),
           businessDate: new Date(),
-          grandTotal: 100
-        }
+          businessDate: new Date(),
+          grandTotal: 100,
+        },
       }),
       prisma.salesOrder.create({
         data: {
@@ -239,17 +246,17 @@ describe('EB-03: Kitchen Ticket Failure', () => {
           orderType: 'DINE_IN',
           status: OrderStatus.CONFIRMED,
           sessionId: 'test-session',
-        businessDate: new Date(),
           businessDate: new Date(),
-          grandTotal: 150
-        }
-      })
+          businessDate: new Date(),
+          grandTotal: 150,
+        },
+      }),
     ]);
 
     // Publish both events
     await Promise.all([
       eventBus.publish('OrderConfirmed', { orderId: orders[0].id }),
-      eventBus.publish('OrderConfirmed', { orderId: orders[1].id })
+      eventBus.publish('OrderConfirmed', { orderId: orders[1].id }),
     ]);
 
     const hasFailures = (eventBus as any).hasFailures?.() ?? false;
@@ -265,7 +272,7 @@ describe('EB-03: Kitchen Ticket Failure', () => {
     // Publish event
     await eventBus.publish('OrderConfirmed', {
       orderId: 'test-order',
-      kdsHealthy
+      kdsHealthy,
     });
 
     // If KDS is not healthy, handler should fail or retry

@@ -79,20 +79,20 @@ describe('ComplianceService', () => {
         currentHash: 'a'.repeat(64), // Previous invoice hash
       };
 
-    const mockInvoice = {
-      id: 'invoice-1',
-      orderId: 'order-1',
-      invoiceNumber: 'INV-2026-000001',
-      previousHash: lastInvoice.currentHash,
-      invoiceHash: expect.any(String),
-      submissionStatus: 'PENDING',
-    };
+      const mockInvoice = {
+        id: 'invoice-1',
+        orderId: 'order-1',
+        invoiceNumber: 'INV-2026-000001',
+        previousHash: lastInvoice.currentHash,
+        invoiceHash: expect.any(String),
+        submissionStatus: 'PENDING',
+      };
 
-    repo.findByOrder.mockResolvedValue(null); // No existing invoice
-    repo.findLastInvoice.mockResolvedValue(lastInvoice);
-    repo.countInvoices.mockResolvedValue(0);
-    repo.findAllOrdered.mockResolvedValue([]);
-    repo.create.mockResolvedValue(mockInvoice);
+      repo.findByOrder.mockResolvedValue(null); // No existing invoice
+      repo.findLastInvoice.mockResolvedValue(lastInvoice);
+      repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
+      repo.create.mockResolvedValue(mockInvoice);
 
       const result = await service.generateInvoice('order-1', orderData);
 
@@ -115,11 +115,11 @@ describe('ComplianceService', () => {
         currentHash: expect.any(String),
       };
 
-    repo.findByOrder.mockResolvedValue(null);
-    repo.findLastInvoice.mockResolvedValue(null); // First invoice
-    repo.countInvoices.mockResolvedValue(0);
-    repo.findAllOrdered.mockResolvedValue([]);
-    repo.create.mockResolvedValue(mockInvoice);
+      repo.findByOrder.mockResolvedValue(null);
+      repo.findLastInvoice.mockResolvedValue(null); // First invoice
+      repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
+      repo.create.mockResolvedValue(mockInvoice);
 
       const result = await service.generateInvoice('order-1', orderData);
 
@@ -127,13 +127,13 @@ describe('ComplianceService', () => {
     });
 
     it('should throw error if invoice already exists for order', async () => {
-    const existingInvoice = { id: 'invoice-existing', orderId: 'order-1' };
-    repo.findByOrder.mockResolvedValue(existingInvoice);
+      const existingInvoice = { id: 'invoice-existing', orderId: 'order-1' };
+      repo.findByOrder.mockResolvedValue(existingInvoice);
 
-    await expect(service.generateInvoice('order-1', {})).rejects.toThrow(
-      BadRequestException,
-    );
-  });
+      await expect(service.generateInvoice('order-1', {})).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   // ==================== HASH CALCULATION TESTS (CRITICAL) ====================

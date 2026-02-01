@@ -24,7 +24,11 @@ import {
   GrandTotalStep,
 } from '../../../src/modules/sales/calculation-steps';
 import { SessionsService } from '../../../src/modules/sessions/sessions.service';
-import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('INV-02: Selling Zero-Stock Item', () => {
   let salesService: SalesService;
@@ -54,7 +58,10 @@ describe('INV-02: Selling Zero-Stock Item', () => {
         TaxStep,
         DiscountStep,
         GrandTotalStep,
-        { provide: SessionsService, useValue: { getCurrentSession: jest.fn() } },
+        {
+          provide: SessionsService,
+          useValue: { getCurrentSession: jest.fn() },
+        },
         { provide: 'IEventBus', useExisting: EventBusService },
       ],
     }).compile();
@@ -115,7 +122,9 @@ describe('INV-02: Selling Zero-Stock Item', () => {
       ],
     };
 
-    await expect(salesService.createOrder(order as any, 'user')).rejects.toThrow();
+    await expect(
+      salesService.createOrder(order as any, 'user'),
+    ).rejects.toThrow();
   });
 
   it('should reject sale when quantity exceeds available stock', async () => {
@@ -153,7 +162,9 @@ describe('INV-02: Selling Zero-Stock Item', () => {
       ],
     };
 
-    await expect(salesService.createOrder(order as any, 'user')).rejects.toThrow();
+    await expect(
+      salesService.createOrder(order as any, 'user'),
+    ).rejects.toThrow();
   });
 
   it('should allow sale when stock equals requested quantity', async () => {
@@ -210,7 +221,9 @@ describe('INV-02: Selling Zero-Stock Item', () => {
       ],
     };
 
-    await expect(salesService.createOrder(order as any, 'user')).rejects.toThrow();
+    await expect(
+      salesService.createOrder(order as any, 'user'),
+    ).rejects.toThrow();
 
     const movements = await prisma.inventoryMovement.findMany({
       where: { productId, warehouseId },

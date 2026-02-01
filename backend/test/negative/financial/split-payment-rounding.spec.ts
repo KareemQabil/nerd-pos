@@ -9,7 +9,12 @@ import { PaymentsService } from '../../../src/modules/payments/payments.service'
 import { PaymentsRepository } from '../../../src/modules/payments/payments.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
-import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  createTestOrder,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import Decimal from 'decimal.js';
 
@@ -23,7 +28,10 @@ describe('FIN-01: Split Payment Rounding Error', () => {
         PaymentsService,
         PaymentsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -44,7 +52,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
     // Setup: Order with total = 10
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 10
+      grandTotal: 10,
     });
 
     // Act: Split 10 into 3 equal payments
@@ -112,7 +120,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
     // Setup: Order with total = 100
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Act: Split 100 into 3 equal payments
@@ -162,7 +170,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
 
     // Assert: Verify total equals order total
     const payments = await prisma.payment.findMany({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     const totalPaid = payments.reduce(
@@ -177,7 +185,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
     // Setup: Order with total = 1
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 1
+      grandTotal: 1,
     });
 
     // Act: Split 1 into 7 equal payments (approximately 0.14 each)
@@ -187,30 +195,36 @@ describe('FIN-01: Split Payment Rounding Error', () => {
     const processedBy = 'test-user';
 
     for (let i = 0; i < 6; i++) {
-      payments.push(await prisma.payment.create({
-        data: {
-          orderId: order.id,
-          amount: perPayment.toNumber(),
-          paymentMethod: 'CASH',
-          referenceNumber: `PAY-${i + 1}`,
-          sessionId,
-          processedBy,
-        },
-      }));
+      payments.push(
+        await prisma.payment.create({
+          data: {
+            orderId: order.id,
+            amount: perPayment.toNumber(),
+            paymentMethod: 'CASH',
+            referenceNumber: `PAY-${i + 1}`,
+            sessionId,
+            processedBy,
+          },
+        }),
+      );
     }
 
     // Last payment: remainder
-    const lastPaymentAmount = new Decimal(1).sub(perPayment.mul(6)).toDecimalPlaces(2);
-    payments.push(await prisma.payment.create({
-      data: {
-        orderId: order.id,
-        amount: lastPaymentAmount.toNumber(),
-        paymentMethod: 'CASH',
-        referenceNumber: 'PAY-7',
-        sessionId,
-        processedBy,
-      },
-    }));
+    const lastPaymentAmount = new Decimal(1)
+      .sub(perPayment.mul(6))
+      .toDecimalPlaces(2);
+    payments.push(
+      await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          amount: lastPaymentAmount.toNumber(),
+          paymentMethod: 'CASH',
+          referenceNumber: 'PAY-7',
+          sessionId,
+          processedBy,
+        },
+      }),
+    );
 
     // Assert: Verify total equals 1
     const totalPaid = payments.reduce(
@@ -225,7 +239,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
     // Setup: Order with total = 50
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 50
+      grandTotal: 50,
     });
 
     // Act: Create payments that exceed total
@@ -259,7 +273,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
     // For now, verify the payments sum correctly
 
     const payments = await prisma.payment.findMany({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     const totalPaid = payments.reduce(
@@ -274,7 +288,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
     // Setup: Order with total = 100
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Act: Make partial payment of 33.33
@@ -294,7 +308,7 @@ describe('FIN-01: Split Payment Rounding Error', () => {
 
     // Calculate remaining balance
     const payments = await prisma.payment.findMany({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     const totalPaid = payments.reduce(
@@ -302,7 +316,9 @@ describe('FIN-01: Split Payment Rounding Error', () => {
       new Decimal(0),
     );
 
-    const remaining = new Decimal(order.grandTotal?.toString() || '0').sub(totalPaid);
+    const remaining = new Decimal(order.grandTotal?.toString() || '0').sub(
+      totalPaid,
+    );
 
     // Assert: Remaining should be 66.67
     expect(remaining.toFixed(2)).toBe('66.67');

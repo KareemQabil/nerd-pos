@@ -25,12 +25,18 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('audit')
 export class AuditController {
-  constructor(private readonly service: AuditService) { }
+  constructor(private readonly service: AuditService) {}
 
   @Get('entity/:entity/:entityId')
   @Permissions(PERMISSIONS.AUDIT_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get entity audit history', description: 'Returns change history for entity. Manager+ required.' })
-  @ApiParam({ name: 'entity', description: 'Entity type (e.g., Order, Product)' })
+  @ApiOperation({
+    summary: 'Get entity audit history',
+    description: 'Returns change history for entity. Manager+ required.',
+  })
+  @ApiParam({
+    name: 'entity',
+    description: 'Entity type (e.g., Order, Product)',
+  })
   @ApiParam({ name: 'entityId', description: 'Entity UUID' })
   @ApiResponse({
     status: 200,
@@ -63,10 +69,21 @@ export class AuditController {
 
   @Get('user/:userId')
   @Permissions(PERMISSIONS.AUDIT_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get user activity', description: 'Returns audit trail for user. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get user activity',
+    description: 'Returns audit trail for user. Manager+ required.',
+  })
   @ApiParam({ name: 'userId', description: 'User UUID' })
-  @ApiQuery({ name: 'startDate', required: true, description: 'Start date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'endDate', required: true, description: 'End date (YYYY-MM-DD)' })
+  @ApiQuery({
+    name: 'startDate',
+    required: true,
+    description: 'Start date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: true,
+    description: 'End date (YYYY-MM-DD)',
+  })
   @ApiResponse({
     status: 200,
     description: 'User activity retrieved',
@@ -100,10 +117,24 @@ export class AuditController {
 
   @Get('module/:module')
   @Permissions(PERMISSIONS.AUDIT_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get module activity', description: 'Returns audit trail for module. Manager+ required.' })
-  @ApiParam({ name: 'module', description: 'Module name (e.g., products, sales)' })
-  @ApiQuery({ name: 'startDate', required: true, description: 'Start date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'endDate', required: true, description: 'End date (YYYY-MM-DD)' })
+  @ApiOperation({
+    summary: 'Get module activity',
+    description: 'Returns audit trail for module. Manager+ required.',
+  })
+  @ApiParam({
+    name: 'module',
+    description: 'Module name (e.g., products, sales)',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: true,
+    description: 'Start date (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: true,
+    description: 'End date (YYYY-MM-DD)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Module activity retrieved',
@@ -134,4 +165,3 @@ export class AuditController {
     return this.service.findByModule(module, new Date(start), new Date(end));
   }
 }
-

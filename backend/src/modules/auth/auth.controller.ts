@@ -16,7 +16,13 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
@@ -27,7 +33,7 @@ import { examples } from '../../common/fixtures/swagger-examples';
 @ApiBearerAuth('JWT')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   /**
    * Login endpoint - public (no token required)
@@ -39,9 +45,27 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Login and set auth cookie' })
   @ApiBody({ schema: { example: examples.auth.loginRequest.value } })
-  @ApiResponse({ status: 201, description: 'Login successful, cookie set', content: { 'application/json': { example: examples.auth.loginSuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Invalid credentials', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
-  @ApiResponse({ status: 429, description: 'Too many login attempts', content: { 'application/json': { example: examples.errors.rateLimitError.value } } })
+  @ApiResponse({
+    status: 201,
+    description: 'Login successful, cookie set',
+    content: {
+      'application/json': { example: examples.auth.loginSuccess.value },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials',
+    content: {
+      'application/json': { example: examples.errors.unauthorizedError.value },
+    },
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many login attempts',
+    content: {
+      'application/json': { example: examples.errors.rateLimitError.value },
+    },
+  })
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -64,7 +88,8 @@ export class AuthController {
 
       return {
         ...result,
-        message: '✅ Login successful! Cookie set. All endpoints will now work.',
+        message:
+          '✅ Login successful! Cookie set. All endpoints will now work.',
       };
     } catch {
       throw new UnauthorizedException('Invalid credentials');
@@ -79,7 +104,13 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 logout attempts per minute
   @Post('logout')
   @ApiOperation({ summary: 'Logout and clear auth cookie' })
-  @ApiResponse({ status: 200, description: 'Logout successful', content: { 'application/json': { example: examples.auth.logoutSuccess.value } } })
+  @ApiResponse({
+    status: 200,
+    description: 'Logout successful',
+    content: {
+      'application/json': { example: examples.auth.logoutSuccess.value },
+    },
+  })
   async logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('access_token', { path: '/' });
     return { message: 'Logged out successfully' };
@@ -91,8 +122,20 @@ export class AuthController {
    */
   @Get('profile')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'User profile retrieved', content: { 'application/json': { example: examples.auth.profileResponse.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved',
+    content: {
+      'application/json': { example: examples.auth.profileResponse.value },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    content: {
+      'application/json': { example: examples.errors.unauthorizedError.value },
+    },
+  })
   async getProfile(@CurrentUser() user: JwtPayload) {
     return {
       id: user.sub,
@@ -102,4 +145,3 @@ export class AuthController {
     };
   }
 }
-

@@ -39,7 +39,9 @@ export class InventoryEventHandlers {
 
     try {
       if (!payload.items || payload.items.length === 0) {
-        this.logger.warn(`OrderCreated event missing items for order ${payload.orderId}`);
+        this.logger.warn(
+          `OrderCreated event missing items for order ${payload.orderId}`,
+        );
         return;
       }
 
@@ -79,7 +81,9 @@ export class InventoryEventHandlers {
 
     try {
       if (!payload.items || payload.items.length === 0) {
-        this.logger.warn(`OrderCancelled event missing items for order ${payload.orderId}`);
+        this.logger.warn(
+          `OrderCancelled event missing items for order ${payload.orderId}`,
+        );
         return;
       }
 

@@ -34,11 +34,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       '/api/docs',
       '/api/docs-json',
       '/health',
-      '/favicon.ico'
+      '/favicon.ico',
     ];
 
     // Check if path starts with any whitelisted path
-    if (whitelistedPaths.some(p => path.startsWith(p))) {
+    if (whitelistedPaths.some((p) => path.startsWith(p))) {
       return true;
     }
 

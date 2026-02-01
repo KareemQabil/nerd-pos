@@ -9,7 +9,10 @@ import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
 import { InventoryService } from '../../../src/modules/inventory/inventory.service';
 import { InventoryRepository } from '../../../src/modules/inventory/inventory.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { IEventBus, IEventHandler } from '../../../src/core/event-bus/event-bus.interface';
+import {
+  IEventBus,
+  IEventHandler,
+} from '../../../src/core/event-bus/event-bus.interface';
 import { cleanupTestData } from '../../helpers/test-helpers';
 import { EventSpy } from '../../helpers/event-spy';
 
@@ -63,7 +66,7 @@ describe('EB-01: Stock Deduction Failure', () => {
     const orderEvent = {
       orderId: 'order-1',
       items: [{ productId: 'prod-1', quantity: 5 }],
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     await eventBus.publish('OrderCreated', orderEvent);
@@ -152,7 +155,7 @@ describe('EB-01: Stock Deduction Failure', () => {
 
     await eventBus.publish('Event1', { data: 'test1' });
 
-    let failures = (eventBus as any).getFailures?.() ?? [];
+    const failures = (eventBus as any).getFailures?.() ?? [];
     expect(failures.length).toBeGreaterThan(0);
 
     // Publish different event
@@ -180,7 +183,7 @@ describe('EB-01: Stock Deduction Failure', () => {
   it('should handle async handler failures', async () => {
     class AsyncFailingHandler implements IEventHandler<any> {
       async handle(event: any): Promise<void> {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         throw new Error('Async failure!');
       }
     }
@@ -214,7 +217,7 @@ describe('EB-01: Stock Deduction Failure', () => {
     await eventBus.publish('OrderCreated', { orderId: 'test' });
 
     const failures = (eventBus as any).getFailures?.() ?? [];
-    const failedHandlers = failures.map(f => f.handlerName);
+    const failedHandlers = failures.map((f) => f.handlerName);
 
     // Should identify which specific handler failed
     expect(failedHandlers.length).toBeGreaterThan(0);

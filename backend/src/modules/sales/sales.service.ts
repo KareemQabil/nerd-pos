@@ -41,7 +41,10 @@ import {
 } from './entities/sales.entity';
 import { OrderStatus, KitchenItemStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
-import { isValidTransition, getAllowedTransitions } from './constants/order-state-machine';
+import {
+  isValidTransition,
+  getAllowedTransitions,
+} from './constants/order-state-machine';
 
 // Import calculation steps
 import {
@@ -72,7 +75,8 @@ export class SalesService {
     private readonly taxStep: TaxStep,
     private readonly discountStep: DiscountStep,
     private readonly grandTotalStep: GrandTotalStep,
-    @Inject(forwardRef(() => SessionsService)) private readonly sessionsService: SessionsService,
+    @Inject(forwardRef(() => SessionsService))
+    private readonly sessionsService: SessionsService,
   ) {
     // Sort steps by order
     this.calculationSteps = [
@@ -214,9 +218,10 @@ export class SalesService {
       productId: item.productId,
       productName: item.productNameEn ?? 'Unknown',
       productNameAr: item.productNameAr ?? '',
-      quantity: typeof item.quantity === 'number'
-        ? item.quantity
-        : new Decimal(item.quantity).toNumber(),
+      quantity:
+        typeof item.quantity === 'number'
+          ? item.quantity
+          : new Decimal(item.quantity).toNumber(),
       notes: item.notes ?? undefined,
       modifiers: (item.modifiers || []).map((m) => m.name),
     }));
@@ -242,7 +247,11 @@ export class SalesService {
 
     await this.eventBus.publish(
       'OrderStatusChanged',
-      new OrderStatusChangedEvent(orderId, OrderStatus.DRAFT, OrderStatus.CONFIRMED),
+      new OrderStatusChangedEvent(
+        orderId,
+        OrderStatus.DRAFT,
+        OrderStatus.CONFIRMED,
+      ),
     );
 
     return updated;
@@ -255,14 +264,14 @@ export class SalesService {
     const order = await this.findOrderById(orderId);
 
     const previousStatus = order.status as OrderStatus;
-    const newStatus = dto.status as OrderStatus;
+    const newStatus = dto.status;
 
     // FORENSIC AUDIT FIX: Validate state machine transition
     if (!isValidTransition(previousStatus, newStatus)) {
       const allowedNext = getAllowedTransitions(previousStatus);
       throw new BadRequestException(
         `Invalid order status transition: ${previousStatus} → ${newStatus}. ` +
-        `Allowed transitions from ${previousStatus}: ${allowedNext.length > 0 ? allowedNext.join(', ') : 'none (terminal state)'}`
+          `Allowed transitions from ${previousStatus}: ${allowedNext.length > 0 ? allowedNext.join(', ') : 'none (terminal state)'}`,
       );
     }
 
@@ -303,7 +312,11 @@ export class SalesService {
   async cancelOrder(orderId: string, reason?: string): Promise<Order> {
     const order = await this.findOrderById(orderId);
 
-    if ([OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(order.status as OrderStatus)) {
+    if (
+      [OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(
+        order.status as OrderStatus,
+      )
+    ) {
       throw new BadRequestException(
         'Cannot cancel completed or already cancelled order',
       );
@@ -350,8 +363,12 @@ export class SalesService {
       productId: dto.productId,
       productNameEn: dto.name || 'Unknown',
       productNameAr: dto.nameAr || '',
-      unitPrice: typeof dto.price === 'number' ? dto.price : new Decimal(dto.price || 0),
-      quantity: typeof dto.quantity === 'number' ? dto.quantity : new Decimal(dto.quantity || 1).toNumber(),
+      unitPrice:
+        typeof dto.price === 'number' ? dto.price : new Decimal(dto.price || 0),
+      quantity:
+        typeof dto.quantity === 'number'
+          ? dto.quantity
+          : new Decimal(dto.quantity || 1).toNumber(),
       lineTotal: subtotal,
       modifiersAmount: new Decimal(modifierTotal).toNumber(),
       notes: dto.notes,
@@ -509,17 +526,20 @@ export class SalesService {
       items: order.items.map((item) => ({
         productId: item.productId,
         name: item.name || item.productNameEn || 'Unknown',
-        price: typeof item.price === 'number'
-          ? new Decimal(item.price)
-          : new Decimal(item.price || item.unitPrice || 0),
-        quantity: typeof item.quantity === 'number'
-          ? item.quantity
-          : new Decimal(item.quantity).toNumber(),
+        price:
+          typeof item.price === 'number'
+            ? new Decimal(item.price)
+            : new Decimal(item.price || item.unitPrice || 0),
+        quantity:
+          typeof item.quantity === 'number'
+            ? item.quantity
+            : new Decimal(item.quantity).toNumber(),
         modifiers:
           item.modifiers?.map((m: any) => ({
-            price: typeof m.price === 'number'
-              ? new Decimal(m.price)
-              : new Decimal(m.price || 0),
+            price:
+              typeof m.price === 'number'
+                ? new Decimal(m.price)
+                : new Decimal(m.price || 0),
           })) || [],
       })),
       orderType: (order.type || order.orderType || 'DINE_IN') as

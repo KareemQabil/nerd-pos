@@ -22,7 +22,10 @@ describe('MT-03: Same Product Concurrent Update', () => {
         ProductsService,
         ProductsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -40,8 +43,8 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-001'
-      }
+        code: 'CAT-001',
+      },
     });
 
     const product = await prisma.product.create({
@@ -51,26 +54,28 @@ describe('MT-03: Same Product Concurrent Update', () => {
         sku: 'PROD-UPDATE-001',
         categoryId: category.id,
         price: 50,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     // Act: Two terminals try to update price simultaneously
     const { terminalAResult, terminalBResult } =
       await RaceConditionTester.simulateDualTerminalRequest(
-        () => prisma.product.update({
-          where: { id: product.id },
-          data: { price: 60 }
-        }),
-        () => prisma.product.update({
-          where: { id: product.id },
-          data: { price: 70 }
-        })
+        () =>
+          prisma.product.update({
+            where: { id: product.id },
+            data: { price: 60 },
+          }),
+        () =>
+          prisma.product.update({
+            where: { id: product.id },
+            data: { price: 70 },
+          }),
       );
 
     // Assert: One write should win
     const finalProduct = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
     expect(finalProduct?.price.toNumber()).toBeGreaterThanOrEqual(60);
@@ -82,8 +87,8 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-002'
-      }
+        code: 'CAT-002',
+      },
     });
 
     const product = await prisma.product.create({
@@ -93,29 +98,33 @@ describe('MT-03: Same Product Concurrent Update', () => {
         sku: 'PROD-NAME-001',
         categoryId: category.id,
         price: 50,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     // Act: Two concurrent name updates
     const { terminalAResult, terminalBResult } =
       await RaceConditionTester.simulateDualTerminalRequest(
-        () => prisma.product.update({
-          where: { id: product.id },
-          data: { nameEn: 'Updated Name A', nameAr: 'الاسم المحدث أ' }
-        }),
-        () => prisma.product.update({
-          where: { id: product.id },
-          data: { nameEn: 'Updated Name B', nameAr: 'الاسم المحدث ب' }
-        })
+        () =>
+          prisma.product.update({
+            where: { id: product.id },
+            data: { nameEn: 'Updated Name A', nameAr: 'الاسم المحدث أ' },
+          }),
+        () =>
+          prisma.product.update({
+            where: { id: product.id },
+            data: { nameEn: 'Updated Name B', nameAr: 'الاسم المحدث ب' },
+          }),
       );
 
     // Assert: One name should persist
     const finalProduct = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
-    expect(['Updated Name A', 'Updated Name B']).toContain(finalProduct?.nameEn);
+    expect(['Updated Name A', 'Updated Name B']).toContain(
+      finalProduct?.nameEn,
+    );
     expect(finalProduct?.nameEn).not.toBe('Original Name');
   });
 
@@ -124,8 +133,8 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-003'
-      }
+        code: 'CAT-003',
+      },
     });
 
     const product = await prisma.product.create({
@@ -135,26 +144,28 @@ describe('MT-03: Same Product Concurrent Update', () => {
         sku: 'PROD-STATUS-001',
         categoryId: category.id,
         price: 50,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     // Act: One terminal deactivates, another reactivates
     const { terminalAResult, terminalBResult } =
       await RaceConditionTester.simulateDualTerminalRequest(
-        () => prisma.product.update({
-          where: { id: product.id },
-          data: { isActive: false }
-        }),
-        () => prisma.product.update({
-          where: { id: product.id },
-          data: { isActive: true }
-        })
+        () =>
+          prisma.product.update({
+            where: { id: product.id },
+            data: { isActive: false },
+          }),
+        () =>
+          prisma.product.update({
+            where: { id: product.id },
+            data: { isActive: true },
+          }),
       );
 
     // Assert: Final state should be valid (either true or false)
     const finalProduct = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
     expect([true, false]).toContain(finalProduct?.isActive);
@@ -165,8 +176,8 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-004'
-      }
+        code: 'CAT-004',
+      },
     });
 
     const product1 = await prisma.product.create({
@@ -176,8 +187,8 @@ describe('MT-03: Same Product Concurrent Update', () => {
         sku: 'SKU-001',
         categoryId: category.id,
         price: 50,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     const product2 = await prisma.product.create({
@@ -187,20 +198,24 @@ describe('MT-03: Same Product Concurrent Update', () => {
         sku: 'SKU-002',
         categoryId: category.id,
         price: 60,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     // Act: Try to make both products have same SKU
-    const update1 = prisma.product.update({
-      where: { id: product1.id },
-      data: { sku: 'SKU-DUPLICATE' }
-    }).catch(e => ({ error: e }));
+    const update1 = prisma.product
+      .update({
+        where: { id: product1.id },
+        data: { sku: 'SKU-DUPLICATE' },
+      })
+      .catch((e) => ({ error: e }));
 
-    const update2 = prisma.product.update({
-      where: { id: product2.id },
-      data: { sku: 'SKU-DUPLICATE' } // Same SKU!
-    }).catch(e => ({ error: e }));
+    const update2 = prisma.product
+      .update({
+        where: { id: product2.id },
+        data: { sku: 'SKU-DUPLICATE' }, // Same SKU!
+      })
+      .catch((e) => ({ error: e }));
 
     const [result1, result2] = await Promise.all([update1, update2]);
 
@@ -214,8 +229,8 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-005'
-      }
+        code: 'CAT-005',
+      },
     });
 
     const product = await prisma.product.create({
@@ -226,26 +241,28 @@ describe('MT-03: Same Product Concurrent Update', () => {
         categoryId: category.id,
         price: 50,
         cost: 30,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     // Act: Concurrent updates to different fields
     const { terminalAResult, terminalBResult } =
       await RaceConditionTester.simulateDualTerminalRequest(
-        () => prisma.product.update({
-          where: { id: product.id },
-          data: { nameEn: 'Updated Name', price: 60 }
-        }),
-        () => prisma.product.update({
-          where: { id: product.id },
-          data: { cost: 35, isActive: false }
-        })
+        () =>
+          prisma.product.update({
+            where: { id: product.id },
+            data: { nameEn: 'Updated Name', price: 60 },
+          }),
+        () =>
+          prisma.product.update({
+            where: { id: product.id },
+            data: { cost: 35, isActive: false },
+          }),
       );
 
     // Assert: Both updates should be reflected (last write wins per field)
     const finalProduct = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
     expect(finalProduct).toBeDefined();
@@ -258,8 +275,8 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-006'
-      }
+        code: 'CAT-006',
+      },
     });
 
     const product = await prisma.product.create({
@@ -269,23 +286,23 @@ describe('MT-03: Same Product Concurrent Update', () => {
         sku: 'PROD-CONCURRENT-001',
         categoryId: category.id,
         price: 50,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     // Act: 10 concurrent updates
     const updates = Array.from({ length: 10 }, (_, i) =>
       prisma.product.update({
         where: { id: product.id },
-        data: { price: 50 + i * 10 }
-      })
+        data: { price: 50 + i * 10 },
+      }),
     );
 
     await Promise.allSettled(updates);
 
     // Assert: Product should have one valid price
     const finalProduct = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
     expect(finalProduct).toBeDefined();

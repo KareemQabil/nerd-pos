@@ -181,7 +181,10 @@ describe('TablesService', () => {
     });
 
     it('should throw BadRequestException if table not available', async () => {
-      repo.findById.mockResolvedValue({ ...mockTable, status: TableStatus.OCCUPIED });
+      repo.findById.mockResolvedValue({
+        ...mockTable,
+        status: TableStatus.OCCUPIED,
+      });
       await expect(
         service.assignOrderToTable('table-1', 'order-1'),
       ).rejects.toThrow(BadRequestException);
@@ -190,7 +193,10 @@ describe('TablesService', () => {
 
   describe('releaseTable', () => {
     it('should release table and publish TableReleased event', async () => {
-      repo.findById.mockResolvedValue({ ...mockTable, status: TableStatus.OCCUPIED });
+      repo.findById.mockResolvedValue({
+        ...mockTable,
+        status: TableStatus.OCCUPIED,
+      });
       repo.update.mockResolvedValue({
         ...mockTable,
         status: TableStatus.DIRTY,
@@ -209,7 +215,10 @@ describe('TablesService', () => {
 
   describe('markTableClean', () => {
     it('should set table status to available', async () => {
-      repo.update.mockResolvedValue({ ...mockTable, status: TableStatus.AVAILABLE });
+      repo.update.mockResolvedValue({
+        ...mockTable,
+        status: TableStatus.AVAILABLE,
+      });
       const result = await service.markTableClean('table-1');
       expect(result.status).toBe(TableStatus.AVAILABLE);
     });

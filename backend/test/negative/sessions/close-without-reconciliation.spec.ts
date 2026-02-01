@@ -10,9 +10,9 @@ import { SessionsRepository } from '../../../src/modules/sessions/sessions.repos
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { cleanupTestData } from '../../helpers/test-helpers';
-import { Prisma } from '@prisma/client'
-const PrismaClient = require('@prisma/client').PrismaClient
-type Decimal = PrismaClient.Decimal
+import { Prisma } from '@prisma/client';
+const PrismaClient = require('@prisma/client').PrismaClient;
+type Decimal = PrismaClient.Decimal;
 type Decimal = Prisma.Decimal;
 
 describe('SES-03: Close Session Without Reconciliation', () => {
@@ -25,7 +25,10 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         SessionsService,
         SessionsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -44,8 +47,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Create some sales
@@ -57,23 +60,25 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         sessionId: session.id,
         businessDate: new Date(),
         grandTotal: 500,
-        completedAt: new Date()
-      }
+        completedAt: new Date(),
+      },
     });
 
     // Act: Try to close without providing reconciliation data
-    const result = await sessionsService.closeSession(session.id, {
-      userId: 'user-1',
-      actualClosingBalance: undefined, // No reconciliation
-      countedCash: undefined
-    }).catch(e => ({ error: e }));
+    const result = await sessionsService
+      .closeSession(session.id, {
+        userId: 'user-1',
+        actualClosingBalance: undefined, // No reconciliation
+        countedCash: undefined,
+      })
+      .catch((e) => ({ error: e }));
 
     // Assert: Should reject
     expect('error' in result).toBe(true);
 
     // Verify session is still OPEN
     const unchangedSession = await prisma.registerSession.findUnique({
-      where: { id: session.id }
+      where: { id: session.id },
     });
 
     expect(unchangedSession?.status).toBe('OPEN');
@@ -86,8 +91,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Create sales totaling 500
@@ -99,8 +104,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         sessionId: session.id,
         businessDate: new Date(),
         grandTotal: 300,
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
 
     await prisma.salesOrder.create({
@@ -111,8 +116,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         sessionId: session.id,
         businessDate: new Date(),
         grandTotal: 200,
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
 
     // Expected closing balance = opening (1000) + sales (500) = 1500
@@ -128,8 +133,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     await prisma.salesOrder.create({
@@ -140,8 +145,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         sessionId: session.id,
         businessDate: new Date(),
         grandTotal: 500,
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
 
     // Expected: 1500, But counted: 1400 (shortage of 100)
@@ -160,8 +165,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         expectedCash: expectedBalance,
         discrepancy: shortage,
         discrepancyType: 'SHORTAGE',
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     expect(closedSession.discrepancy?.toString()).toBe('100');
@@ -175,8 +180,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     await prisma.salesOrder.create({
@@ -187,8 +192,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         sessionId: session.id,
         businessDate: new Date(),
         grandTotal: 500,
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
 
     // Expected: 1500, But counted: 1600 (overage of 100)
@@ -207,8 +212,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         expectedCash: expectedBalance,
         discrepancy: overage,
         discrepancyType: 'OVERAGE',
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     expect(closedSession.discrepancy?.toString()).toBe('100');
@@ -222,8 +227,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     await prisma.salesOrder.create({
@@ -234,8 +239,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         sessionId: session.id,
         businessDate: new Date(),
         grandTotal: 500,
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
 
     // Counted cash matches expected
@@ -250,8 +255,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         expectedCash: countedCash,
         discrepancy: new Decimal(0),
         discrepancyType: null,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     expect(closedSession.status).toBe('CLOSED');
@@ -265,8 +270,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Large shortage (e.g., > 5% of opening balance)
@@ -289,8 +294,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Create unpaid orders
@@ -301,24 +306,26 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         status: 'CONFIRMED', // Not PAID
         sessionId: session.id,
         businessDate: new Date(),
-        grandTotal: 500
-      }
+        grandTotal: 500,
+      },
     });
 
     // Act: Try to close session
-    const result = await sessionsService.closeSession(session.id, {
-      userId: 'user-1',
-      actualClosingBalance: 1000,
-      countedCash: 1000
-    }).catch(e => ({ error: e }));
+    const result = await sessionsService
+      .closeSession(session.id, {
+        userId: 'user-1',
+        actualClosingBalance: 1000,
+        countedCash: 1000,
+      })
+      .catch((e) => ({ error: e }));
 
     // Should warn about unpaid orders or prevent closing
     // For now, verify pending orders exist
     const pendingOrders = await prisma.salesOrder.findMany({
       where: {
         sessionId: session.id,
-        status: { in: ['DRAFT', 'CONFIRMED'] }
-      }
+        status: { in: ['DRAFT', 'CONFIRMED'] },
+      },
     });
 
     expect(pendingOrders.length).toBeGreaterThan(0);
@@ -330,8 +337,8 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         userId: 'user-1',
         terminalId: 'terminal-1',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     // Close session
@@ -341,13 +348,13 @@ describe('SES-03: Close Session Without Reconciliation', () => {
         status: 'CLOSED',
         actualClosingBalance: 1500,
         expectedCash: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Query session history
     const closedSession = await prisma.registerSession.findUnique({
-      where: { id: session.id }
+      where: { id: session.id },
     });
 
     expect(closedSession?.status).toBe('CLOSED');

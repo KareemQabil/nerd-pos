@@ -75,8 +75,8 @@ function createMockStep() {
 // Mock PrismaService
 function createMockPrismaService() {
   const mockPrisma: Record<string, unknown> = {};
-  mockPrisma.$transaction = jest.fn((callback: (tx: unknown) => Promise<unknown>) =>
-    callback(mockPrisma),
+  mockPrisma.$transaction = jest.fn(
+    (callback: (tx: unknown) => Promise<unknown>) => callback(mockPrisma),
   );
   return mockPrisma;
 }

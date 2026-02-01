@@ -34,14 +34,16 @@ export class SessionsService {
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
     private readonly salesRepo: SalesRepository, // BLOCK 2 FIX: Added for pending order check
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) { }
+  ) {}
 
   // ==================== OPEN SESSION ====================
 
   async openSession(dto: OpenSessionDto, userId: string): Promise<Session> {
     // Validate userId is provided
     if (!userId) {
-      throw new BadRequestException('User ID is required from authentication token');
+      throw new BadRequestException(
+        'User ID is required from authentication token',
+      );
     }
 
     // Check for existing open session
@@ -100,7 +102,7 @@ export class SessionsService {
     if (draftOrders.length > 0) {
       throw new BadRequestException(
         `Cannot close session: ${draftOrders.length} draft order(s) pending. ` +
-        `Order numbers: ${draftOrders.map((o) => o.orderNumber).join(', ')}`,
+          `Order numbers: ${draftOrders.map((o) => o.orderNumber).join(', ')}`,
       );
     }
 
@@ -264,9 +266,9 @@ export class SessionsService {
 
     const normalized = (method || '').toUpperCase();
     const cashAmount = normalized === 'CASH' ? amount : 0;
-    const cardAmount = normalized === 'CARD' || normalized === 'MADA' ? amount : 0;
-    const otherAmount =
-      cashAmount === 0 && cardAmount === 0 ? amount : 0;
+    const cardAmount =
+      normalized === 'CARD' || normalized === 'MADA' ? amount : 0;
+    const otherAmount = cashAmount === 0 && cardAmount === 0 ? amount : 0;
 
     const updatePayload: Record<string, unknown> = {
       totalCashSales: new Decimal(session.totalCashSales || 0)

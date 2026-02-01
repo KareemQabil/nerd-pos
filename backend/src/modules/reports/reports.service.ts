@@ -7,7 +7,7 @@ import Decimal from 'decimal.js';
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async generateDailySalesReport(date: Date): Promise<any> {
     const startOfDay = new Date(date);

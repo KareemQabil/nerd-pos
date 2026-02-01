@@ -64,7 +64,7 @@ export class CreateCustomerDto {
   notes?: string;
 }
 
-export class UpdateCustomerDto extends PartialType(CreateCustomerDto) { }
+export class UpdateCustomerDto extends PartialType(CreateCustomerDto) {}
 
 // ==================== ADD ADDRESS ====================
 
@@ -240,5 +240,4 @@ export class CreateLoyaltyTierDto {
   displayOrder: number;
 }
 
-export class UpdateLoyaltyTierDto extends PartialType(CreateLoyaltyTierDto) { }
-
+export class UpdateLoyaltyTierDto extends PartialType(CreateLoyaltyTierDto) {}

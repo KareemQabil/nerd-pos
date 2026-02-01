@@ -27,7 +27,10 @@ describe('COMP-01: ZATCA Hash Chain Verification', () => {
         ComplianceService,
         ComplianceRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 

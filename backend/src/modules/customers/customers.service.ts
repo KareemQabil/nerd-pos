@@ -40,7 +40,7 @@ export class CustomersService {
   constructor(
     private readonly repo: CustomersRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) { } // Force restart for Prisma Client update
+  ) {} // Force restart for Prisma Client update
 
   // ==================== CUSTOMER CRUD ====================
 

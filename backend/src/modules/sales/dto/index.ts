@@ -204,7 +204,7 @@ export class UpdateOrderStatusDto {
   status: OrderStatus;
 }
 
-export class AddOrderItemDto extends CreateOrderItemDto { }
+export class AddOrderItemDto extends CreateOrderItemDto {}
 
 export class UpdateOrderItemDto {
   @ApiPropertyOptional({

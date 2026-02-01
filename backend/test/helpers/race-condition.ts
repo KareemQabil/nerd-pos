@@ -10,14 +10,14 @@ export class RaceConditionTester {
    */
   static async detectRaceCondition<T>(
     operations: (() => Promise<T>)[],
-    validator: (results: T[]) => boolean
+    validator: (results: T[]) => boolean,
   ): Promise<{
     hasRaceCondition: boolean;
     results: T[];
     firstFailureIndex?: number;
   }> {
     const results = await Promise.all(
-      operations.map(op => op().catch(e => e))
+      operations.map((op) => op().catch((e) => e)),
     );
 
     const hasRaceCondition = !validator(results);
@@ -27,7 +27,7 @@ export class RaceConditionTester {
       results,
       firstFailureIndex: hasRaceCondition
         ? results.findIndex((r, i) => !validator([r]))
-        : undefined
+        : undefined,
     };
   }
 
@@ -36,7 +36,7 @@ export class RaceConditionTester {
    */
   static async simulateDualTerminalRequest<T>(
     terminalA: () => Promise<T>,
-    terminalB: () => Promise<T>
+    terminalB: () => Promise<T>,
   ): Promise<{
     terminalAResult: T | { error: any };
     terminalBResult: T | { error: any };
@@ -45,8 +45,8 @@ export class RaceConditionTester {
   }> {
     const startTime = Date.now();
     const [resultA, resultB] = await Promise.all([
-      terminalA().catch(e => ({ error: e })),
-      terminalB().catch(e => ({ error: e }))
+      terminalA().catch((e) => ({ error: e })),
+      terminalB().catch((e) => ({ error: e })),
     ]);
     const endTime = Date.now();
 
@@ -58,7 +58,7 @@ export class RaceConditionTester {
       terminalAResult: resultA,
       terminalBResult: resultB,
       bothSucceeded: !isErrorResult(resultA) && !isErrorResult(resultB),
-      timeDifferenceMs: endTime - startTime
+      timeDifferenceMs: endTime - startTime,
     };
   }
 
@@ -67,7 +67,7 @@ export class RaceConditionTester {
    */
   static async floodEndpoint<T>(
     operation: () => Promise<T>,
-    concurrency: number = 100
+    concurrency: number = 100,
   ): Promise<{
     successful: number;
     failed: number;
@@ -76,21 +76,23 @@ export class RaceConditionTester {
   }> {
     const startTime = Date.now();
     const results = await Promise.allSettled(
-      Array(concurrency).fill(null).map(() => operation())
+      Array(concurrency)
+        .fill(null)
+        .map(() => operation()),
     );
     const endTime = Date.now();
 
-    const successful = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
+    const successful = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
     const errors = results
-      .filter(r => r.status === 'rejected')
-      .map(r => (r as PromiseRejectedResult).reason as Error);
+      .filter((r) => r.status === 'rejected')
+      .map((r) => r.reason as Error);
 
     return {
       successful,
       failed,
       errors,
-      averageResponseTimeMs: (endTime - startTime) / concurrency
+      averageResponseTimeMs: (endTime - startTime) / concurrency,
     };
   }
 }

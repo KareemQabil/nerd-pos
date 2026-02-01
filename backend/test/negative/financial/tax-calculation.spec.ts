@@ -31,7 +31,11 @@ describe('FIN-07: Tax Calculation Rounding', () => {
   let salesService: SalesService;
   let prisma: PrismaService;
   let sessionId: string;
-  let products: Array<{ id: string; nameEn?: string | null; nameAr?: string | null }>;
+  let products: Array<{
+    id: string;
+    nameEn?: string | null;
+    nameAr?: string | null;
+  }>;
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -48,7 +52,10 @@ describe('FIN-07: Tax Calculation Rounding', () => {
         TaxStep,
         DiscountStep,
         GrandTotalStep,
-        { provide: SessionsService, useValue: { getCurrentSession: jest.fn() } },
+        {
+          provide: SessionsService,
+          useValue: { getCurrentSession: jest.fn() },
+        },
         { provide: 'IEventBus', useExisting: EventBusService },
       ],
     }).compile();

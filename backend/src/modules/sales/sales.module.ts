@@ -36,4 +36,4 @@ import { SessionsModule } from '../sessions/sessions.module';
   ],
   exports: [SalesService, SalesRepository],
 })
-export class SalesModule { }
+export class SalesModule {}

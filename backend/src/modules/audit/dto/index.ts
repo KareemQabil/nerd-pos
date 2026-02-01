@@ -10,7 +10,10 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAuditLogDto {
-  @ApiProperty({ description: 'User UUID', example: 'u23e4567-e89b-12d3-a456-426614174020' })
+  @ApiProperty({
+    description: 'User UUID',
+    example: 'u23e4567-e89b-12d3-a456-426614174020',
+  })
   @IsString()
   userId: string;
 
@@ -30,7 +33,10 @@ export class CreateAuditLogDto {
   @IsString()
   entity: string;
 
-  @ApiProperty({ description: 'Entity UUID', example: 'o23e4567-e89b-12d3-a456-426614174023' })
+  @ApiProperty({
+    description: 'Entity UUID',
+    example: 'o23e4567-e89b-12d3-a456-426614174023',
+  })
   @IsString()
   entityId: string;
 
@@ -48,12 +54,18 @@ export class CreateAuditLogDto {
   @IsOptional()
   after?: any;
 
-  @ApiPropertyOptional({ description: 'Client IP address', example: '192.168.1.10' })
+  @ApiPropertyOptional({
+    description: 'Client IP address',
+    example: '192.168.1.10',
+  })
   @IsOptional()
   @IsString()
   ipAddress?: string;
 
-  @ApiPropertyOptional({ description: 'Endpoint path', example: '/api/v1/orders' })
+  @ApiPropertyOptional({
+    description: 'Endpoint path',
+    example: '/api/v1/orders',
+  })
   @IsOptional()
   @IsString()
   endpoint?: string;
@@ -67,19 +79,28 @@ export class CreateAuditLogDto {
   @IsBoolean()
   success: boolean;
 
-  @ApiPropertyOptional({ description: 'Error message (if failed)', example: 'Validation failed' })
+  @ApiPropertyOptional({
+    description: 'Error message (if failed)',
+    example: 'Validation failed',
+  })
   @IsOptional()
   @IsString()
   errorMessage?: string;
 
-  @ApiPropertyOptional({ description: 'Session UUID', example: 's23e4567-e89b-12d3-a456-426614174013' })
+  @ApiPropertyOptional({
+    description: 'Session UUID',
+    example: 's23e4567-e89b-12d3-a456-426614174013',
+  })
   @IsOptional()
   @IsString()
   sessionId?: string;
 }
 
 export class AuditQueryDto {
-  @ApiPropertyOptional({ description: 'Filter by user UUID', example: 'u23e4567-e89b-12d3-a456-426614174020' })
+  @ApiPropertyOptional({
+    description: 'Filter by user UUID',
+    example: 'u23e4567-e89b-12d3-a456-426614174020',
+  })
   @IsOptional()
   @IsUUID()
   userId?: string;
@@ -94,13 +115,19 @@ export class AuditQueryDto {
   @IsString()
   entity?: string;
 
-  @ApiPropertyOptional({ description: 'Start date (ISO)', example: '2026-01-01T00:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Start date (ISO)',
+    example: '2026-01-01T00:00:00Z',
+  })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   startDate?: Date;
 
-  @ApiPropertyOptional({ description: 'End date (ISO)', example: '2026-01-31T23:59:59Z' })
+  @ApiPropertyOptional({
+    description: 'End date (ISO)',
+    example: '2026-01-31T23:59:59Z',
+  })
   @IsOptional()
   @IsDate()
   @Type(() => Date)

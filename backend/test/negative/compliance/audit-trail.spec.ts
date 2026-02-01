@@ -12,7 +12,12 @@ import { SessionsRepository } from '../../../src/modules/sessions/sessions.repos
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  createTestOrder,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('COMP-01: Audit Trail for All Transactions', () => {
   let salesService: SalesService;
@@ -27,7 +32,10 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         SessionsService,
         SessionsRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -53,7 +61,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
     // Act: Create an order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 50
+      grandTotal: 50,
     });
 
     // Assert: Verify audit fields
@@ -64,8 +72,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
     // Verify we can query by creation time
     const ordersByTime = await prisma.salesOrder.findMany({
       where: {
-        createdAt: order.createdAt
-      }
+        createdAt: order.createdAt,
+      },
     });
 
     expect(ordersByTime.length).toBeGreaterThan(0);
@@ -75,7 +83,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
     // Setup: Create order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 50
+      grandTotal: 50,
     });
 
     const originalCreatedAt = order.createdAt;
@@ -86,25 +94,27 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
       data: {
         status: OrderStatus.CONFIRMED,
         confirmedAt: new Date(),
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     // Assert: Verify timestamps
     const updatedOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(updatedOrder?.status).toBe(OrderStatus.CONFIRMED);
     expect(updatedOrder?.confirmedAt).toBeDefined();
-    expect(updatedOrder?.updatedAt?.getTime()).toBeGreaterThan(originalCreatedAt.getTime());
+    expect(updatedOrder?.updatedAt?.getTime()).toBeGreaterThan(
+      originalCreatedAt.getTime(),
+    );
   });
 
   it('should log payment creation with method and reference', async () => {
     // Setup: Create order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Act: Create payment
@@ -114,8 +124,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         amount: 100,
         paymentMethod: 'CASH',
         referenceNumber: 'PAY-TEST-001',
-        userId: 'user-1'
-      }
+        userId: 'user-1',
+      },
     });
 
     // Assert: Verify audit fields
@@ -126,7 +136,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
 
     // Verify we can query payment history
     const paymentHistory = await prisma.payment.findMany({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     expect(paymentHistory.length).toBe(1);
@@ -140,8 +150,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         terminalId: 'terminal-1',
         status: 'OPEN',
         openingBalance: 1000,
-        openedAt: new Date()
-      }
+        openedAt: new Date(),
+      },
     });
 
     expect(session.openedAt).toBeDefined();
@@ -153,8 +163,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
       data: {
         status: 'CLOSED',
         actualClosingBalance: 1500,
-        closedAt: new Date()
-      }
+        closedAt: new Date(),
+      },
     });
 
     // Assert: Both timestamps exist
@@ -175,8 +185,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 0,
-        createdBy: actingUser
-      }
+        createdBy: actingUser,
+      },
     });
 
     // Assert: Verify user tracking
@@ -184,7 +194,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
 
     // Query by user
     const userOrders = await prisma.salesOrder.findMany({
-      where: { createdBy: actingUser }
+      where: { createdBy: actingUser },
     });
 
     expect(userOrders.length).toBeGreaterThan(0);
@@ -194,7 +204,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
   it('should log refund transactions', async () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.COMPLETED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Act: Create refund
@@ -206,8 +216,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         refundMethod: 'CASH',
         reason: 'Customer request',
         status: 'COMPLETED',
-        createdAt: new Date()
-      }
+        createdAt: new Date(),
+      },
     });
 
     // Assert: Verify audit fields
@@ -218,7 +228,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
 
     // Verify refund history
     const refunds = await prisma.refund.findMany({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     expect(refunds.length).toBe(1);
@@ -234,8 +244,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         quantity: 5,
         reason: 'Damaged goods',
         userId: 'user-1',
-        createdAt: new Date()
-      }
+        createdAt: new Date(),
+      },
     });
 
     // Assert: Verify audit fields
@@ -260,8 +270,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         businessDate: new Date(),
         businessDate: yesterday,
         grandTotal: 100,
-        createdAt: yesterday
-      }
+        createdAt: yesterday,
+      },
     });
 
     await prisma.salesOrder.create({
@@ -273,8 +283,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         businessDate: new Date(),
         businessDate: today,
         grandTotal: 200,
-        createdAt: today
-      }
+        createdAt: today,
+      },
     });
 
     // Query: Get all orders from today
@@ -285,16 +295,17 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
       where: {
         createdAt: {
           gte: startOfDay,
-          lte: endOfDay
-        }
-      }
+          lte: endOfDay,
+        },
+      },
     });
 
     expect(todayOrders.length).toBeGreaterThan(0);
 
     // Query: Get total sales for today
-    const totalSales = todayOrders.reduce((sum, order) =>
-      sum + (order.grandTotal?.toNumber() || 0), 0
+    const totalSales = todayOrders.reduce(
+      (sum, order) => sum + (order.grandTotal?.toNumber() || 0),
+      0,
     );
 
     expect(totalSales).toBeGreaterThan(0);
@@ -306,7 +317,7 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
 
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CANCELLED,
-      grandTotal: 50
+      grandTotal: 50,
     });
 
     // Soft delete (if implemented)
@@ -314,13 +325,13 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
       where: { id: order.id },
       data: {
         deletedAt: new Date(),
-        deletedBy: 'user-1'
-      }
+        deletedBy: 'user-1',
+      },
     });
 
     // Verify soft delete
     const deletedOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(deletedOrder?.deletedAt).toBeDefined();
@@ -338,8 +349,8 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
         nameAr: 'منتج',
         sku: 'PRICE-TEST',
         price: originalPrice,
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     // Update price
@@ -347,13 +358,13 @@ describe('COMP-01: Audit Trail for All Transactions', () => {
       where: { id: product.id },
       data: {
         price: newPrice,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     // Verify price changed
     const updatedProduct = await prisma.product.findUnique({
-      where: { id: product.id }
+      where: { id: product.id },
     });
 
     expect(updatedProduct?.price.toNumber()).toBe(newPrice);

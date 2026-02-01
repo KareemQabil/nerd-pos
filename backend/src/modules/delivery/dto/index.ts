@@ -13,7 +13,10 @@ import { PartialType } from '@nestjs/mapped-types';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateDeliveryZoneDto {
-  @ApiProperty({ description: 'Zone name (English)', example: 'Al Olaya District' })
+  @ApiProperty({
+    description: 'Zone name (English)',
+    example: 'Al Olaya District',
+  })
   @IsString()
   name: string;
 
@@ -21,7 +24,10 @@ export class CreateDeliveryZoneDto {
   @IsString()
   nameAr: string;
 
-  @ApiProperty({ description: 'District names covered', example: ['Al Olaya', 'King Fahd'] })
+  @ApiProperty({
+    description: 'District names covered',
+    example: ['Al Olaya', 'King Fahd'],
+  })
   @IsArray()
   @IsString({ each: true })
   districts: string[];
@@ -30,25 +36,37 @@ export class CreateDeliveryZoneDto {
   @IsNumber()
   deliveryFee: number;
 
-  @ApiPropertyOptional({ description: 'Min order for delivery (SAR)', example: 50.0 })
+  @ApiPropertyOptional({
+    description: 'Min order for delivery (SAR)',
+    example: 50.0,
+  })
   @IsOptional()
   @IsNumber()
   minOrderAmount?: number;
 
-  @ApiPropertyOptional({ description: 'Free delivery threshold (SAR)', example: 150.0 })
+  @ApiPropertyOptional({
+    description: 'Free delivery threshold (SAR)',
+    example: 150.0,
+  })
   @IsOptional()
   @IsNumber()
   freeDeliveryThreshold?: number;
 
-  @ApiProperty({ description: 'Estimated delivery time (minutes)', example: 30 })
+  @ApiProperty({
+    description: 'Estimated delivery time (minutes)',
+    example: 30,
+  })
   @IsNumber()
   estimatedTime: number;
 }
 
-export class UpdateDeliveryZoneDto extends PartialType(CreateDeliveryZoneDto) { }
+export class UpdateDeliveryZoneDto extends PartialType(CreateDeliveryZoneDto) {}
 
 export class CreateDriverDto {
-  @ApiProperty({ description: 'User UUID', example: 'u23e4567-e89b-12d3-a456-426614174020' })
+  @ApiProperty({
+    description: 'User UUID',
+    example: 'u23e4567-e89b-12d3-a456-426614174020',
+  })
   @IsUUID()
   userId: string;
 
@@ -56,7 +74,11 @@ export class CreateDriverDto {
   @IsString()
   licenseNumber: string;
 
-  @ApiProperty({ description: 'Vehicle type', enum: ['BIKE', 'SCOOTER', 'CAR'], example: 'BIKE' })
+  @ApiProperty({
+    description: 'Vehicle type',
+    enum: ['BIKE', 'SCOOTER', 'CAR'],
+    example: 'BIKE',
+  })
   @IsIn(['BIKE', 'SCOOTER', 'CAR'])
   vehicleType: 'BIKE' | 'SCOOTER' | 'CAR';
 
@@ -70,19 +92,28 @@ export class CreateDriverDto {
 }
 
 export class CreateDeliveryDto {
-  @ApiProperty({ description: 'Order UUID', example: 'o23e4567-e89b-12d3-a456-426614174023' })
+  @ApiProperty({
+    description: 'Order UUID',
+    example: 'o23e4567-e89b-12d3-a456-426614174023',
+  })
   @IsUUID()
   orderId: string;
 
-  @ApiProperty({ description: 'Customer address UUID', example: 'd23e4567-e89b-12d3-a456-426614174014' })
+  @ApiProperty({
+    description: 'Customer address UUID',
+    example: 'd23e4567-e89b-12d3-a456-426614174014',
+  })
   @IsUUID()
   addressId: string;
 
-  @ApiProperty({ description: 'Order total (SAR)', example: 125.50 })
+  @ApiProperty({ description: 'Order total (SAR)', example: 125.5 })
   @IsNumber()
   orderTotal: number;
 
-  @ApiPropertyOptional({ description: 'Scheduled delivery time', example: '2024-01-20T14:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Scheduled delivery time',
+    example: '2024-01-20T14:00:00Z',
+  })
   @IsOptional()
   @IsDate()
   @Type(() => Date)
@@ -90,7 +121,10 @@ export class CreateDeliveryDto {
 }
 
 export class AssignDriverDto {
-  @ApiProperty({ description: 'Driver UUID', example: 'dr23e4567-e89b-12d3-a456-426614174031' })
+  @ApiProperty({
+    description: 'Driver UUID',
+    example: 'dr23e4567-e89b-12d3-a456-426614174031',
+  })
   @IsUUID()
   driverId: string;
 }
@@ -98,10 +132,24 @@ export class AssignDriverDto {
 export class UpdateDeliveryStatusDto {
   @ApiProperty({
     description: 'Delivery status',
-    enum: ['PENDING', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'],
+    enum: [
+      'PENDING',
+      'ASSIGNED',
+      'PICKED_UP',
+      'IN_TRANSIT',
+      'DELIVERED',
+      'CANCELLED',
+    ],
     example: 'PICKED_UP',
   })
-  @IsIn(['PENDING', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'])
+  @IsIn([
+    'PENDING',
+    'ASSIGNED',
+    'PICKED_UP',
+    'IN_TRANSIT',
+    'DELIVERED',
+    'CANCELLED',
+  ])
   status: string;
 }
 

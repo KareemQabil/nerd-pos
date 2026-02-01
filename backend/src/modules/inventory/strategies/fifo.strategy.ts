@@ -9,7 +9,7 @@ import Decimal from 'decimal.js';
 
 @Injectable()
 export class FIFOStrategy {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async deduct(
     productId: string,

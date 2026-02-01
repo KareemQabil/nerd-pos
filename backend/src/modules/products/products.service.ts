@@ -43,7 +43,7 @@ export class ProductsService {
   constructor(
     private readonly repo: ProductsRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) { }
+  ) {}
 
   // ==================== PRODUCT ====================
 
@@ -126,7 +126,10 @@ export class ProductsService {
   }
 
   // Paginated version for API endpoints - prevents unbounded queries
-  async findAllProductsPaginated(options: { page?: number; limit?: number }): Promise<{
+  async findAllProductsPaginated(options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
     data: Product[];
     total: number;
     page: number;
@@ -187,7 +190,10 @@ export class ProductsService {
   }
 
   // Paginated version for API endpoints
-  async findAllCategoriesPaginated(options: { page?: number; limit?: number }): Promise<{
+  async findAllCategoriesPaginated(options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
     data: Category[];
     total: number;
     page: number;
@@ -233,7 +239,10 @@ export class ProductsService {
   }
 
   // Paginated version for API endpoints
-  async findAllModifierGroupsPaginated(options: { page?: number; limit?: number }): Promise<{
+  async findAllModifierGroupsPaginated(options: {
+    page?: number;
+    limit?: number;
+  }): Promise<{
     data: ModifierGroupWithOptions[];
     total: number;
     page: number;

@@ -52,13 +52,17 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('users')
 export class UsersController {
-  constructor(private readonly service: UsersService) { }
+  constructor(private readonly service: UsersService) {}
 
   // ==================== AUTH (Public) ====================
 
   @Post('login')
   @Public()
-  @ApiOperation({ summary: 'User login', description: 'Authenticates user with username and password. Returns JWT token.' })
+  @ApiOperation({
+    summary: 'User login',
+    description:
+      'Authenticates user with username and password. Returns JWT token.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Login successful, returns access token',
@@ -85,7 +89,10 @@ export class UsersController {
 
   @Post('verify-pin')
   @Permissions(PERMISSIONS.SESSIONS_OPEN) // Required for any authenticated user
-  @ApiOperation({ summary: 'Verify user PIN', description: 'Verifies 4-digit PIN for quick authentication' })
+  @ApiOperation({
+    summary: 'Verify user PIN',
+    description: 'Verifies 4-digit PIN for quick authentication',
+  })
   @ApiResponse({
     status: 200,
     description: 'PIN verified successfully',
@@ -105,7 +112,11 @@ export class UsersController {
 
   @Post('manager-auth')
   @Permissions(PERMISSIONS.SESSIONS_CLOSE) // 🔒 Manager+ (manager auth required)
-  @ApiOperation({ summary: 'Manager authentication', description: 'Verifies manager PIN for elevated operations. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Manager authentication',
+    description:
+      'Verifies manager PIN for elevated operations. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Manager PIN verified',
@@ -127,7 +138,10 @@ export class UsersController {
 
   @Post()
   @Permissions(PERMISSIONS.USERS_CREATE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Create user', description: 'Creates a new user account. Admin only.' })
+  @ApiOperation({
+    summary: 'Create user',
+    description: 'Creates a new user account. Admin only.',
+  })
   @ApiResponse({
     status: 201,
     description: 'User created successfully',
@@ -145,14 +159,19 @@ export class UsersController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Validation error or username already exists' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or username already exists',
+  })
   async create(@Body() dto: CreateUserDto) {
     return this.service.createUser(dto);
   }
 
   @Get()
   @Permissions(PERMISSIONS.USERS_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get all users', description: 'Returns paginated list of users. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get all users',
+    description: 'Returns paginated list of users. Manager+ required.',
+  })
   @ApiQuery({ name: 'page', required: false, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
   @ApiResponse({
@@ -199,7 +218,11 @@ export class UsersController {
    */
   @Get(':id')
   @Permissions(PERMISSIONS.USERS_VIEW) // 🔒 Manager+ (or self via ownership check)
-  @ApiOperation({ summary: 'Get user by ID', description: 'Returns user details. Users can view own profile, Manager+ can view all.' })
+  @ApiOperation({
+    summary: 'Get user by ID',
+    description:
+      'Returns user details. Users can view own profile, Manager+ can view all.',
+  })
   @ApiParam({ name: 'id', description: 'User UUID' })
   @ApiResponse({
     status: 200,
@@ -237,7 +260,11 @@ export class UsersController {
    */
   @Put(':id')
   @Permissions(PERMISSIONS.USERS_UPDATE) // 🔒 Admin only (or self for limited fields)
-  @ApiOperation({ summary: 'Update user', description: 'Updates user information. Users can edit own profile, Admin can edit all.' })
+  @ApiOperation({
+    summary: 'Update user',
+    description:
+      'Updates user information. Users can edit own profile, Admin can edit all.',
+  })
   @ApiParam({ name: 'id', description: 'User UUID' })
   @ApiResponse({ status: 200, description: 'User updated' })
   @ApiNotFoundResponse({ description: 'User not found' })
@@ -260,7 +287,10 @@ export class UsersController {
 
   @Put(':id/pin')
   @Permissions(PERMISSIONS.USERS_PIN_UPDATE) // Self or Admin
-  @ApiOperation({ summary: 'Update user PIN', description: 'Updates 4-digit PIN. Self or Admin.' })
+  @ApiOperation({
+    summary: 'Update user PIN',
+    description: 'Updates 4-digit PIN. Self or Admin.',
+  })
   @ApiParam({ name: 'id', description: 'User UUID' })
   @ApiResponse({ status: 200, description: 'PIN updated' })
   @ApiBadRequestResponse({ description: 'Invalid PIN format' })
@@ -270,10 +300,15 @@ export class UsersController {
 
   @Post(':id/change-password')
   @Permissions(PERMISSIONS.USERS_PASSWORD_CHANGE) // Self or Admin
-  @ApiOperation({ summary: 'Change password', description: 'Changes user password. Requires current password.' })
+  @ApiOperation({
+    summary: 'Change password',
+    description: 'Changes user password. Requires current password.',
+  })
   @ApiParam({ name: 'id', description: 'User UUID' })
   @ApiResponse({ status: 200, description: 'Password changed' })
-  @ApiBadRequestResponse({ description: 'Current password incorrect or new password invalid' })
+  @ApiBadRequestResponse({
+    description: 'Current password incorrect or new password invalid',
+  })
   async changePassword(
     @Param('id') id: string,
     @Body() dto: ChangePasswordDto,
@@ -287,9 +322,15 @@ export class UsersController {
 
   @Get(':id/permissions/:code')
   @Permissions(PERMISSIONS.PERMISSIONS_VIEW) // 🔒 Admin only
-  @ApiOperation({ summary: 'Check user permission', description: 'Checks if user has specific permission. Admin only.' })
+  @ApiOperation({
+    summary: 'Check user permission',
+    description: 'Checks if user has specific permission. Admin only.',
+  })
   @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiParam({ name: 'code', description: 'Permission code (e.g., products.create)' })
+  @ApiParam({
+    name: 'code',
+    description: 'Permission code (e.g., products.create)',
+  })
   @ApiResponse({ status: 200, description: 'Permission check result' })
   async hasPermission(@Param('id') id: string, @Param('code') code: string) {
     return { hasPermission: await this.service.hasPermission(id, code) };
@@ -299,7 +340,10 @@ export class UsersController {
 
   @Get('roles')
   @Permissions(PERMISSIONS.ROLES_VIEW) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get all roles', description: 'Returns all roles with permissions. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get all roles',
+    description: 'Returns all roles with permissions. Manager+ required.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Roles retrieved',
@@ -325,16 +369,24 @@ export class UsersController {
 
   @Post('roles')
   @Permissions(PERMISSIONS.ROLES_MANAGE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Create role', description: 'Creates a new role. Admin only.' })
+  @ApiOperation({
+    summary: 'Create role',
+    description: 'Creates a new role. Admin only.',
+  })
   @ApiResponse({ status: 201, description: 'Role created' })
-  @ApiBadRequestResponse({ description: 'Validation error or role name exists' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or role name exists',
+  })
   async createRole(@Body() dto: CreateRoleDto) {
     return this.service.createRole(dto);
   }
 
   @Put('roles/:id')
   @Permissions(PERMISSIONS.ROLES_MANAGE) // 🔒 Admin only
-  @ApiOperation({ summary: 'Update role', description: 'Updates role and permissions. Admin only.' })
+  @ApiOperation({
+    summary: 'Update role',
+    description: 'Updates role and permissions. Admin only.',
+  })
   @ApiParam({ name: 'id', description: 'Role UUID' })
   @ApiResponse({ status: 200, description: 'Role updated' })
   @ApiNotFoundResponse({ description: 'Role not found' })
@@ -346,7 +398,10 @@ export class UsersController {
 
   @Get('permissions')
   @Permissions(PERMISSIONS.PERMISSIONS_VIEW) // 🔒 Admin only
-  @ApiOperation({ summary: 'Get all permissions', description: 'Returns all system permissions. Admin only.' })
+  @ApiOperation({
+    summary: 'Get all permissions',
+    description: 'Returns all system permissions. Admin only.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Permissions retrieved',
@@ -372,8 +427,14 @@ export class UsersController {
 
   @Get('permissions/module/:module')
   @Permissions(PERMISSIONS.PERMISSIONS_VIEW) // 🔒 Admin only
-  @ApiOperation({ summary: 'Get permissions by module', description: 'Returns permissions for specific module. Admin only.' })
-  @ApiParam({ name: 'module', description: 'Module name (e.g., products, sales)' })
+  @ApiOperation({
+    summary: 'Get permissions by module',
+    description: 'Returns permissions for specific module. Admin only.',
+  })
+  @ApiParam({
+    name: 'module',
+    description: 'Module name (e.g., products, sales)',
+  })
   @ApiResponse({ status: 200, description: 'Module permissions retrieved' })
   async getPermissionsByModule(@Param('module') module: string) {
     return this.service.getPermissionsByModule(module);
@@ -381,11 +442,15 @@ export class UsersController {
 
   @Post('permissions')
   @Permissions(PERMISSIONS.PERMISSIONS_ASSIGN) // 🔒 Admin only
-  @ApiOperation({ summary: 'Create permission', description: 'Creates a new permission. Admin only.' })
+  @ApiOperation({
+    summary: 'Create permission',
+    description: 'Creates a new permission. Admin only.',
+  })
   @ApiResponse({ status: 201, description: 'Permission created' })
-  @ApiBadRequestResponse({ description: 'Validation error or permission code exists' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or permission code exists',
+  })
   async createPermission(@Body() dto: CreatePermissionDto) {
     return this.service.createPermission(dto);
   }
 }
-

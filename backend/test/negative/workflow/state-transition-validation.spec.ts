@@ -10,7 +10,12 @@ import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, createTestOrder, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  createTestOrder,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('WF-10: State Transition Validation', () => {
   let salesService: SalesService;
@@ -22,7 +27,10 @@ describe('WF-10: State Transition Validation', () => {
         SalesService,
         SalesRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -47,7 +55,7 @@ describe('WF-10: State Transition Validation', () => {
     // Setup: Create a COMPLETED order
     const order = await createTestOrder(prisma, {
       status: OrderStatus.COMPLETED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // COMPLETED is terminal-like - should not go back to DRAFT
@@ -59,7 +67,7 @@ describe('WF-10: State Transition Validation', () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.PAID,
       paidAt: new Date(),
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // PAID should not go back to DRAFT
@@ -71,7 +79,7 @@ describe('WF-10: State Transition Validation', () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CANCELLED,
       cancelledAt: new Date(),
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // CANCELLED is terminal state
@@ -82,7 +90,7 @@ describe('WF-10: State Transition Validation', () => {
   it('should allow DRAFT to CONFIRMED transition', async () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // DRAFT -> CONFIRMED is valid
@@ -93,7 +101,7 @@ describe('WF-10: State Transition Validation', () => {
   it('should allow CONFIRMED to PAID transition', async () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     const validStatesFromConfirmed = [OrderStatus.PAID, OrderStatus.CANCELLED];
@@ -103,7 +111,7 @@ describe('WF-10: State Transition Validation', () => {
   it('should allow CONFIRMED to CANCELLED transition', async () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.CONFIRMED,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     const validStatesFromConfirmed = [OrderStatus.PAID, OrderStatus.CANCELLED];
@@ -114,7 +122,7 @@ describe('WF-10: State Transition Validation', () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.PAID,
       paidAt: new Date(),
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     const validStatesFromPaid = [OrderStatus.COMPLETED];
@@ -124,10 +132,26 @@ describe('WF-10: State Transition Validation', () => {
   it('should reject invalid state machine transitions', async () => {
     // Define some invalid transitions
     const invalidTransitions = [
-      { from: OrderStatus.COMPLETED, to: OrderStatus.DRAFT, reason: 'Completed to Draft' },
-      { from: OrderStatus.CANCELLED, to: OrderStatus.CONFIRMED, reason: 'Cancelled to Confirmed' },
-      { from: OrderStatus.PAID, to: OrderStatus.CONFIRMED, reason: 'Paid to Confirmed' },
-      { from: OrderStatus.COMPLETED, to: OrderStatus.PAID, reason: 'Completed to Paid' }
+      {
+        from: OrderStatus.COMPLETED,
+        to: OrderStatus.DRAFT,
+        reason: 'Completed to Draft',
+      },
+      {
+        from: OrderStatus.CANCELLED,
+        to: OrderStatus.CONFIRMED,
+        reason: 'Cancelled to Confirmed',
+      },
+      {
+        from: OrderStatus.PAID,
+        to: OrderStatus.CONFIRMED,
+        reason: 'Paid to Confirmed',
+      },
+      {
+        from: OrderStatus.COMPLETED,
+        to: OrderStatus.PAID,
+        reason: 'Completed to Paid',
+      },
     ];
 
     for (const { from, to, reason } of invalidTransitions) {
@@ -139,7 +163,7 @@ describe('WF-10: State Transition Validation', () => {
   it('should track status change timestamp', async () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     const originalCreatedAt = order.createdAt;
@@ -149,28 +173,31 @@ describe('WF-10: State Transition Validation', () => {
       where: { id: order.id },
       data: {
         status: OrderStatus.CONFIRMED,
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     const updatedOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(updatedOrder?.status).toBe(OrderStatus.CONFIRMED);
-    expect(updatedOrder?.updatedAt?.getTime()).toBeGreaterThanOrEqual(originalCreatedAt.getTime());
+    expect(updatedOrder?.updatedAt?.getTime()).toBeGreaterThanOrEqual(
+      originalCreatedAt.getTime(),
+    );
   });
 
   it('should enforce state machine at service level', async () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.COMPLETED,
       completedAt: new Date(),
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Try to cancel a completed order - should fail
-    const result = await salesService.cancelOrder(order.id, 'user-1')
-      .catch(e => ({ error: e }));
+    const result = await salesService
+      .cancelOrder(order.id, 'user-1')
+      .catch((e) => ({ error: e }));
 
     // Should reject - cannot cancel completed order
     expect('error' in result).toBe(true);
@@ -190,26 +217,26 @@ describe('WF-10: State Transition Validation', () => {
     // Simulate real order workflow
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     // Valid path: DRAFT -> CONFIRMED -> PAID -> COMPLETED
     const workflow = [
       OrderStatus.CONFIRMED,
       OrderStatus.PAID,
-      OrderStatus.COMPLETED
+      OrderStatus.COMPLETED,
     ];
 
     for (const nextStatus of workflow) {
       await prisma.salesOrder.update({
         where: { id: order.id },
-        data: { status: nextStatus, updatedAt: new Date() }
+        data: { status: nextStatus, updatedAt: new Date() },
       });
     }
 
     // Verify final state
     const finalOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(finalOrder?.status).toBe(OrderStatus.COMPLETED);
@@ -218,26 +245,26 @@ describe('WF-10: State Transition Validation', () => {
   it('should track status transition history', async () => {
     const order = await createTestOrder(prisma, {
       status: OrderStatus.DRAFT,
-      grandTotal: 100
+      grandTotal: 100,
     });
 
     const statusHistory = [
       { status: OrderStatus.DRAFT, timestamp: new Date() },
       { status: OrderStatus.CONFIRMED, timestamp: new Date() },
-      { status: OrderStatus.PAID, timestamp: new Date() }
+      { status: OrderStatus.PAID, timestamp: new Date() },
     ];
 
     // Simulate status changes
     for (const entry of statusHistory) {
       await prisma.salesOrder.update({
         where: { id: order.id },
-        data: { status: entry.status, updatedAt: entry.timestamp }
+        data: { status: entry.status, updatedAt: entry.timestamp },
       });
     }
 
     // Verify final status
     const finalOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(finalOrder?.status).toBe(OrderStatus.PAID);

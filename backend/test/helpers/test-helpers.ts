@@ -26,8 +26,7 @@ export async function createTestCategory(prisma: PrismaService, data?: any) {
  */
 export async function createTestProduct(prisma: PrismaService, data?: any) {
   const categoryId =
-    data?.categoryId ||
-    (await createTestCategory(prisma, data?.category)).id;
+    data?.categoryId || (await createTestCategory(prisma, data?.category)).id;
 
   return prisma.product.create({
     data: {
@@ -48,8 +47,7 @@ export async function createTestProduct(prisma: PrismaService, data?: any) {
 export async function createTestOrder(prisma: PrismaService, data?: any) {
   const orderNumber = `TEST${Date.now()}`;
   const sessionId =
-    data?.sessionId ||
-    (await createTestSession(prisma, data?.session)).id;
+    data?.sessionId || (await createTestSession(prisma, data?.session)).id;
 
   return prisma.salesOrder.create({
     data: {
@@ -134,7 +132,7 @@ export async function cleanupTestData(prisma: PrismaService) {
  * Wait for a specified amount of time
  */
 export function wait(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -147,7 +145,10 @@ export function generateTestId(prefix: string = 'test'): string {
 /**
  * Assert that a value is defined
  */
-export function assertDefined<T>(value: T | null | undefined, message?: string): T {
+export function assertDefined<T>(
+  value: T | null | undefined,
+  message?: string,
+): T {
   if (value === null || value === undefined) {
     throw new Error(message || `Value is ${value}`);
   }
@@ -159,7 +160,7 @@ export function assertDefined<T>(value: T | null | undefined, message?: string):
  */
 export async function assertThrows(
   fn: () => Promise<any>,
-  expectedError?: string | RegExp
+  expectedError?: string | RegExp,
 ): Promise<void> {
   try {
     await fn();
@@ -170,13 +171,13 @@ export async function assertThrows(
       if (typeof expectedError === 'string') {
         if (!errorMessage.includes(expectedError)) {
           throw new Error(
-            `Expected error to include "${expectedError}" but got "${errorMessage}"`
+            `Expected error to include "${expectedError}" but got "${errorMessage}"`,
           );
         }
       } else {
         if (!expectedError.test(errorMessage)) {
           throw new Error(
-            `Expected error to match ${expectedError} but got "${errorMessage}"`
+            `Expected error to match ${expectedError} but got "${errorMessage}"`,
           );
         }
       }

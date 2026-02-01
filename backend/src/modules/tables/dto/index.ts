@@ -47,7 +47,7 @@ export class CreateFloorDto {
   isActive?: boolean;
 }
 
-export class UpdateFloorDto extends PartialType(CreateFloorDto) { }
+export class UpdateFloorDto extends PartialType(CreateFloorDto) {}
 
 // ==================== TABLE ====================
 
@@ -107,7 +107,7 @@ export class CreateTableDto {
   positionY?: number;
 }
 
-export class UpdateTableDto extends PartialType(CreateTableDto) { }
+export class UpdateTableDto extends PartialType(CreateTableDto) {}
 
 // ==================== TABLE TRANSFER ====================
 

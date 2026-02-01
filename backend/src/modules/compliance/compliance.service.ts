@@ -47,8 +47,7 @@ export class ComplianceService {
     }
 
     const lastInvoice = await this.repo.findLastInvoice();
-    const previousHash =
-      this.resolveInvoiceHash(lastInvoice) || '0'.repeat(64);
+    const previousHash = this.resolveInvoiceHash(lastInvoice) || '0'.repeat(64);
 
     const invoiceXML = this.buildInvoiceXML(orderData);
     const currentHash = this.calculateHash(previousHash, invoiceXML);

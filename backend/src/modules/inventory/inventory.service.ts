@@ -44,7 +44,7 @@ export class InventoryService {
     private readonly prisma: PrismaService, // 🆕 For $transaction
     private readonly fifoStrategy: FIFOStrategy,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) { }
+  ) {}
 
   // ==================== WAREHOUSE ====================
 
@@ -260,37 +260,40 @@ export class InventoryService {
 
     // ATOMIC TRANSACTION: Deduct from source + Add to destination
     // If destination update fails, source deduction will rollback
-    await this.prisma.$transaction(async (tx) => {
-      // 1. Deduct from source warehouse using FIFO
-      const deductions = await this.deductStockWithTx(
-        productId,
-        fromWarehouseId,
-        quantity,
-        'TRANSFER',
-        `transfer-${Date.now()}`,
-        userId,
-        tx,
-      );
-
-      // 2. Calculate weighted average cost from deductions
-      const totalCost = deductions.reduce(
-        (sum, d) => sum.plus(new Decimal(d.totalCost)),
-        new Decimal(0),
-      );
-      const avgCost = totalCost.dividedBy(quantity);
-
-      // 3. Add to destination warehouse
-      await this.receiveStockWithTx(
-        {
+    await this.prisma.$transaction(
+      async (tx) => {
+        // 1. Deduct from source warehouse using FIFO
+        const deductions = await this.deductStockWithTx(
           productId,
-          warehouseId: toWarehouseId,
+          fromWarehouseId,
           quantity,
-          costPerUnit: avgCost.toNumber(),
-        },
-        userId,
-        tx,
-      );
-    }, { maxWait: 10000, timeout: 20000 });
+          'TRANSFER',
+          `transfer-${Date.now()}`,
+          userId,
+          tx,
+        );
+
+        // 2. Calculate weighted average cost from deductions
+        const totalCost = deductions.reduce(
+          (sum, d) => sum.plus(new Decimal(d.totalCost)),
+          new Decimal(0),
+        );
+        const avgCost = totalCost.dividedBy(quantity);
+
+        // 3. Add to destination warehouse
+        await this.receiveStockWithTx(
+          {
+            productId,
+            warehouseId: toWarehouseId,
+            quantity,
+            costPerUnit: avgCost.toNumber(),
+          },
+          userId,
+          tx,
+        );
+      },
+      { maxWait: 10000, timeout: 20000 },
+    );
 
     // Event Emission - AFTER TRANSACTION COMMITS
     await this.eventBus.publish(
@@ -331,9 +334,11 @@ export class InventoryService {
     }
 
     // Lock inventory item row to prevent concurrent deductions
-    await (tx as any).$queryRaw`SELECT id FROM inventory_items WHERE product_id = ${productId} AND warehouse_id = ${warehouseId} FOR UPDATE`;
+    await (tx as any)
+      .$queryRaw`SELECT id FROM inventory_items WHERE product_id = ${productId} AND warehouse_id = ${warehouseId} FOR UPDATE`;
     // Lock related batches for FIFO consistency
-    await (tx as any).$queryRaw`SELECT id FROM inventory_batches WHERE inventory_item_id = ${item.id} AND quantity_remaining > 0 FOR UPDATE`;
+    await (tx as any)
+      .$queryRaw`SELECT id FROM inventory_batches WHERE inventory_item_id = ${item.id} AND quantity_remaining > 0 FOR UPDATE`;
 
     const batches = await this.repo.findBatchesFIFO(item.id, tx);
     let remainingQty = new Decimal(quantity);

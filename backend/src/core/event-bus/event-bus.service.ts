@@ -49,12 +49,12 @@ export class EventBusService implements IEventBus {
 
           this.logger.error(
             `Handler failed for ${eventName}: ${failure.handlerName}`,
-            (error as Error).stack
+            (error as Error).stack,
           );
 
           return { success: false, handler: handler.constructor.name, error };
         }
-      })
+      }),
     );
 
     // Emit through Nest EventEmitter for @OnEvent handlers
@@ -69,17 +69,17 @@ export class EventBusService implements IEventBus {
       this.failures.push(failure);
       this.logger.error(
         `EventEmitter handler failed for ${eventName}`,
-        (error as Error).stack
+        (error as Error).stack,
       );
     }
 
     // Log summary
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    const successCount = results.filter((r) => r.status === 'fulfilled').length;
     const failCount = this.failures.length;
 
     if (handlers.length > 0) {
       this.logger.log(
-        `Event ${eventName}: ${successCount}/${handlers.length} handlers succeeded`
+        `Event ${eventName}: ${successCount}/${handlers.length} handlers succeeded`,
       );
     }
 
@@ -87,7 +87,7 @@ export class EventBusService implements IEventBus {
     const criticalEvents = ['OrderCreated', 'PaymentReceived', 'StockDeducted'];
     if (criticalEvents.includes(eventName) && failCount > 0) {
       this.logger.warn(
-        `CRITICAL: ${failCount} handlers failed for ${eventName}`
+        `CRITICAL: ${failCount} handlers failed for ${eventName}`,
       );
       throw new Error(`Critical event failure: ${eventName}`);
     }

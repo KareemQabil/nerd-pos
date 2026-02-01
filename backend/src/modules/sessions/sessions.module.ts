@@ -14,4 +14,4 @@ import { SalesModule } from '../sales/sales.module';
   providers: [SessionsService, SessionsRepository],
   exports: [SessionsService],
 })
-export class SessionsModule { }
+export class SessionsModule {}

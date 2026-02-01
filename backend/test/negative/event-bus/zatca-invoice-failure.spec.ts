@@ -7,9 +7,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { IEventBus, IEventHandler } from '../../../src/core/event-bus/event-bus.interface';
+import {
+  IEventBus,
+  IEventHandler,
+} from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('EB-05: ZATCA Invoice Failure', () => {
   let eventBus: EventBusService;
@@ -66,15 +73,15 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         businessDate: new Date(),
         businessDate: new Date(),
         grandTotal: 115, // 100 + 15% VAT
-        tax: 15
-      }
+        tax: 15,
+      },
     });
 
     // Publish payment event (triggers invoice generation)
     await eventBus.publish('PaymentReceived', {
       orderId: order.id,
       amount: 115,
-      taxAmount: 15
+      taxAmount: 15,
     });
 
     // Check for failures
@@ -92,7 +99,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     await eventBus.publish('PaymentReceived', {
       orderId: 'test-order',
       amount: 100,
-      vatNumber: '300000000000003'
+      vatNumber: '300000000000003',
     });
 
     const failures = (eventBus as any).getFailures?.() ?? [];
@@ -100,9 +107,10 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     expect(failures.length).toBeGreaterThan(0);
 
     // Should be marked as critical compliance failure
-    const isCritical = failures.some(f =>
-      f.error.message.includes('ZATCA') ||
-      f.error.message.includes('compliance')
+    const isCritical = failures.some(
+      (f) =>
+        f.error.message.includes('ZATCA') ||
+        f.error.message.includes('compliance'),
     );
 
     expect(isCritical).toBe(true);
@@ -121,18 +129,18 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         businessDate: new Date(),
         grandTotal: 115,
         tax: 15,
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
 
     await eventBus.publish('PaymentReceived', {
       orderId: order.id,
-      amount: 115
+      amount: 115,
     });
 
     // Order should still exist
     const foundOrder = await prisma.salesOrder.findUnique({
-      where: { id: order.id }
+      where: { id: order.id },
     });
 
     expect(foundOrder).toBeDefined();
@@ -152,13 +160,13 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         businessDate: new Date(),
         grandTotal: 115,
         tax: 15,
-        zatcaInvoiceGenerated: false // Initially false
-      }
+        zatcaInvoiceGenerated: false, // Initially false
+      },
     });
 
     await eventBus.publish('PaymentReceived', {
       orderId: order.id,
-      amount: 115
+      amount: 115,
     });
 
     // After successful handler, invoice should be generated
@@ -209,7 +217,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
       taxAmount: 15,
       taxRate: 0.15,
       vatNumber: '300000000000003',
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
     // Handler should receive all VAT details for compliance
@@ -221,7 +229,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     class TimeoutZATCAHandler implements IEventHandler<any> {
       async handle(event: any): Promise<void> {
         // Simulate timeout
-        await new Promise(resolve => setTimeout(resolve, 35000));
+        await new Promise((resolve) => setTimeout(resolve, 35000));
         throw new Error('Request timeout');
       }
     }
@@ -231,7 +239,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     // Publish with timeout handling
     const result = await Promise.race([
       eventBus.publish('PaymentReceived', { orderId: 'test' }),
-      new Promise(resolve => setTimeout(() => 'timeout', 1000))
+      new Promise((resolve) => setTimeout(() => 'timeout', 1000)),
     ]);
 
     // Should handle timeout gracefully
@@ -244,7 +252,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     const orders = [
       { id: 'order-1', amount: 100 },
       { id: 'order-2', amount: 200 },
-      { id: 'order-3', amount: 150 }
+      { id: 'order-3', amount: 150 },
     ];
 
     // Process all orders
@@ -270,8 +278,8 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         businessDate: new Date(),
         grandTotal: 115,
         tax: 15,
-        paidAt: new Date()
-      }
+        paidAt: new Date(),
+      },
     });
 
     // Create payment record
@@ -280,18 +288,18 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         orderId: order.id,
         amount: 115,
         paymentMethod: 'CASH',
-        referenceNumber: 'PAY-1'
-      }
+        referenceNumber: 'PAY-1',
+      },
     });
 
     await eventBus.publish('PaymentReceived', {
       orderId: order.id,
-      amount: 115
+      amount: 115,
     });
 
     // Payment should be recorded even if invoice failed
     const payments = await prisma.payment.findMany({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     expect(payments.length).toBe(1);
@@ -305,7 +313,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     await eventBus.publish('PaymentReceived', {
       orderId: 'small-order',
       amount: 50, // Small amount - simplified invoice
-      invoiceType: 'SIMPLIFIED'
+      invoiceType: 'SIMPLIFIED',
     });
 
     const hasFailures = (eventBus as any).hasFailures?.() ?? false;

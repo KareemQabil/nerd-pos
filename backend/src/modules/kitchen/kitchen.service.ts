@@ -28,7 +28,7 @@ export class KitchenService {
     private readonly prisma: PrismaService,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
     private readonly websocketGateway: KitchenGateway,
-  ) { }
+  ) {}
 
   // ==================== TICKET ROUTING ====================
 
@@ -92,7 +92,11 @@ export class KitchenService {
 
     // Emit events AFTER transaction commits (side effects outside TX)
     for (const ticket of tickets) {
-      this.websocketGateway.emitToStation(ticket.stationId, 'newTicket', ticket);
+      this.websocketGateway.emitToStation(
+        ticket.stationId,
+        'newTicket',
+        ticket,
+      );
       await this.eventBus.publish(
         'TicketCreated',
         new TicketCreatedEvent(ticket.id, ticket.stationId, orderId),
@@ -103,7 +107,7 @@ export class KitchenService {
   }
 
   private async groupItemsByStation(
-    items: Array<{ categoryId: string;[key: string]: any }>,
+    items: Array<{ categoryId: string; [key: string]: any }>,
   ): Promise<Map<string, any[]>> {
     const grouped = new Map<string, any[]>();
 

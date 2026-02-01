@@ -120,7 +120,7 @@ export class CreateUserDto {
   role: string;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) { }
+export class UpdateUserDto extends PartialType(CreateUserDto) {}
 
 export class UpdatePinDto {
   @ApiProperty({ description: 'New PIN (4-6 digits)', example: '4321' })
@@ -134,7 +134,10 @@ export class ChangePasswordDto {
   @IsString()
   currentPassword: string;
 
-  @ApiProperty({ description: 'New password (min 8 chars)', example: 'NewPass123!' })
+  @ApiProperty({
+    description: 'New password (min 8 chars)',
+    example: 'NewPass123!',
+  })
   @IsString()
   @MinLength(8)
   newPassword: string;
@@ -186,7 +189,7 @@ export class CreateRoleDto {
   permissionIds: string[];
 }
 
-export class UpdateRoleDto extends PartialType(CreateRoleDto) { }
+export class UpdateRoleDto extends PartialType(CreateRoleDto) {}
 
 // ==================== PERMISSION ====================
 
@@ -195,15 +198,24 @@ export class CreatePermissionDto {
   @IsString()
   code: string;
 
-  @ApiProperty({ description: 'Permission name (English)', example: 'Create Sales Order' })
+  @ApiProperty({
+    description: 'Permission name (English)',
+    example: 'Create Sales Order',
+  })
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'Permission name (Arabic)', example: '????? ??? ???' })
+  @ApiProperty({
+    description: 'Permission name (Arabic)',
+    example: '????? ??? ???',
+  })
   @IsString()
   nameAr: string;
 
-  @ApiPropertyOptional({ description: 'Permission description', example: 'Allows creating sales orders' })
+  @ApiPropertyOptional({
+    description: 'Permission description',
+    example: 'Allows creating sales orders',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -234,11 +246,17 @@ export class CreatePermissionDto {
 @Exclude()
 export class UserResponseDto {
   @Expose()
-  @ApiProperty({ description: 'User ID (UUID)', example: 'u23e4567-e89b-12d3-a456-426614174020' })
+  @ApiProperty({
+    description: 'User ID (UUID)',
+    example: 'u23e4567-e89b-12d3-a456-426614174020',
+  })
   id: string;
 
   @Expose()
-  @ApiProperty({ description: 'Username (unique login identifier)', example: 'cashier01' })
+  @ApiProperty({
+    description: 'Username (unique login identifier)',
+    example: 'cashier01',
+  })
   username: string;
 
   @Expose()
@@ -250,11 +268,17 @@ export class UserResponseDto {
   nameAr: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Email address', example: 'cashier@example.com' })
+  @ApiPropertyOptional({
+    description: 'Email address',
+    example: 'cashier@example.com',
+  })
   email?: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Phone number', example: '+966501234567' })
+  @ApiPropertyOptional({
+    description: 'Phone number',
+    example: '+966501234567',
+  })
   phone?: string;
 
   @Expose()
@@ -262,7 +286,10 @@ export class UserResponseDto {
   role: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Role ID reference', example: 'r23e4567-e89b-12d3-a456-426614174030' })
+  @ApiPropertyOptional({
+    description: 'Role ID reference',
+    example: 'r23e4567-e89b-12d3-a456-426614174030',
+  })
   roleId?: string;
 
   @Expose()
@@ -270,11 +297,17 @@ export class UserResponseDto {
   isActive: boolean;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Created timestamp', example: '2026-01-10T08:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Created timestamp',
+    example: '2026-01-10T08:00:00Z',
+  })
   createdAt?: Date;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Last updated timestamp', example: '2026-01-20T14:30:00Z' })
+  @ApiPropertyOptional({
+    description: 'Last updated timestamp',
+    example: '2026-01-20T14:30:00Z',
+  })
   updatedAt?: Date;
 
   // ? EXCLUDED: passwordHash, pin - NEVER expose these fields
@@ -286,7 +319,10 @@ export class UserResponseDto {
 @Exclude()
 export class UserListItemDto {
   @Expose()
-  @ApiProperty({ description: 'User ID', example: 'u23e4567-e89b-12d3-a456-426614174020' })
+  @ApiProperty({
+    description: 'User ID',
+    example: 'u23e4567-e89b-12d3-a456-426614174020',
+  })
   id: string;
 
   @Expose()

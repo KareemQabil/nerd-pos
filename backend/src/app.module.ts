@@ -12,7 +12,10 @@ import { AppService } from './app.service';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { EventBusModule } from './core/event-bus/event-bus.module';
 import { DecimalTransformInterceptor } from './common/interceptors/decimal-transform.interceptor';
-import { RequestIdMiddleware, ResponseHeadersMiddleware } from './common/middleware';
+import {
+  RequestIdMiddleware,
+  ResponseHeadersMiddleware,
+} from './common/middleware';
 import { envValidationSchema } from './config/env.validation';
 
 // Feature Modules
@@ -48,10 +51,12 @@ import { LookupModule } from './modules/lookup/lookup.module';
       },
       envFilePath: ['.env.local', '.env'],
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000, // 60 seconds
-      limit: 100, // 100 requests per minute
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 60 seconds
+        limit: 100, // 100 requests per minute
+      },
+    ]),
     EventEmitterModule.forRoot(), // Enable @OnEvent handlers
     PrismaModule,
     EventBusModule,
@@ -80,7 +85,8 @@ import { LookupModule } from './modules/lookup/lookup.module';
     AppService,
     {
       provide: APP_INTERCEPTOR,
-      useFactory: (reflector: Reflector) => new DecimalTransformInterceptor(reflector),
+      useFactory: (reflector: Reflector) =>
+        new DecimalTransformInterceptor(reflector),
       inject: [Reflector],
     },
     // Global JWT Guard - all routes protected by default
@@ -102,4 +108,3 @@ export class AppModule implements NestModule {
       .forRoutes('*');
   }
 }
-

@@ -11,7 +11,11 @@ import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
-import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('WF-01: Add Item to Paid Order', () => {
   let salesService: SalesService;
@@ -23,7 +27,10 @@ describe('WF-01: Add Item to Paid Order', () => {
         SalesService,
         SalesRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -55,8 +62,8 @@ describe('WF-01: Add Item to Paid Order', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 100
-      }
+        grandTotal: 100,
+      },
     });
 
     const itemDto = {
@@ -64,12 +71,13 @@ describe('WF-01: Add Item to Paid Order', () => {
       quantity: 1,
       name: 'New Item',
       nameAr: 'صنف جديد',
-      price: 50
+      price: 50,
     };
 
     // Act & Assert
-    await expect(salesService.addItem(order.id, itemDto as any))
-      .rejects.toThrow('Cannot modify paid order');
+    await expect(
+      salesService.addItem(order.id, itemDto as any),
+    ).rejects.toThrow('Cannot modify paid order');
   });
 
   it('should reject item addition to COMPLETED order', async () => {
@@ -83,8 +91,8 @@ describe('WF-01: Add Item to Paid Order', () => {
         businessDate: new Date(),
         businessDate: new Date(),
         completedAt: new Date(),
-        grandTotal: 100
-      }
+        grandTotal: 100,
+      },
     });
 
     const itemDto = {
@@ -92,12 +100,13 @@ describe('WF-01: Add Item to Paid Order', () => {
       quantity: 1,
       name: 'New Item',
       nameAr: 'صنف جديد',
-      price: 50
+      price: 50,
     };
 
     // Act & Assert
-    await expect(salesService.addItem(order.id, itemDto as any))
-      .rejects.toThrow('Cannot modify completed order');
+    await expect(
+      salesService.addItem(order.id, itemDto as any),
+    ).rejects.toThrow('Cannot modify completed order');
   });
 
   it('should reject item addition to CANCELLED order', async () => {
@@ -111,8 +120,8 @@ describe('WF-01: Add Item to Paid Order', () => {
         businessDate: new Date(),
         businessDate: new Date(),
         cancelledAt: new Date(),
-        grandTotal: 100
-      }
+        grandTotal: 100,
+      },
     });
 
     const itemDto = {
@@ -120,12 +129,13 @@ describe('WF-01: Add Item to Paid Order', () => {
       quantity: 1,
       name: 'New Item',
       nameAr: 'صنف جديد',
-      price: 50
+      price: 50,
     };
 
     // Act & Assert
-    await expect(salesService.addItem(order.id, itemDto as any))
-      .rejects.toThrow('Cannot modify cancelled order');
+    await expect(
+      salesService.addItem(order.id, itemDto as any),
+    ).rejects.toThrow('Cannot modify cancelled order');
   });
 
   it('should allow item addition to DRAFT order', async () => {
@@ -138,8 +148,8 @@ describe('WF-01: Add Item to Paid Order', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     const itemDto = {
@@ -147,7 +157,7 @@ describe('WF-01: Add Item to Paid Order', () => {
       quantity: 1,
       name: 'New Item',
       nameAr: 'صنف جديد',
-      price: 50
+      price: 50,
     };
 
     // Act & Assert

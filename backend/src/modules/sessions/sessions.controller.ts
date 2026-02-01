@@ -2,7 +2,15 @@
 // Source: FINAL/BACKEND/07-MODULE-SESSIONS.md
 // Security: Block 2 - All endpoints secured with @Permissions
 
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
@@ -29,17 +37,40 @@ import { ApiBody } from '@nestjs/swagger';
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('sessions')
 export class SessionsController {
-  constructor(private readonly service: SessionsService) { }
+  constructor(private readonly service: SessionsService) {}
 
   // ==================== SESSION MANAGEMENT ====================
 
   @Post('open')
   @Permissions(PERMISSIONS.SESSIONS_OPEN) // Cashier+
-  @ApiOperation({ summary: 'Open session', description: 'Opens a new cashier session with opening balance' })
+  @ApiOperation({
+    summary: 'Open session',
+    description: 'Opens a new cashier session with opening balance',
+  })
   @ApiBody({ schema: { example: examples.session.openSessionRequest.value } })
-  @ApiResponse({ status: 201, description: 'Session opened successfully', content: { 'application/json': { example: examples.session.openSessionSuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
-  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
+  @ApiResponse({
+    status: 201,
+    description: 'Session opened successfully',
+    content: {
+      'application/json': {
+        example: examples.session.openSessionSuccess.value,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    content: {
+      'application/json': { example: examples.errors.unauthorizedError.value },
+    },
+  })
+  @ApiResponse({
+    status: 422,
+    description: 'Validation error',
+    content: {
+      'application/json': { example: examples.errors.validationError.value },
+    },
+  })
   async openSession(@Body() dto: OpenSessionDto, @Request() req: any) {
     // Extract userId from authenticated JWT token (not from request body)
     const userId: string = req.user?.id || req.user?.sub;
@@ -48,17 +79,44 @@ export class SessionsController {
 
   @Post('close')
   @Permissions(PERMISSIONS.SESSIONS_CLOSE) // 🔒 Manager only
-  @ApiOperation({ summary: 'Close session', description: 'Closes session with closing balance and calculates variance. Manager only.' })
-  @ApiResponse({ status: 200, description: 'Session closed successfully', content: { 'application/json': { example: examples.session.closeSessionSuccess.value } } })
-  @ApiResponse({ status: 404, description: 'Session not found', content: { 'application/json': { example: examples.errors.notFoundError.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiOperation({
+    summary: 'Close session',
+    description:
+      'Closes session with closing balance and calculates variance. Manager only.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Session closed successfully',
+    content: {
+      'application/json': {
+        example: examples.session.closeSessionSuccess.value,
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Session not found',
+    content: {
+      'application/json': { example: examples.errors.notFoundError.value },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    content: {
+      'application/json': { example: examples.errors.unauthorizedError.value },
+    },
+  })
   async closeSession(@Body() dto: CloseSessionDto) {
     return this.service.closeSession(dto);
   }
 
   @Get('current/:userId')
   @Permissions(PERMISSIONS.SESSIONS_VIEW) // Cashier+ (own session)
-  @ApiOperation({ summary: 'Get current session', description: 'Returns active session for user' })
+  @ApiOperation({
+    summary: 'Get current session',
+    description: 'Returns active session for user',
+  })
   @ApiParam({ name: 'userId', description: 'User UUID' })
   @ApiResponse({
     status: 200,
@@ -84,7 +142,10 @@ export class SessionsController {
 
   @Get(':id')
   @Permissions(PERMISSIONS.SESSIONS_VIEW) // Cashier+ (own session)
-  @ApiOperation({ summary: 'Get session by ID', description: 'Returns session details' })
+  @ApiOperation({
+    summary: 'Get session by ID',
+    description: 'Returns session details',
+  })
   @ApiParam({ name: 'id', description: 'Session UUID' })
   @ApiResponse({ status: 200, description: 'Session found' })
   @ApiNotFoundResponse({ description: 'Session not found' })
@@ -94,7 +155,10 @@ export class SessionsController {
 
   @Get(':id/details')
   @Permissions(PERMISSIONS.SESSIONS_VIEW_ALL) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get session with details', description: 'Returns session with orders and payments. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get session with details',
+    description: 'Returns session with orders and payments. Manager+ required.',
+  })
   @ApiParam({ name: 'id', description: 'Session UUID' })
   @ApiResponse({
     status: 200,
@@ -121,11 +185,13 @@ export class SessionsController {
 
   @Get('user/:userId')
   @Permissions(PERMISSIONS.SESSIONS_VIEW_ALL) // 🔒 Manager+
-  @ApiOperation({ summary: 'Get sessions by user', description: 'Returns session history for user. Manager+ required.' })
+  @ApiOperation({
+    summary: 'Get sessions by user',
+    description: 'Returns session history for user. Manager+ required.',
+  })
   @ApiParam({ name: 'userId', description: 'User UUID' })
   @ApiResponse({ status: 200, description: 'User sessions retrieved' })
   async getSessionsByUser(@Param('userId') userId: string) {
     return this.service.findByUser(userId);
   }
 }
-

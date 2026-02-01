@@ -21,7 +21,10 @@ describe('SES-02: Order Without Session', () => {
         SalesService,
         SalesRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -52,14 +55,15 @@ describe('SES-02: Order Without Session', () => {
           name: 'Test Product',
           nameAr: 'منتج تجريبي',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
     // Act & Assert
-    await expect(salesService.createOrder(order as any, 'user'))
-      .rejects.toThrow();
+    await expect(
+      salesService.createOrder(order as any, 'user'),
+    ).rejects.toThrow();
   });
 
   it('should reject order when sessionId is null', async () => {
@@ -72,14 +76,15 @@ describe('SES-02: Order Without Session', () => {
           name: 'Test Product',
           nameAr: 'منتج تجريبي',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
     // Act & Assert
-    await expect(salesService.createOrder(order as any, 'user'))
-      .rejects.toThrow();
+    await expect(
+      salesService.createOrder(order as any, 'user'),
+    ).rejects.toThrow();
   });
 
   it('should reject order when sessionId is empty string', async () => {
@@ -92,14 +97,15 @@ describe('SES-02: Order Without Session', () => {
           name: 'Test Product',
           nameAr: 'منتج تجريبي',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
     // Act & Assert
-    await expect(salesService.createOrder(order as any, 'user'))
-      .rejects.toThrow();
+    await expect(
+      salesService.createOrder(order as any, 'user'),
+    ).rejects.toThrow();
   });
 
   it('should accept order when valid session is provided', async () => {
@@ -109,8 +115,8 @@ describe('SES-02: Order Without Session', () => {
         userId: 'test-user',
         terminalId: 'test-terminal',
         status: 'OPEN',
-        openingBalance: 1000
-      }
+        openingBalance: 1000,
+      },
     });
 
     const order = {
@@ -122,9 +128,9 @@ describe('SES-02: Order Without Session', () => {
           name: 'Test Product',
           nameAr: 'منتج تجريبي',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
     // Act & Assert

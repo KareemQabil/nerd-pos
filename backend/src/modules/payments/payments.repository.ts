@@ -158,8 +158,8 @@ export class PaymentsRepository extends BaseRepository<Payment> {
     if (typeof amount === 'number') {
       return amount;
     }
-    if (typeof (amount as any).toNumber === 'function') {
-      return (amount as any).toNumber();
+    if (typeof amount.toNumber === 'function') {
+      return amount.toNumber();
     }
     return Number(amount) || 0;
   }

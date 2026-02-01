@@ -98,7 +98,10 @@ export class TablesRepository extends BaseRepository<Table> {
   }
 
   async findAvailable(floorId?: string): Promise<Table[]> {
-    const where: { status: string; isActive: boolean; floorId?: string } = { status: TableStatus.AVAILABLE, isActive: true };
+    const where: { status: string; isActive: boolean; floorId?: string } = {
+      status: TableStatus.AVAILABLE,
+      isActive: true,
+    };
     if (floorId) {
       where.floorId = floorId;
     }
@@ -110,7 +113,10 @@ export class TablesRepository extends BaseRepository<Table> {
   }
 
   async findOccupied(floorId?: string): Promise<Table[]> {
-    const where: { status: string; isActive: boolean; floorId?: string } = { status: TableStatus.OCCUPIED, isActive: true };
+    const where: { status: string; isActive: boolean; floorId?: string } = {
+      status: TableStatus.OCCUPIED,
+      isActive: true,
+    };
     if (floorId) {
       where.floorId = floorId;
     }
@@ -151,7 +157,9 @@ export class TablesRepository extends BaseRepository<Table> {
     return (this.prisma as any).tableReservation.findMany({
       where: {
         reservedFor: { gte: today, lt: tomorrow },
-        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+        },
       },
       include: { table: true },
       orderBy: { reservedFor: 'asc' },
@@ -171,17 +179,24 @@ export class TablesRepository extends BaseRepository<Table> {
       where: {
         tableId,
         reservedFor: { gte: startOfDay, lte: endOfDay },
-        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+        },
       },
       orderBy: { reservedFor: 'asc' },
     });
   }
 
-  async createReservation(data: CreateReservationInput): Promise<TableReservation> {
+  async createReservation(
+    data: CreateReservationInput,
+  ): Promise<TableReservation> {
     return (this.prisma as any).tableReservation.create({ data });
   }
 
-  async updateReservation(id: string, data: UpdateReservationInput): Promise<TableReservation> {
+  async updateReservation(
+    id: string,
+    data: UpdateReservationInput,
+  ): Promise<TableReservation> {
     return (this.prisma as any).tableReservation.update({
       where: { id },
       data,
@@ -198,7 +213,9 @@ export class TablesRepository extends BaseRepository<Table> {
     return (this.prisma as any).tableReservation.findMany({
       where: {
         tableId,
-        status: { in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED] },
+        status: {
+          in: [ReservationStatus.PENDING, ReservationStatus.CONFIRMED],
+        },
         OR: [
           {
             reservedFor: { lte: reservedFor },

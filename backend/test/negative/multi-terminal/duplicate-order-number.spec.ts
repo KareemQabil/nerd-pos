@@ -10,7 +10,11 @@ import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
-import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('MT-01: Same Order Number Concurrent', () => {
   let salesService: SalesService;
@@ -22,7 +26,10 @@ describe('MT-01: Same Order Number Concurrent', () => {
         SalesService,
         SalesRepository,
         PrismaService,
-        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
+        {
+          provide: 'IEventBus',
+          useValue: { publish: jest.fn(), subscribe: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -47,23 +54,23 @@ describe('MT-01: Same Order Number Concurrent', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
-        businessDate: new Date(),
+      businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',
           name: 'Test Product',
           nameAr: 'منتج تجريبي',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
     // Act: Two terminals create orders simultaneously
     const { terminalAResult, terminalBResult } =
       await RaceConditionTester.simulateDualTerminalRequest(
         () => salesService.createOrder(order, 'user-1'),
-        () => salesService.createOrder(order, 'user-2')
+        () => salesService.createOrder(order, 'user-2'),
       );
 
     // Assert: Both should succeed with different order numbers
@@ -82,30 +89,30 @@ describe('MT-01: Same Order Number Concurrent', () => {
     const order = {
       type: 'TAKEAWAY' as const,
       sessionId: 'test-session',
-        businessDate: new Date(),
+      businessDate: new Date(),
       items: [
         {
           productId: 'prod-1',
           name: 'Test Product',
           nameAr: 'منتج تجريبي',
           price: 50,
-          quantity: 1
-        }
-      ]
+          quantity: 1,
+        },
+      ],
     };
 
     // Act: Create 10 orders concurrently
     const orderPromises = Array.from({ length: 10 }, (_, i) =>
-      salesService.createOrder(order, `user-${i}`)
+      salesService.createOrder(order, `user-${i}`),
     );
 
     const results = await Promise.allSettled(orderPromises);
     const successfulOrders = results
-      .filter(r => r.status === 'fulfilled')
-      .map(r => (r as PromiseFulfilledResult<any>).value);
+      .filter((r) => r.status === 'fulfilled')
+      .map((r) => (r as PromiseFulfilledResult<any>).value);
 
     // Assert: All should have unique order numbers
-    const orderNumbers = successfulOrders.map(o => o.orderNumber);
+    const orderNumbers = successfulOrders.map((o) => o.orderNumber);
     const uniqueOrderNumbers = new Set(orderNumbers);
 
     expect(uniqueOrderNumbers.size).toBe(orderNumbers.length);
@@ -125,8 +132,8 @@ describe('MT-01: Same Order Number Concurrent', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     expect(order1.orderNumber).toBe('ORD-000001');
@@ -140,8 +147,8 @@ describe('MT-01: Same Order Number Concurrent', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     expect(order2.orderNumber).toBe('ORD-000002');
@@ -157,22 +164,24 @@ describe('MT-01: Same Order Number Concurrent', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     // Act: Try to create another order with same number
-    const result = await prisma.salesOrder.create({
-      data: {
-        orderNumber: 'ORD-TEST-001', // Duplicate!
-        orderType: 'DINE_IN',
-        status: 'DRAFT',
-        sessionId: 'test-session',
-        businessDate: new Date(),
-        businessDate: new Date(),
-        grandTotal: 0
-      }
-    }).catch(e => ({ error: e }));
+    const result = await prisma.salesOrder
+      .create({
+        data: {
+          orderNumber: 'ORD-TEST-001', // Duplicate!
+          orderType: 'DINE_IN',
+          status: 'DRAFT',
+          sessionId: 'test-session',
+          businessDate: new Date(),
+          businessDate: new Date(),
+          grandTotal: 0,
+        },
+      })
+      .catch((e) => ({ error: e }));
 
     // Assert: Should fail due to unique constraint
     expect('error' in result).toBe(true);
@@ -188,8 +197,8 @@ describe('MT-01: Same Order Number Concurrent', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     expect(order.orderNumber).toMatch(/^TERM-A-\d+$/);
@@ -208,8 +217,8 @@ describe('MT-01: Same Order Number Concurrent', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: today,
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     expect(order.orderNumber).toContain(dateStr);
@@ -227,8 +236,8 @@ describe('MT-01: Same Order Number Concurrent', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     await prisma.salesOrder.create({
@@ -239,8 +248,8 @@ describe('MT-01: Same Order Number Concurrent', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     // Next order should be 004, not 002
@@ -252,8 +261,8 @@ describe('MT-01: Same Order Number Concurrent', () => {
         sessionId: 'test-session',
         businessDate: new Date(),
         businessDate: new Date(),
-        grandTotal: 0
-      }
+        grandTotal: 0,
+      },
     });
 
     expect(nextOrder.orderNumber).toBe('ORD-004');

@@ -20,7 +20,11 @@ import {
   GrandTotalStep,
 } from '../../../src/modules/sales/calculation-steps';
 import { SessionsService } from '../../../src/modules/sessions/sessions.service';
-import { createTestProduct, createTestSession, cleanupTestData } from '../../helpers/test-helpers';
+import {
+  createTestProduct,
+  createTestSession,
+  cleanupTestData,
+} from '../../helpers/test-helpers';
 
 describe('FIN-10: Takeaway Service Charge', () => {
   let salesService: SalesService;
@@ -45,7 +49,10 @@ describe('FIN-10: Takeaway Service Charge', () => {
         TaxStep,
         DiscountStep,
         GrandTotalStep,
-        { provide: SessionsService, useValue: { getCurrentSession: jest.fn() } },
+        {
+          provide: SessionsService,
+          useValue: { getCurrentSession: jest.fn() },
+        },
         { provide: 'IEventBus', useExisting: EventBusService },
       ],
     }).compile();

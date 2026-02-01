@@ -38,7 +38,7 @@ export class UsersService {
   constructor(
     private readonly repo: UsersRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-  ) { }
+  ) {}
 
   // ==================== AUTHENTICATION ====================
 
@@ -242,7 +242,9 @@ export class UsersService {
   }
 
   async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
-    const updateData: Partial<UpdateUserDto> & { passwordHash?: string } = { ...dto };
+    const updateData: Partial<UpdateUserDto> & { passwordHash?: string } = {
+      ...dto,
+    };
     if (dto.password) {
       updateData.passwordHash = await this.hashPassword(dto.password);
       delete updateData.password;
