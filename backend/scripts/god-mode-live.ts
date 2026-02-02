@@ -7,19 +7,31 @@
  * PREREQUISITES:
  * - Backend running: npm run start:dev (http://localhost:3001)
  * - Database seeded with at least one admin user
+ * - Environment variables (optional): TEST_ADMIN_USER, TEST_ADMIN_PASS
  * 
  * RUN: npx ts-node scripts/god-mode-live.ts
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import Decimal from 'decimal.js';
 
 // ==================== CONFIGURATION ====================
-const BASE_URL = 'http://localhost:3001/api/v1';
+const BASE_URL = process.env.TEST_API_URL || 'http://localhost:3001/api/v1';
+const REQUEST_TIMEOUT = 10000; // 10 second timeout
 
-// Test credentials (must exist in database)
-const ADMIN_CREDENTIALS = { username: 'admin', password: 'admin123' };
-const MANAGER_CREDENTIALS = { username: 'manager', password: 'manager123' };
+// Credentials from environment or defaults (for local dev only)
+const ADMIN_CREDENTIALS = {
+    username: process.env.TEST_ADMIN_USER || 'admin',
+    password: process.env.TEST_ADMIN_PASS || 'admin123'
+};
+const MANAGER_CREDENTIALS = {
+    username: process.env.TEST_MANAGER_USER || 'manager',
+    password: process.env.TEST_MANAGER_PASS || 'manager123'
+};
+
+// Unique identifiers per test run (prevents race conditions)
+const TEST_RUN_ID = Date.now();
+const TERMINAL_ID = `TEST-TERMINAL-${TEST_RUN_ID}`;
 
 // ==================== TYPES ====================
 interface AuthResponse {
@@ -47,6 +59,8 @@ interface OrderResponse {
     orderNumber: string;
     status: string;
     grandTotal: number;
+    subtotal?: number;
+    taxAmount?: number;
     items: Array<{ id: string; productId: string; quantity: number }>;
 }
 
@@ -66,6 +80,12 @@ interface ZReportResponse {
     orderCount: number;
 }
 
+interface ApiErrorResponse {
+    message?: string;
+    error?: string;
+    statusCode?: number;
+}
+
 // ==================== UTILITIES ====================
 function log(emoji: string, message: string) {
     console.log(`${emoji} ${new Date().toISOString().slice(11, 19)} | ${message}`);
@@ -83,6 +103,10 @@ function logInfo(message: string) {
     log('ℹ️', message);
 }
 
+function logWarn(message: string) {
+    log('⚠️', message);
+}
+
 function logSection(title: string) {
     console.log('\n' + '='.repeat(60));
     console.log(`  ${title}`);
@@ -93,6 +117,7 @@ function logSection(title: string) {
 function createApiClient(token?: string): AxiosInstance {
     return axios.create({
         baseURL: BASE_URL,
+        timeout: REQUEST_TIMEOUT, // ✅ Timeout configured
         headers: {
             'Content-Type': 'application/json',
             ...(token && { Authorization: `Bearer ${token}` }),
@@ -112,6 +137,7 @@ interface TestState {
     order1Id: string;
     order2Id: string;
     order3Id: string;
+    createdOrderIds: string[]; // Track for cleanup
     initialStock: number;
 }
 
@@ -125,6 +151,7 @@ const state: TestState = {
     order1Id: '',
     order2Id: '',
     order3Id: '',
+    createdOrderIds: [],
     initialStock: 10,
 };
 
@@ -138,13 +165,18 @@ function assertEqual<T>(actual: T, expected: T, context: string): boolean {
     return false;
 }
 
+/**
+ * ZATCA-compliant decimal comparison
+ * Uses 4 decimal places (0.0001) for tax precision
+ */
 function assertDecimalEqual(actual: number, expected: number, context: string): boolean {
     const diff = new Decimal(actual).minus(expected).abs();
-    if (diff.lessThan(0.01)) {
+    // ✅ ZATCA compliance: 4 decimal places
+    if (diff.lessThan(0.0001)) {
         logPass(`${context}: ${actual} ≈ ${expected}`);
         return true;
     }
-    logFail(`${context}: Expected ${expected}, got ${actual}`);
+    logFail(`${context}: Expected ${expected}, got ${actual} (diff: ${diff.toFixed(4)})`);
     return false;
 }
 
@@ -155,6 +187,72 @@ function assertStatus(actual: number, expected: number, context: string): boolea
     }
     logFail(`${context}: Expected HTTP ${expected}, got ${actual}`);
     return false;
+}
+
+// ==================== HEALTH CHECK ====================
+async function checkBackendHealth(): Promise<boolean> {
+    logSection('0. PRE-FLIGHT HEALTH CHECK');
+
+    try {
+        logInfo(`Checking backend at ${BASE_URL}...`);
+        const res = await axios.get(`${BASE_URL.replace('/api/v1', '')}/health`, {
+            timeout: 5000,
+            validateStatus: () => true,
+        });
+
+        if (res.status === 200 || res.status === 404) {
+            // 404 on /health is okay if server is responding
+            logPass('Backend is responding');
+            return true;
+        }
+
+        logFail(`Backend returned HTTP ${res.status}`);
+        return false;
+    } catch (error) {
+        const err = error as Error;
+        if (err.message.includes('ECONNREFUSED')) {
+            logFail('❌ Backend not responding at ' + BASE_URL);
+            logFail('   Run: npm run start:dev');
+        } else if (err.message.includes('timeout')) {
+            logFail('❌ Backend timeout - server may be overloaded');
+        } else {
+            logFail(`❌ Connection error: ${err.message}`);
+        }
+        return false;
+    }
+}
+
+// ==================== CLEANUP ====================
+async function cleanup(): Promise<void> {
+    logSection('CLEANUP');
+    const api = createApiClient(state.adminToken);
+
+    try {
+        // Cancel any unpaid orders
+        for (const orderId of state.createdOrderIds) {
+            if (orderId) {
+                try {
+                    await api.put(`/orders/${orderId}/cancel`, { reason: 'Test cleanup' });
+                } catch {
+                    // Ignore cleanup errors
+                }
+            }
+        }
+
+        // Delete test product
+        if (state.productId) {
+            const deleteRes = await api.delete(`/products/${state.productId}`);
+            if (deleteRes.status === 200 || deleteRes.status === 204) {
+                logPass('Test product deleted');
+            } else {
+                logInfo('Could not delete test product (may be in use)');
+            }
+        }
+
+        logPass('Cleanup completed');
+    } catch (error) {
+        logWarn(`Cleanup error: ${(error as Error).message}`);
+    }
 }
 
 // ==================== TEST SCENARIOS ====================
@@ -181,7 +279,7 @@ async function testAuth(): Promise<boolean> {
         const managerRes = await api.post<AuthResponse>('/auth/login', MANAGER_CREDENTIALS);
 
         if (managerRes.status !== 200 && managerRes.status !== 201) {
-            logFail(`Manager login failed: ${managerRes.status} - ${JSON.stringify(managerRes.data)}`);
+            logWarn(`Manager login failed: ${managerRes.status}`);
             // Fall back to admin for remaining tests
             state.managerToken = state.adminToken;
             state.managerId = adminRes.data.user.id;
@@ -208,7 +306,7 @@ async function testSetup(): Promise<boolean> {
         logInfo('Fetching categories...');
         const catRes = await api.get('/categories');
 
-        if (catRes.status === 200 && catRes.data.length > 0) {
+        if (catRes.status === 200 && Array.isArray(catRes.data) && catRes.data.length > 0) {
             state.categoryId = catRes.data[0].id;
             logPass(`Using existing category: ${catRes.data[0].name}`);
         } else {
@@ -217,7 +315,7 @@ async function testSetup(): Promise<boolean> {
                 name: 'Test Category',
                 nameAr: 'فئة اختبار',
             });
-            if (newCatRes.status !== 201) {
+            if (newCatRes.status !== 201 && newCatRes.status !== 200) {
                 logFail(`Failed to create category: ${JSON.stringify(newCatRes.data)}`);
                 return false;
             }
@@ -225,12 +323,13 @@ async function testSetup(): Promise<boolean> {
             logPass('Created test category');
         }
 
-        // Create test product
-        logInfo('Creating test product: Live Test Burger...');
+        // Create test product with unique SKU
+        const testSku = `TEST-BURGER-${TEST_RUN_ID}`;
+        logInfo(`Creating test product: Live Test Burger (SKU: ${testSku})...`);
         const productRes = await api.post<ProductResponse>('/products', {
             name: 'Live Test Burger',
             nameAr: 'برجر اختبار',
-            sku: `TEST-BURGER-${Date.now()}`,
+            sku: testSku,
             price: 50,
             categoryId: state.categoryId,
             isActive: true,
@@ -257,15 +356,17 @@ async function testOpenSession(): Promise<boolean> {
     const api = createApiClient(state.managerToken);
 
     try {
-        logInfo('Opening new session...');
+        // Use unique terminal ID per test run
+        logInfo(`Opening new session on ${TERMINAL_ID}...`);
         const sessionRes = await api.post<SessionResponse>('/sessions/open', {
             openingBalance: 500,
-            terminalId: 'TERMINAL-001',
+            terminalId: TERMINAL_ID,
         });
 
         if (sessionRes.status !== 201 && sessionRes.status !== 200) {
             // Check if session already open
-            if ((sessionRes.data as any)?.message?.includes('already has an open session')) {
+            const errorData = sessionRes.data as ApiErrorResponse;
+            if (errorData?.message?.includes('already has an open session')) {
                 logInfo('Session already open, fetching current...');
                 const currentRes = await api.get<SessionResponse>('/sessions/current');
                 if (currentRes.status === 200 && currentRes.data?.id) {
@@ -316,6 +417,7 @@ async function testTransaction1_HappyPath(): Promise<boolean> {
         }
 
         state.order1Id = orderRes.data.id;
+        state.createdOrderIds.push(orderRes.data.id);
         logPass(`Order created: ${orderRes.data.orderNumber}`);
         logPass(`Grand Total: ${orderRes.data.grandTotal} SAR`);
 
@@ -323,15 +425,14 @@ async function testTransaction1_HappyPath(): Promise<boolean> {
         logInfo('Confirming order...');
         const confirmRes = await api.put(`/orders/${state.order1Id}/confirm`);
         if (!assertStatus(confirmRes.status, 200, 'Confirm order')) {
-            // Try PATCH if PUT doesn't work
             const confirmPatchRes = await api.patch(`/orders/${state.order1Id}/confirm`);
             if (!assertStatus(confirmPatchRes.status, 200, 'Confirm order (PATCH)')) {
                 logInfo('Skipping confirm step...');
             }
         }
 
-        // Pay 100 SAR Cash
-        logInfo('Processing payment: 100 SAR Cash...');
+        // Pay Cash
+        logInfo(`Processing payment: ${orderRes.data.grandTotal} SAR Cash...`);
         const paymentRes = await api.post<PaymentResponse>('/payments', {
             orderId: state.order1Id,
             amount: orderRes.data.grandTotal,
@@ -353,7 +454,7 @@ async function testTransaction1_HappyPath(): Promise<boolean> {
 }
 
 async function testTransaction2_NegativeTest(): Promise<boolean> {
-    logSection('5. TRANSACTION 2 - The Failure (Over-Order 100 Burgers)');
+    logSection('5. TRANSACTION 2 - Inventory Validation (CRITICAL)');
     const api = createApiClient(state.managerToken);
 
     try {
@@ -372,30 +473,37 @@ async function testTransaction2_NegativeTest(): Promise<boolean> {
             ],
         });
 
-        // This SHOULD fail with 400 if inventory check is in place
-        if (orderRes.status === 400) {
-            logPass('Order correctly rejected with 400 Bad Request');
-            logPass(`Reason: ${(orderRes.data as any)?.message || 'Insufficient stock'}`);
+        // This SHOULD fail with 400 or 409 if inventory check is in place
+        if (orderRes.status === 400 || orderRes.status === 409) {
+            logPass('✅ Order correctly rejected - Inventory validation working');
+            const errorData = orderRes.data as ApiErrorResponse;
+            logPass(`   Reason: ${errorData?.message || 'Insufficient stock'}`);
             return true;
         }
 
-        // Some systems allow order creation but fail at payment/confirm
+        // If order was created, inventory validation is MISSING
         if (orderRes.status === 201 || orderRes.status === 200) {
-            logInfo(`Order created (stock check may be at confirm/payment time): ${orderRes.data.orderNumber}`);
+            state.createdOrderIds.push(orderRes.data.id);
+            logWarn(`Order created despite over-ordering: ${orderRes.data.orderNumber}`);
 
-            // Try to confirm - this should fail
+            // Try to confirm - this might fail instead
             const confirmRes = await api.put(`/orders/${orderRes.data.id}/confirm`);
-            if (confirmRes.status === 400) {
-                logPass('Order confirmation correctly rejected with 400');
+            if (confirmRes.status === 400 || confirmRes.status === 409) {
+                logPass('Order confirmation correctly rejected with stock validation');
+                await api.put(`/orders/${orderRes.data.id}/cancel`, { reason: 'Test cleanup' });
                 return true;
             }
 
-            logInfo('Stock validation not implemented at order level - acceptable for now');
+            // ⚠️ CRITICAL: Inventory validation is missing
+            logFail('❌ CRITICAL: Inventory validation MISSING!');
+            logFail('   System accepted order for 100 items without stock check');
+            logFail('   This is a PRODUCTION BUG - customers can over-order');
 
-            // Cancel this order to clean up
-            await api.put(`/orders/${orderRes.data.id}/cancel`, { reason: 'Test cleanup' });
+            // Cleanup
+            await api.put(`/orders/${orderRes.data.id}/cancel`, { reason: 'Test cleanup - over-order' });
 
-            return true; // Not a critical failure
+            // ✅ Fail the test - this is a critical bug
+            return false;
         }
 
         logFail(`Unexpected response: ${orderRes.status}`);
@@ -407,7 +515,7 @@ async function testTransaction2_NegativeTest(): Promise<boolean> {
 }
 
 async function testTransaction3_SplitPayment(): Promise<boolean> {
-    logSection('6. TRANSACTION 3 - Split Payment (5 Burgers: 150 Cash + 100 Card)');
+    logSection('6. TRANSACTION 3 - Split Payment (5 Burgers: Cash + Card)');
     const api = createApiClient(state.managerToken);
 
     try {
@@ -433,16 +541,15 @@ async function testTransaction3_SplitPayment(): Promise<boolean> {
         }
 
         state.order3Id = orderRes.data.id;
+        state.createdOrderIds.push(orderRes.data.id);
         const grandTotal = new Decimal(orderRes.data.grandTotal);
         logPass(`Order created: ${orderRes.data.orderNumber}`);
         logPass(`Grand Total: ${grandTotal.toNumber()} SAR`);
 
-        // Calculate split (5 burgers @ 50 = 250 base, plus tax)
-        // Pay 150 Cash + rest Card
+        // Split: 150 Cash + rest Card
         const cashAmount = new Decimal(150);
         const cardAmount = grandTotal.minus(cashAmount);
 
-        // Try split payment endpoint first
         logInfo(`Processing split payment: ${cashAmount.toNumber()} Cash + ${cardAmount.toNumber()} Card...`);
         const splitRes = await api.post('/payments/split', {
             orderId: state.order3Id,
@@ -458,14 +565,14 @@ async function testTransaction3_SplitPayment(): Promise<boolean> {
             // Fall back to individual payments
             logInfo('Split endpoint not available, using individual payments...');
 
-            const cashRes = await api.post<PaymentResponse>('/payments', {
+            await api.post<PaymentResponse>('/payments', {
                 orderId: state.order3Id,
                 amount: cashAmount.toNumber(),
                 method: 'CASH',
             });
             logPass(`Cash payment: ${cashAmount.toNumber()} SAR`);
 
-            const cardRes = await api.post<PaymentResponse>('/payments', {
+            await api.post<PaymentResponse>('/payments', {
                 orderId: state.order3Id,
                 amount: cardAmount.toNumber(),
                 method: 'CARD',
@@ -473,12 +580,12 @@ async function testTransaction3_SplitPayment(): Promise<boolean> {
             logPass(`Card payment: ${cardAmount.toNumber()} SAR`);
         }
 
-        // Verify order is PAID
+        // Verify order status
         const verifyRes = await api.get<OrderResponse>(`/orders/${state.order3Id}`);
         if (verifyRes.data.status === 'PAID' || verifyRes.data.status === 'COMPLETED') {
             logPass(`Order status: ${verifyRes.data.status}`);
         } else {
-            logInfo(`Order status: ${verifyRes.data.status} (may require manual completion)`);
+            logInfo(`Order status: ${verifyRes.data.status}`);
         }
 
         return true;
@@ -515,27 +622,30 @@ async function testTransaction4_CancelOrder(): Promise<boolean> {
         }
 
         state.order2Id = orderRes.data.id;
+        state.createdOrderIds.push(orderRes.data.id);
         logPass(`Order created: ${orderRes.data.orderNumber}`);
 
         // Cancel order
         logInfo('Cancelling order...');
+        let cancelled = false;
+
         const cancelRes = await api.put(`/orders/${state.order2Id}/cancel`, {
             reason: 'Customer changed mind',
         });
-
-        if (cancelRes.status !== 200) {
-            // Try PATCH
+        if (cancelRes.status === 200) {
+            cancelled = true;
+        } else {
             const cancelPatchRes = await api.patch(`/orders/${state.order2Id}/cancel`, {
                 reason: 'Customer changed mind',
             });
-            if (cancelPatchRes.status !== 200) {
-                // Try DELETE
-                const deleteRes = await api.delete(`/orders/${state.order2Id}`);
-                if (deleteRes.status !== 200 && deleteRes.status !== 204) {
-                    logFail(`Failed to cancel order: ${JSON.stringify(cancelRes.data)}`);
-                    return false;
-                }
+            if (cancelPatchRes.status === 200) {
+                cancelled = true;
             }
+        }
+
+        if (!cancelled) {
+            logFail(`Failed to cancel order`);
+            return false;
         }
 
         // Verify order is CANCELLED
@@ -561,14 +671,13 @@ async function testCloseSession(): Promise<boolean> {
         logInfo('Closing session...');
         const closeRes = await api.post<SessionResponse>(`/sessions/${state.sessionId}/close`, {
             denominations: [
-                { value: 100, count: 5 }, // 500 SAR in 100s
-                { value: 50, count: 10 }, // 500 SAR in 50s
-                { value: 10, count: 10 }, // 100 SAR in 10s
+                { value: 100, count: 5 },
+                { value: 50, count: 10 },
+                { value: 10, count: 10 },
             ],
         });
 
         if (closeRes.status !== 200 && closeRes.status !== 201) {
-            // Try alternative endpoint
             const closeAltRes = await api.put<SessionResponse>(`/sessions/${state.sessionId}/close`, {
                 denominations: [
                     { value: 100, count: 5 },
@@ -596,7 +705,7 @@ async function testCloseSession(): Promise<boolean> {
             logPass(`  Total Card: ${report.totalCard} SAR`);
             logPass(`  Order Count: ${report.orderCount}`);
         } else {
-            logInfo('Z-Report endpoint returned non-200, session still closed successfully');
+            logInfo('Z-Report endpoint not available');
         }
 
         return true;
@@ -613,8 +722,14 @@ async function runGodMode() {
     console.log('║          🔥 GOD MODE LIVE E2E TEST 🔥                         ║');
     console.log('║                                                              ║');
     console.log('║  100% Real HTTP Requests | No Mocks | Live Database          ║');
+    console.log(`║  Test Run ID: ${TEST_RUN_ID}                                   ║`);
     console.log('╚══════════════════════════════════════════════════════════════╝');
     console.log('\n');
+
+    // Pre-flight check
+    if (!await checkBackendHealth()) {
+        process.exit(1);
+    }
 
     const results: { name: string; passed: boolean }[] = [];
 
@@ -624,25 +739,30 @@ async function runGodMode() {
         { name: 'Setup (Create Product)', fn: testSetup },
         { name: 'Open Session', fn: testOpenSession },
         { name: 'Transaction 1 (Happy Path)', fn: testTransaction1_HappyPath },
-        { name: 'Transaction 2 (Negative Test)', fn: testTransaction2_NegativeTest },
+        { name: 'Transaction 2 (Inventory Check)', fn: testTransaction2_NegativeTest },
         { name: 'Transaction 3 (Split Payment)', fn: testTransaction3_SplitPayment },
         { name: 'Transaction 4 (Cancel Order)', fn: testTransaction4_CancelOrder },
         { name: 'Close Session + Z-Report', fn: testCloseSession },
     ];
 
-    for (const test of tests) {
-        try {
-            const passed = await test.fn();
-            results.push({ name: test.name, passed });
+    try {
+        for (const test of tests) {
+            try {
+                const passed = await test.fn();
+                results.push({ name: test.name, passed });
 
-            if (!passed && test.name === 'Authentication') {
-                logFail('Authentication failed. Cannot continue.');
-                break;
+                if (!passed && test.name === 'Authentication') {
+                    logFail('Authentication failed. Cannot continue.');
+                    break;
+                }
+            } catch (error) {
+                results.push({ name: test.name, passed: false });
+                logFail(`Unexpected error in ${test.name}: ${(error as Error).message}`);
             }
-        } catch (error) {
-            results.push({ name: test.name, passed: false });
-            logFail(`Unexpected error in ${test.name}: ${(error as Error).message}`);
         }
+    } finally {
+        // Always cleanup, even on failure
+        await cleanup();
     }
 
     // Final Summary
