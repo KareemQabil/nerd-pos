@@ -142,9 +142,9 @@ describe('InventoryService', () => {
 
   describe('getDefaultWarehouse', () => {
     it('should return default warehouse', async () => {
-      const mockWarehouse = { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', isDefault: true };
+      // UUID must match v1-v5 pattern (3rd octet must start with 1-5)
+      const mockWarehouse = { id: 'a1b2c3d4-e5f6-4890-abcd-ef1234567890', isDefault: true };
       repo.findDefaultWarehouse.mockResolvedValue(mockWarehouse);
-      // Fallback not needed since valid default exists, but add for completeness
       repo.findAllWarehouses.mockResolvedValue([mockWarehouse]);
 
       const result = await service.getDefaultWarehouse();

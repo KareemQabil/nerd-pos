@@ -27,6 +27,7 @@ import {
   DiscountStep,
   GrandTotalStep,
 } from './calculation-steps';
+import { SessionsService } from '../sessions/sessions.service';
 
 // Mock Repository - methods from sales.repository.ts
 function createMockRepository() {
@@ -81,6 +82,16 @@ function createMockPrismaService() {
   return mockPrisma;
 }
 
+// Mock SessionsService - required by SalesService constructor
+function createMockSessionsService() {
+  return {
+    getCurrentSession: jest.fn().mockResolvedValue({ id: 'session-1' }),
+    findById: jest.fn(),
+    updateSessionStats: jest.fn(),
+    updateRefundStats: jest.fn(),
+  };
+}
+
 describe('SalesService', () => {
   let service: SalesService;
   let repo: ReturnType<typeof createMockRepository>;
@@ -105,6 +116,7 @@ describe('SalesService', () => {
         { provide: TaxStep, useValue: createMockStep() },
         { provide: DiscountStep, useValue: createMockStep() },
         { provide: GrandTotalStep, useValue: createMockStep() },
+        { provide: SessionsService, useValue: createMockSessionsService() },
       ],
     }).compile();
 
@@ -190,13 +202,15 @@ describe('SalesService', () => {
     it('should confirm draft order', async () => {
       const draftOrder = {
         id: 'order-1',
+        orderNumber: 'ORD-001',
         status: OrderStatus.DRAFT,
         items: [],
       };
 
       const confirmedOrder = { ...draftOrder, status: OrderStatus.CONFIRMED };
 
-      repo.findById.mockResolvedValue(draftOrder);
+      // confirmOrder calls findOrderByIdWithItems which uses findWithItems
+      repo.findWithItems.mockResolvedValue(draftOrder);
       repo.update.mockResolvedValue(confirmedOrder);
 
       const result = await service.confirmOrder('order-1');
