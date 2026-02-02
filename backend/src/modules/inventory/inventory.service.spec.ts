@@ -142,8 +142,10 @@ describe('InventoryService', () => {
 
   describe('getDefaultWarehouse', () => {
     it('should return default warehouse', async () => {
-      const mockWarehouse = { id: 'wh-1', isDefault: true };
+      const mockWarehouse = { id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890', isDefault: true };
       repo.findDefaultWarehouse.mockResolvedValue(mockWarehouse);
+      // Fallback not needed since valid default exists, but add for completeness
+      repo.findAllWarehouses.mockResolvedValue([mockWarehouse]);
 
       const result = await service.getDefaultWarehouse();
 
@@ -152,6 +154,7 @@ describe('InventoryService', () => {
 
     it('should throw NotFoundException if no default warehouse', async () => {
       repo.findDefaultWarehouse.mockResolvedValue(null);
+      repo.findAllWarehouses.mockResolvedValue([]); // Fix: Return empty array, not undefined
 
       await expect(service.getDefaultWarehouse()).rejects.toThrow(
         NotFoundException,

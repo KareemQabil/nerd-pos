@@ -41,7 +41,7 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
 @Controller('settings')
 export class SettingsController {
-  constructor(private readonly service: SettingsService) { }
+  constructor(private readonly service: SettingsService) {}
 
   // ==================== STORE SETTINGS ====================
 

@@ -119,7 +119,7 @@ export class DiscountsRepository extends BaseRepository<Discount> {
     });
   }
 
-  async getUsageStats(discountId: string): Promise<any> {
+  async getUsageStats(discountId: string): Promise<{ totalUsage: number; totalDiscountGiven: number }> {
     const usage = await (this.prisma as any).discountUsage.aggregate({
       where: { discountId },
       _sum: { discountAmount: true },

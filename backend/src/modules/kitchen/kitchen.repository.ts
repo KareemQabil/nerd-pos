@@ -159,7 +159,7 @@ export class KitchenRepository extends BaseRepository<KitchenTicket> {
 
   // ==================== STATISTICS ====================
 
-  async getStationStats(stationId: string): Promise<any> {
+  async getStationStats(stationId: string): Promise<{ tickets: Array<{ status: string; _count: { id: number } }> }> {
     const tickets = await this.prismaClient.kitchenTicket.groupBy({
       by: ['status'],
       where: { stationId },

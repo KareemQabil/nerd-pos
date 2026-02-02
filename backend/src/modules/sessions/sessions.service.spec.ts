@@ -106,14 +106,15 @@ describe('SessionsService', () => {
   describe('openSession', () => {
     it('should open session with opening balance', async () => {
       const dto = {
-        userId: 'user-1',
         openingBalance: 500.0,
+        terminalId: 'terminal-1',
       };
+      const userId = 'user-1';
 
       const mockSession = {
         id: 'session-1',
         sessionNumber: 'SES2026010001',
-        userId: dto.userId,
+        userId: userId,
         openingBalance: 500.0,
         status: SessionStatus.OPEN,
         totalSales: 0,
@@ -127,7 +128,8 @@ describe('SessionsService', () => {
       repo.countByPrefix.mockResolvedValue(0);
       repo.create.mockResolvedValue(mockSession);
 
-      const result = await service.openSession(dto);
+      // Service signature changed: openSession(dto, userId)
+      const result = await service.openSession(dto, userId);
 
       expect(result.status).toBe(SessionStatus.OPEN);
       expect(result.openingBalance).toBe(500.0);
@@ -148,9 +150,9 @@ describe('SessionsService', () => {
 
       await expect(
         service.openSession({
-          userId: 'user-1',
           openingBalance: 500.0,
-        }),
+          terminalId: 'terminal-1',
+        }, 'user-1'),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -325,10 +327,9 @@ describe('SessionsService', () => {
       const session = {
         id: 'session-1',
         status: SessionStatus.OPEN,
-        totalSales: 100,
-        totalCash: 50,
-        totalCard: 50,
-        orderCount: 5,
+        totalCashSales: 50,
+        totalCardSales: 50,
+        ordersCount: 5,
       };
 
       repo.findById.mockResolvedValue(session);
@@ -339,10 +340,9 @@ describe('SessionsService', () => {
       expect(repo.update).toHaveBeenCalledWith(
         'session-1',
         expect.objectContaining({
-          totalSales: 175,
-          totalCash: 75,
-          totalCard: 100,
-          orderCount: 6,
+          totalCashSales: 75,
+          totalCardSales: 100,
+          ordersCount: 6,
         }),
       );
     });

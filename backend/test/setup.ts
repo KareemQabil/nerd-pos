@@ -10,7 +10,7 @@ import { PrismaService } from '../src/core/prisma/prisma.service';
 // Set test environment variables
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ||
-  'postgresql://postgres:postgres@localhost:5432/nerdpos_test';
+  'postgresql://postgres:postgres@localhost:5433/nerdpos_test';
 process.env.NODE_ENV = 'test';
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   process.env.JWT_SECRET = 'test-jwt-secret-32-characters-minimum';

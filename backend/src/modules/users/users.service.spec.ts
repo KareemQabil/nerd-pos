@@ -16,8 +16,12 @@ function createMockRepository() {
     findByUsername: jest.fn(),
     findById: jest.fn(),
     findAll: jest.fn(),
+    findActive: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    // User with role (for login flow)
+    findWithRole: jest.fn(),
+    findByRoleLevel: jest.fn(),
     // PIN verification
     findByPin: jest.fn(),
     findManagerByPin: jest.fn(),
@@ -32,6 +36,7 @@ function createMockRepository() {
     findPermissionsByModule: jest.fn(),
     createPermission: jest.fn(),
     findUserPermissions: jest.fn(),
+    getPermissions: jest.fn(),
   };
 }
 
@@ -84,6 +89,7 @@ describe('UsersService', () => {
   describe('login', () => {
     it('should return auth result for valid credentials', async () => {
       repo.findByUsername.mockResolvedValue(mockUser);
+      repo.findWithRole.mockResolvedValue(mockUser); // Service calls this for role info
       // Mock bcrypt compare - would normally use spy
       jest.spyOn(service as any, 'verifyPassword').mockResolvedValue(true);
 
@@ -136,7 +142,8 @@ describe('UsersService', () => {
 
   describe('verifyManagerPin', () => {
     it('should return valid with managerId for manager PIN', async () => {
-      repo.findManagerByPin.mockResolvedValue(mockUser);
+      // Service uses findByRoleLevel(2) to get managers, then checks PIN
+      repo.findByRoleLevel.mockResolvedValue([mockUser]);
 
       const result = await service.verifyManagerPin('1234');
 
@@ -145,7 +152,7 @@ describe('UsersService', () => {
     });
 
     it('should return invalid for non-manager PIN', async () => {
-      repo.findManagerByPin.mockResolvedValue(null);
+      repo.findByRoleLevel.mockResolvedValue([]);
 
       const result = await service.verifyManagerPin('9999');
 
@@ -180,7 +187,8 @@ describe('UsersService', () => {
 
   describe('findById', () => {
     it('should return user profile', async () => {
-      repo.findById.mockResolvedValue(mockUser);
+      // Service uses findWithRole, not findById
+      repo.findWithRole.mockResolvedValue(mockUser);
 
       const result = await service.findById('user-1');
 
@@ -188,7 +196,7 @@ describe('UsersService', () => {
     });
 
     it('should throw NotFoundException if user not found', async () => {
-      repo.findById.mockResolvedValue(null);
+      repo.findWithRole.mockResolvedValue(null);
 
       await expect(service.findById('invalid')).rejects.toThrow(
         NotFoundException,
@@ -198,7 +206,8 @@ describe('UsersService', () => {
 
   describe('findAll', () => {
     it('should return all users', async () => {
-      repo.findAll.mockResolvedValue([mockUser, { ...mockUser, id: 'user-2' }]);
+      // Service calls findActive(), not findAll()
+      repo.findActive.mockResolvedValue([mockUser, { ...mockUser, id: 'user-2' }]);
 
       const result = await service.findAll();
 
@@ -235,9 +244,11 @@ describe('UsersService', () => {
   // ==================== PERMISSIONS ====================
   describe('hasPermission', () => {
     it('should return true if user has permission', async () => {
-      repo.findUserPermissions.mockResolvedValue([
-        'products.create',
-        'products.update',
+      // Service uses findWithRole then getPermissions
+      repo.findWithRole.mockResolvedValue(mockUser);
+      repo.getPermissions.mockResolvedValue([
+        { code: 'products.create' },
+        { code: 'products.update' },
       ]);
 
       const result = await service.hasPermission('user-1', 'products.create');
@@ -246,7 +257,8 @@ describe('UsersService', () => {
     });
 
     it('should return false if user lacks permission', async () => {
-      repo.findUserPermissions.mockResolvedValue(['products.view']);
+      repo.findWithRole.mockResolvedValue(mockUser);
+      repo.getPermissions.mockResolvedValue([{ code: 'products.view' }]);
 
       const result = await service.hasPermission('user-1', 'products.delete');
 
