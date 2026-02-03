@@ -63,8 +63,8 @@ export class ProductsController {
   @ApiOperation({ summary: 'Create a new product' })
   @ApiBody({ schema: { example: examples.products.createProductRequest.value } })
   @ApiResponse({ status: 201, description: 'Product created successfully', content: { 'application/json': { example: examples.products.createProductSuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
-  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.products.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.products.validationError.value } } })
   async createProduct(@Body() dto: CreateProductDto) {
     return this.service.createProduct(dto);
   }
@@ -77,23 +77,22 @@ export class ProductsController {
     description: 'List of products',
     schema: {
       example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: '123e4567-e89b-12d3-a456-426614174000',
-            nameEn: 'Cheeseburger',
-            price: 25.0,
+        data: {
+          data: [
+            {
+              id: '123e4567-e89b-12d3-a456-426614174000',
+              nameEn: 'Cheeseburger',
+              price: 25.0,
+            },
+          ],
+          meta: {
+            total: 100,
+            page: 1,
+            limit: 10,
+            totalPages: 10,
           },
-        ],
-        meta: {
-          total: 100,
-          page: 1,
-          limit: 10,
-          totalPages: 10,
         },
-        timestamp: '2026-01-23T12:00:00Z',
-        path: '/api/v1/products',
+        error: null,
       },
     },
   })
@@ -229,8 +228,8 @@ export class CategoriesController {
   @ApiOperation({ summary: 'Create category' })
   @ApiBody({ schema: { example: examples.products.createCategoryRequest.value } })
   @ApiResponse({ status: 201, description: 'Category created successfully', content: { 'application/json': { example: examples.products.createCategorySuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
-  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
+  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.products.unauthorizedError.value } } })
+  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.products.validationError.value } } })
   async createCategory(@Body() dto: CreateCategoryDto) {
     return this.service.createCategory(dto);
   }

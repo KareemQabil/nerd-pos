@@ -179,8 +179,6 @@ export const productExamples = {
   createCategorySuccess: {
     summary: 'Category created',
     value: {
-      success: true,
-      statusCode: 201,
       data: {
         id: 'cat-hot-drinks-001',
         nameEn: 'Hot Beverages',
@@ -188,8 +186,7 @@ export const productExamples = {
         sortOrder: 1,
         isActive: true,
       },
-      timestamp: '2026-01-25T10:00:00.000Z',
-      path: '/api/v1/products/categories',
+      error: null,
     },
   },
   createProductRequest: {
@@ -208,8 +205,6 @@ export const productExamples = {
   createProductSuccess: {
     summary: 'Product created',
     value: {
-      success: true,
-      statusCode: 201,
       data: {
         id: 'prod-latte-001',
         sku: 'LATTE-001',
@@ -221,8 +216,50 @@ export const productExamples = {
         currentStock: 0,
         isActive: true,
       },
-      timestamp: '2026-01-25T10:00:00.000Z',
-      path: '/api/v1/products',
+      error: null,
+    },
+  },
+  unauthorizedError: {
+    summary: 'Unauthorized',
+    description: 'Authentication failed or token missing',
+    value: {
+      data: null,
+      error: {
+        messageKey: 'UNAUTHORIZED',
+        messageEn: 'Unauthorized.',
+        messageAr: 'غير مصرح.',
+      },
+    },
+  },
+  validationError: {
+    summary: 'Validation error',
+    description: 'Request validation failed with detailed error messages',
+    value: {
+      data: null,
+      error: {
+        messageKey: 'VALIDATION_ERROR',
+        messageEn: 'Validation error.',
+        messageAr: 'خطأ في التحقق من البيانات.',
+        details: [
+          {
+            field: 'price',
+            message: 'Price must be non-negative',
+            value: -10,
+          },
+        ],
+      },
+    },
+  },
+  productNotFoundError: {
+    summary: 'Product not found',
+    value: {
+      data: null,
+      error: {
+        messageKey: 'PRODUCT_NOT_FOUND',
+        messageEn: 'Product not found.',
+        messageAr: 'المنتج غير موجود.',
+        details: { productId: 'prod-unknown' },
+      },
     },
   },
 };
