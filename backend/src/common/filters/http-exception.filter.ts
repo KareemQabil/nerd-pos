@@ -66,20 +66,33 @@ export class HttpExceptionFilter implements ExceptionFilter {
           errorPayload = ErrorMessages.ValidationError;
           errorDetails = errors;
         } else {
-          detail =
-            typeof responseObj.message === 'string'
-              ? responseObj.message
-              : exception.message;
-          if (isErrorMessageDefinition(responseObj) || isApiError(responseObj)) {
+          if (isApiError(responseObj)) {
+            detail = responseObj.messageEn;
+            errorPayload = responseObj;
+          } else if (isErrorMessageDefinition(responseObj)) {
+            detail = responseObj.messageEn;
             errorPayload = responseObj;
           } else if (
             isErrorMessageDefinition(responseObj.message) ||
             isApiError(responseObj.message)
           ) {
-            errorPayload = responseObj.message;
+            const messagePayload = responseObj.message;
+            if (isApiError(messagePayload)) {
+              detail = messagePayload.messageEn;
+            } else if (isErrorMessageDefinition(messagePayload)) {
+              detail = messagePayload.messageEn;
+            } else {
+              detail = exception.message;
+            }
+            errorPayload = messagePayload;
           } else {
+            detail =
+              typeof responseObj.message === 'string'
+                ? responseObj.message
+                : exception.message;
             errorPayload = responseObj;
           }
+
           if (responseObj.message || responseObj.error) {
             errorDetails = {
               message: responseObj.message,
@@ -112,4 +125,3 @@ export class HttpExceptionFilter implements ExceptionFilter {
     response.status(status).json(payload);
   }
 }
-

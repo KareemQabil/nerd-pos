@@ -10,15 +10,16 @@ The API now returns a unified envelope for both success and error:
 ```
 
 ## How to Throw Keyed Errors
-Prefer throwing Nest exceptions with a constant from `ErrorMessages`:
+Prefer throwing custom exceptions with a constant from `ErrorMessages`:
 ```ts
-throw new NotFoundException(ErrorMessages.ParentCategoryNotFound);
+throw new NotFoundAppException(ErrorMessages.ParentCategoryNotFound, {
+  parentId,
+});
 ```
 To attach details:
 ```ts
-throw new NotFoundException({
-  ...ErrorMessages.ParentCategoryNotFound,
-  details: { parentId },
+throw new BusinessValidationException(ErrorMessages.InvalidPrice, {
+  field: 'price',
 });
 ```
 
@@ -43,3 +44,16 @@ export const ErrorMessages = {
 ## Notes
 - Validation errors are automatically mapped to `ErrorMessages.ValidationError` with details.
 - Existing string exceptions still work; they map to a default error by HTTP status.
+
+## Available Custom Exceptions
+Use these when you want status-specific responses with typed error keys:
+- `BadRequestAppException` (400)
+- `UnauthorizedAppException` (401)
+- `ForbiddenAppException` (403)
+- `NotFoundAppException` (404)
+- `ConflictAppException` (409)
+- `UnprocessableEntityAppException` (422)
+- `TooManyRequestsAppException` (429)
+- `InternalServerErrorAppException` (500)
+
+`BusinessValidationException` is a convenience alias for 422.

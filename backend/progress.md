@@ -13,6 +13,8 @@
 - Updated response validator and Swagger response format docs.
 - Added refactoring guide file for gradual module migration.
 - Refactored Products module to throw keyed errors and updated its Swagger examples.
+- Implemented custom exceptions (base + business validation + not found).
+- Added status-specific custom exceptions (400/401/403/409/422/429/500) and documented them.
 
 ### Test Results
 | Test | Expected | Actual | Status |

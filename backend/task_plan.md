@@ -1,7 +1,7 @@
 # Task Plan: Unified API Response Envelope + Error Mapping
 
 ## Goal
-Implement a base `{ data, error }` response structure with centralized error message mapping and update global interceptors/filters accordingly, plus provide a refactoring guide without modifying all modules.
+Implement a base `{ data, error }` response structure with centralized error message mapping and custom exceptions that accept `ErrorMessages.*`, plus provide a refactoring guide without modifying all modules.
 
 ## Current Phase
 Phase 5
@@ -28,6 +28,8 @@ Phase 5
 - [x] Add documentation/guide file
 - [x] Refactor products module to use error keys
 - [x] Update products Swagger examples for new envelope
+- [x] Implement custom exceptions (base + business validation + not found)
+- [x] Refactor products module to use custom exceptions
 - **Status:** complete
 
 ### Phase 4: Testing & Verification
@@ -43,7 +45,8 @@ Phase 5
 | Decision | Rationale |
 |----------|-----------|
 | Use unified `{ data, error }` envelope across success and error | User requirement |
-| Centralize error messages in a constant map + helper | Enables `throw new NotFoundException(ErrorMessages.Key)` |
+| Centralize error messages in a constant map + helper | Enables `throw new AppException(ErrorMessages.Key)` |
+| Add custom exceptions for business validation + not found | Cleaner API and stronger typing |
 | Provide migration guide instead of mass refactor | User requested base structure only |
 | Start module refactor with Products | Natural fit for ParentCategoryNotFound example and high-impact module |
 
