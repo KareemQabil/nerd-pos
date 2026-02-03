@@ -1,0 +1,45 @@
+# Error Response Refactoring Guide
+
+## Overview
+The API now returns a unified envelope for both success and error:
+```json
+{ "data": { ... }, "error": null }
+```
+```json
+{ "data": null, "error": { "messageKey": "...", "messageEn": "...", "messageAr": "...", "details": { } } }
+```
+
+## How to Throw Keyed Errors
+Prefer throwing Nest exceptions with a constant from `ErrorMessages`:
+```ts
+throw new NotFoundException(ErrorMessages.ParentCategoryNotFound);
+```
+To attach details:
+```ts
+throw new NotFoundException({
+  ...ErrorMessages.ParentCategoryNotFound,
+  details: { parentId },
+});
+```
+
+## Adding New Error Messages
+Add new entries in `src/common/constants/error-messages.ts`:
+```ts
+export const ErrorMessages = {
+  ProductNotFound: {
+    key: 'PRODUCT_NOT_FOUND',
+    messageEn: 'Product not found.',
+    messageAr: 'المنتج غير موجود.',
+  },
+};
+```
+
+## Suggested Refactoring Steps (Per Module)
+1. Replace string-based exceptions with keyed constants.
+2. Add `details` for IDs or validation context.
+3. Update Swagger examples in controllers or `src/common/fixtures/swagger-examples.ts`.
+4. Adjust tests that assert legacy response fields (`success`, `statusCode`, RFC 9457).
+
+## Notes
+- Validation errors are automatically mapped to `ErrorMessages.ValidationError` with details.
+- Existing string exceptions still work; they map to a default error by HTTP status.

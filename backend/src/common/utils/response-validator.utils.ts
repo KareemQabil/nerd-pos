@@ -6,28 +6,24 @@
  *
  * Success Response Format:
  * {
- *   "success": true,
- *   "statusCode": number,
  *   "data": any,
- *   "timestamp": string (ISO 8601),
- *   "path": string,
- *   "requestId"?: string
+ *   "error": null
  * }
  *
- * Error Response Format (RFC 9457):
+ * Error Response Format:
  * {
- *   "success": false,
- *   "type": string (URI),
- *   "title": string,
- *   "status": number,
- *   "detail": string,
- *   "instance": string,
- *   "timestamp": string (ISO 8601),
- *   "errors"?: array
+ *   "data": null,
+ *   "error": {
+ *     "messageKey": string,
+ *     "messageEn": string,
+ *     "messageAr": string,
+ *     "details"?: any
+ *   }
  * }
  */
 
-import { SuccessResponse } from '../interceptors/transform.interceptor';
+import { ApiResponse } from '../types';
+import { isApiError } from './error-message.utils';
 
 /**
  * Validates a success response envelope
@@ -35,52 +31,28 @@ import { SuccessResponse } from '../interceptors/transform.interceptor';
  */
 export function validateSuccessResponse(
   response: unknown,
-): asserts response is SuccessResponse {
+): asserts response is ApiResponse<unknown> {
   if (!response || typeof response !== 'object') {
     throw new Error('Response must be an object');
   }
 
   const r = response as Record<string, unknown>;
 
-  // Check success field
-  if (r.success !== true) {
-    throw new Error(`Response must have success: true, got: ${r.success}`);
-  }
-
-  // Check statusCode
-  if (typeof r.statusCode !== 'number') {
-    throw new Error(`Response must have statusCode as number, got: ${typeof r.statusCode}`);
-  }
-
-  // Check data field exists
   if (!('data' in r)) {
     throw new Error('Response must have a "data" field');
   }
 
-  // Check timestamp is ISO 8601 string
-  if (typeof r.timestamp !== 'string') {
-    throw new Error(`Response must have timestamp as string, got: ${typeof r.timestamp}`);
+  if (!('error' in r)) {
+    throw new Error('Response must have an "error" field');
   }
 
-  // Validate ISO 8601 format (basic check)
-  const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
-  if (!isoRegex.test(r.timestamp)) {
-    throw new Error(`Response timestamp must be ISO 8601 format, got: ${r.timestamp}`);
-  }
-
-  // Check path field
-  if (typeof r.path !== 'string') {
-    throw new Error(`Response must have path as string, got: ${typeof r.path}`);
-  }
-
-  // requestId is optional
-  if (r.requestId !== undefined && typeof r.requestId !== 'string') {
-    throw new Error(`Response requestId must be string if present, got: ${typeof r.requestId}`);
+  if (r.error !== null) {
+    throw new Error('Success response must have error: null');
   }
 }
 
 /**
- * Validates an error response envelope (RFC 9457)
+ * Validates an error response envelope
  * @throws Error if validation fails with detailed message
  */
 export function validateErrorResponse(response: unknown): void {
@@ -90,50 +62,16 @@ export function validateErrorResponse(response: unknown): void {
 
   const r = response as Record<string, unknown>;
 
-  // Check success field
-  if (r.success !== false) {
-    throw new Error(`Error response must have success: false, got: ${r.success}`);
+  if (r.data !== null) {
+    throw new Error('Error response must have data: null');
   }
 
-  // Check type (URI)
-  if (typeof r.type !== 'string') {
-    throw new Error(`Error response must have type as string (URI), got: ${typeof r.type}`);
+  if (!('error' in r)) {
+    throw new Error('Error response must have an "error" field');
   }
 
-  // Check title
-  if (typeof r.title !== 'string') {
-    throw new Error(`Error response must have title as string, got: ${typeof r.title}`);
-  }
-
-  // Check status
-  if (typeof r.status !== 'number') {
-    throw new Error(`Error response must have status as number, got: ${typeof r.status}`);
-  }
-
-  // Check detail
-  if (typeof r.detail !== 'string') {
-    throw new Error(`Error response must have detail as string, got: ${typeof r.detail}`);
-  }
-
-  // Check instance
-  if (typeof r.instance !== 'string') {
-    throw new Error(`Error response must have instance as string, got: ${typeof r.instance}`);
-  }
-
-  // Check timestamp
-  if (typeof r.timestamp !== 'string') {
-    throw new Error(`Error response must have timestamp as string, got: ${typeof r.timestamp}`);
-  }
-
-  // Validate ISO 8601 format
-  const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/;
-  if (!isoRegex.test(r.timestamp)) {
-    throw new Error(`Error response timestamp must be ISO 8601 format, got: ${r.timestamp}`);
-  }
-
-  // errors array is optional
-  if (r.errors !== undefined && !Array.isArray(r.errors)) {
-    throw new Error(`Error response errors must be an array if present, got: ${typeof r.errors}`);
+  if (!isApiError(r.error)) {
+    throw new Error('Error response must include a valid error object');
   }
 }
 
@@ -148,12 +86,10 @@ export function validateResponse(response: unknown): boolean {
 
   const r = response as Record<string, unknown>;
 
-  if (r.success === true) {
+  if (r.error === null) {
     validateSuccessResponse(response);
-  } else if (r.success === false) {
-    validateErrorResponse(response);
   } else {
-    throw new Error(`Response must have success field as boolean, got: ${r.success}`);
+    validateErrorResponse(response);
   }
 
   return true;
@@ -192,7 +128,7 @@ export function validateResponses(
 /**
  * Type guard for success response
  */
-export function isSuccessResponse(response: unknown): response is SuccessResponse {
+export function isSuccessResponse(response: unknown): response is ApiResponse<unknown> {
   try {
     validateSuccessResponse(response);
     return true;
@@ -209,5 +145,5 @@ export function isErrorResponse(response: unknown): boolean {
     return false;
   }
   const r = response as Record<string, unknown>;
-  return r.success === false;
+  return r.error !== null && isApiError(r.error);
 }

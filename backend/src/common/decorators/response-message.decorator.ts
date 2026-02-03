@@ -3,7 +3,7 @@
  * Production Cleanup 2026-01-23
  *
  * Use @ResponseMessage() to set custom success messages on endpoints.
- * Works with DecimalTransformInterceptor to customize response messages.
+ * Reserved for legacy response message handling.
  *
  * @example
  * @ResponseMessage('Product created successfully')
