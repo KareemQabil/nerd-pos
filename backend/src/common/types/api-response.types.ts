@@ -6,6 +6,6 @@ export interface ApiError {
 }
 
 export interface ApiResponse<T> {
-  data: T | null;
+  result: T | null;
   error: ApiError | null;
 }

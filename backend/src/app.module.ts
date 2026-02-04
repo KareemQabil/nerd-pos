@@ -12,7 +12,10 @@ import { AppService } from './app.service';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { EventBusModule } from './core/event-bus/event-bus.module';
 import { DecimalTransformInterceptor } from './common/interceptors/decimal-transform.interceptor';
-import { RequestIdMiddleware, ResponseHeadersMiddleware } from './common/middleware';
+import {
+  RequestIdMiddleware,
+  ResponseHeadersMiddleware,
+} from './common/middleware';
 import { envValidationSchema } from './config/env.validation';
 
 // Feature Modules
@@ -34,7 +37,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
-import { HealthModule } from './common/health/health.module';
+import { HealthModule } from './modules/health/health.module';
 import { LookupModule } from './modules/lookup/lookup.module';
 
 @Module({
@@ -48,10 +51,12 @@ import { LookupModule } from './modules/lookup/lookup.module';
       },
       envFilePath: ['.env.local', '.env'],
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000, // 60 seconds
-      limit: 100, // 100 requests per minute
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 60 seconds
+        limit: 100, // 100 requests per minute
+      },
+    ]),
     EventEmitterModule.forRoot(), // Enable @OnEvent handlers
     PrismaModule,
     EventBusModule,
@@ -101,4 +106,3 @@ export class AppModule implements NestModule {
       .forRoutes('*');
   }
 }
-
