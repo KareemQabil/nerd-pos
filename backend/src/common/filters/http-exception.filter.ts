@@ -53,16 +53,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
         // Handle validation errors (class-validator)
         if (Array.isArray(responseObj.message)) {
-          const errors: ValidationError[] = responseObj.message.map((msg: any) => {
-            if (typeof msg === 'string') {
-              return { field: 'unknown', message: msg };
-            }
-            return {
-              field: msg.property || 'unknown',
-              message: Object.values(msg.constraints || {}).join(', ') || msg,
-              value: msg.value,
-            };
-          });
+          const errors: ValidationError[] = responseObj.message.map(
+            (msg: any) => {
+              if (typeof msg === 'string') {
+                return { field: 'unknown', message: msg };
+              }
+              return {
+                field: msg.property || 'unknown',
+                message: Object.values(msg.constraints || {}).join(', ') || msg,
+                value: msg.value,
+              };
+            },
+          );
           errorPayload = ErrorMessages.ValidationError;
           errorDetails = errors;
         } else {
@@ -118,7 +120,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const apiError = resolveErrorMessage(errorPayload, status, errorDetails);
 
     const payload: ApiResponse<null> = {
-      data: null,
+      result: null,
       error: apiError,
     };
 

@@ -24,27 +24,28 @@ import { map } from 'rxjs/operators';
 import { ApiResponse } from '../types';
 
 @Injectable()
-export class TransformInterceptor<T>
-  implements NestInterceptor<T, ApiResponse<T>>
-{
+export class TransformInterceptor<T> implements NestInterceptor<
+  T,
+  ApiResponse<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<ApiResponse<T>> {
     return next.handle().pipe(
-      map((data) => {
+      map((result) => {
         // Don't double-wrap if already in standard format
         if (
-          data &&
-          typeof data === 'object' &&
-          'data' in data &&
-          'error' in data
+          result &&
+          typeof result === 'object' &&
+          'result' in result &&
+          'error' in result
         ) {
-          return data as ApiResponse<T>;
+          return result as ApiResponse<T>;
         }
 
         return {
-          data: data ?? null,
+          result: result ?? null,
           error: null,
         };
       }),

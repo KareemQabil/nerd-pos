@@ -19,26 +19,25 @@ export const RESPONSE_MESSAGE_KEY = 'responseMessage';
 
 @Injectable()
 export class DecimalTransformInterceptor implements NestInterceptor {
-
   intercept(
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<ApiResponse<unknown>> {
     return next.handle().pipe(
-      map((data) => {
+      map((result) => {
         // First, transform all Decimals to strings
-        const transformedData = this.transformDecimals(data);
+        const transformedData = this.transformDecimals(result);
         if (
           transformedData &&
           typeof transformedData === 'object' &&
-          'data' in transformedData &&
+          'result' in transformedData &&
           'error' in transformedData
         ) {
           return transformedData as ApiResponse<unknown>;
         }
 
         return {
-          data: transformedData ?? null,
+          result: transformedData ?? null,
           error: null,
         };
       }),
