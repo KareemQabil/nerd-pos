@@ -54,15 +54,15 @@ Point of Sale & ERP System for MENA Region (Saudi Arabia & Egypt)
 All responses follow this structure:
 \`\`\`json
 {
-  "data": { ... },
+  "result": { ... },
   "error": null
 }
 \`\`\`
 
-Errors return the same envelope with \`data: null\` and an error object.
+Errors return the same envelope with \`result: null\` and an error object.
 \`\`\`json
 {
-  "data": null,
+  "result": null,
   "error": {
     "messageKey": "PARENT_CATEGORY_NOT_FOUND",
     "messageEn": "Parent category not found.",

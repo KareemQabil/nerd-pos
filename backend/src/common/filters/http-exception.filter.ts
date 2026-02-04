@@ -28,7 +28,7 @@ export interface ValidationError {
 
 /**
  * Global HTTP Exception Filter
- * Standardizes error responses across the API using the { data, error } envelope
+ * Standardizes error responses across the API using the { result, error } envelope
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {

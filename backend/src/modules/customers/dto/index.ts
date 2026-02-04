@@ -66,6 +66,10 @@ export class CreateCustomerDto {
 
 export class UpdateCustomerDto extends PartialType(CreateCustomerDto) { }
 
+// ==================== RESPONSE DTOs ====================
+
+export * from './customer-response.dto';
+
 // ==================== ADD ADDRESS ====================
 
 export class AddAddressDto {

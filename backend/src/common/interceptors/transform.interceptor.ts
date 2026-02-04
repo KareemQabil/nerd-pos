@@ -3,7 +3,7 @@
  *
  * Standardizes ALL success responses to follow a consistent envelope format:
  * {
- *   "data": { ... },
+ *   "result": { ... },
  *   "error": null
  * }
  *

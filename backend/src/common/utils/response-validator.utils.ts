@@ -6,13 +6,13 @@
  *
  * Success Response Format:
  * {
- *   "data": any,
+ *   "result": any,
  *   "error": null
  * }
  *
  * Error Response Format:
  * {
- *   "data": null,
+ *   "result": null,
  *   "error": {
  *     "messageKey": string,
  *     "messageEn": string,
@@ -38,8 +38,8 @@ export function validateSuccessResponse(
 
   const r = response as Record<string, unknown>;
 
-  if (!('data' in r)) {
-    throw new Error('Response must have a "data" field');
+  if (!('result' in r)) {
+    throw new Error('Response must have a "result" field');
   }
 
   if (!('error' in r)) {
@@ -62,8 +62,8 @@ export function validateErrorResponse(response: unknown): void {
 
   const r = response as Record<string, unknown>;
 
-  if (r.data !== null) {
-    throw new Error('Error response must have data: null');
+  if (r.result !== null) {
+    throw new Error('Error response must have result: null');
   }
 
   if (!('error' in r)) {
