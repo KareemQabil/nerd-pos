@@ -182,3 +182,7 @@ export class ApplyDiscountDto {
   @IsString()
   approvedBy?: string;
 }
+
+// ==================== RESPONSE DTOs ====================
+
+export * from './discount-response.dto';

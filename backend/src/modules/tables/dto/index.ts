@@ -231,3 +231,7 @@ export class UpdateReservationStatusDto {
   @IsIn(['PENDING', 'CONFIRMED', 'SEATED', 'CANCELLED', 'NO_SHOW'])
   status: 'PENDING' | 'CONFIRMED' | 'SEATED' | 'CANCELLED' | 'NO_SHOW';
 }
+
+// ==================== RESPONSE DTOs ====================
+
+export * from './tables-response.dto';

@@ -9,19 +9,13 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { DeliveryService } from './delivery.service';
 import {
@@ -31,16 +25,18 @@ import {
   AssignDriverDto,
   UpdateDeliveryStatusDto,
   UpdateDriverLocationDto,
+  DeliveryResponseDto,
+  DeliveryZoneResponseDto,
+  DriverResponseDto,
 } from './dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Delivery')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('delivery')
 export class DeliveryController {
   constructor(private readonly service: DeliveryService) { }
@@ -49,26 +45,11 @@ export class DeliveryController {
   @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get active deliveries', description: 'Returns deliveries in progress' })
   @ApiQuery({ name: 'driverId', required: false, description: 'Filter by driver UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Active deliveries retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'del_123',
-            orderId: 'ord_456',
-            status: 'OUT_FOR_DELIVERY',
-            driverId: 'drv_789',
-            address: '123 Main St, Riyadh',
-            estimatedTime: '25 mins',
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: DeliveryResponseDto,
+    isArray: true,
   })
   async getActive(@Query('driverId') driverId?: string) {
     return this.service.getActiveDeliveries(driverId);
@@ -77,24 +58,8 @@ export class DeliveryController {
   @Post()
   @Permissions(PERMISSIONS.DELIVERY_CREATE) // Cashier+
   @ApiOperation({ summary: 'Create delivery', description: 'Creates a new delivery order' })
-  @ApiResponse({
-    status: 201,
-    description: 'Delivery created',
-    schema: {
-      example: {
-        success: true,
-        message: 'Delivery created successfully',
-        data: {
-          id: 'del_124',
-          orderId: 'ord_457',
-          status: 'PENDING',
-          deliveryFee: 15.0,
-        },
-        timestamp: '2026-01-23T12:05:00Z',
-      },
-    },
-  })
-  @ApiBadRequestResponse({ description: 'Validation error or district not in delivery zone' })
+  @ApiResultResponse({ status: 201, description: 'Delivery created', type: DeliveryResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or district not in delivery zone' })
   async create(@Body() dto: CreateDeliveryDto & { district: string }) {
     return this.service.createDelivery(dto, dto.district);
   }
@@ -103,23 +68,8 @@ export class DeliveryController {
   @Permissions(PERMISSIONS.DELIVERY_ASSIGN) // 🔒 Manager+
   @ApiOperation({ summary: 'Assign driver', description: 'Assigns a driver to delivery. Manager+ required.' })
   @ApiParam({ name: 'id', description: 'Delivery UUID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Driver assigned',
-    schema: {
-      example: {
-        success: true,
-        message: 'Driver assigned successfully',
-        data: {
-          deliveryId: 'del_124',
-          driverId: 'drv_789',
-          status: 'ASSIGNED',
-        },
-        timestamp: '2026-01-23T12:10:00Z',
-      },
-    },
-  })
-  @ApiNotFoundResponse({ description: 'Delivery or driver not found' })
+  @ApiResultResponse({ status: 200, description: 'Driver assigned', type: DeliveryResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Delivery or driver not found' })
   async assign(@Param('id') id: string, @Body() dto: AssignDriverDto) {
     return this.service.assignDriver(id, dto.driverId);
   }
@@ -128,8 +78,8 @@ export class DeliveryController {
   @Permissions(PERMISSIONS.DELIVERY_UPDATE) // Cashier+
   @ApiOperation({ summary: 'Update delivery status', description: 'Updates delivery status (PICKED_UP, DELIVERED, etc.)' })
   @ApiParam({ name: 'id', description: 'Delivery UUID' })
-  @ApiResponse({ status: 200, description: 'Delivery status updated' })
-  @ApiNotFoundResponse({ description: 'Delivery not found' })
+  @ApiResultResponse({ status: 200, description: 'Delivery status updated', type: DeliveryResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Delivery not found' })
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateDeliveryStatusDto & { driverId?: string },
@@ -141,24 +91,11 @@ export class DeliveryController {
   @Get('zones')
   @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get delivery zones', description: 'Returns all delivery zones with fees' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Delivery zones retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'zone_1',
-            name: 'Downtown',
-            fee: 10.0,
-            active: true,
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: DeliveryZoneResponseDto,
+    isArray: true,
   })
   async getZones() {
     return this.service.getAllZones();
@@ -167,8 +104,8 @@ export class DeliveryController {
   @Post('zones')
   @Permissions(PERMISSIONS.DELIVERY_ZONE_MANAGE) // 🔒 Admin only
   @ApiOperation({ summary: 'Create delivery zone', description: 'Creates a new delivery zone. Admin only.' })
-  @ApiResponse({ status: 201, description: 'Delivery zone created' })
-  @ApiBadRequestResponse({ description: 'Validation error or duplicate zone name' })
+  @ApiResultResponse({ status: 201, description: 'Delivery zone created', type: DeliveryZoneResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or duplicate zone name' })
   async createZone(@Body() dto: CreateDeliveryZoneDto) {
     return this.service.createZone(dto);
   }
@@ -177,25 +114,11 @@ export class DeliveryController {
   @Get('drivers')
   @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get all drivers', description: 'Returns all delivery drivers' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Drivers retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'drv_789',
-            name: 'John Doe',
-            phone: '+966501234567',
-            status: 'AVAILABLE',
-            currentLocation: { lat: 24.7136, lng: 46.6753 },
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: DriverResponseDto,
+    isArray: true,
   })
   async getDrivers() {
     return this.service.getAllDrivers();
@@ -204,23 +127,11 @@ export class DeliveryController {
   @Get('drivers/available')
   @Permissions(PERMISSIONS.DELIVERY_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get available drivers', description: 'Returns drivers not currently on delivery' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Available drivers retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'drv_789',
-            name: 'John Doe',
-            status: 'AVAILABLE',
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: DriverResponseDto,
+    isArray: true,
   })
   async getAvailableDrivers() {
     return this.service.getAvailableDrivers();
@@ -229,8 +140,8 @@ export class DeliveryController {
   @Post('drivers')
   @Permissions(PERMISSIONS.DELIVERY_PARTNER_MANAGE) // 🔒 Admin only
   @ApiOperation({ summary: 'Create driver', description: 'Registers a new delivery driver. Admin only.' })
-  @ApiResponse({ status: 201, description: 'Driver created' })
-  @ApiBadRequestResponse({ description: 'Validation error or phone already registered' })
+  @ApiResultResponse({ status: 201, description: 'Driver created', type: DriverResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or phone already registered' })
   async createDriver(@Body() dto: CreateDriverDto) {
     return this.service.createDriver(dto);
   }
@@ -239,8 +150,8 @@ export class DeliveryController {
   @Permissions(PERMISSIONS.DELIVERY_UPDATE) // Cashier+ (driver location update)
   @ApiOperation({ summary: 'Update driver location', description: 'Updates driver GPS coordinates' })
   @ApiParam({ name: 'id', description: 'Driver UUID' })
-  @ApiResponse({ status: 200, description: 'Location updated' })
-  @ApiNotFoundResponse({ description: 'Driver not found' })
+  @ApiResultResponse({ status: 200, description: 'Location updated', type: DriverResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Driver not found' })
   async updateLocation(
     @Param('id') id: string,
     @Body() dto: UpdateDriverLocationDto,

@@ -18,7 +18,7 @@ Refactor Swagger API response examples to use DTO-based schemas and the unified 
   WHAT: Which phase you're currently working on (e.g., "Phase 1", "Phase 3").
   WHY: Quick reference for where you are in the task. Update this as you progress.
 -->
-Phase 3
+Phase 4
 
 ## Phases
 <!-- 
@@ -59,9 +59,9 @@ Phase 3
   WHY: This is where the work happens. Break into smaller sub-tasks if needed.
 -->
 - [x] Refactor customer controller Swagger responses to DTO-based schema
-- [ ] Apply unified Swagger response format across controllers/modules
+- [x] Apply unified Swagger response format across controllers/modules
 - [x] Update/introduce shared decorators or helpers as needed
-- **Status:** in_progress
+- **Status:** complete
 
 ### Phase 4: Testing & Verification
 <!-- 

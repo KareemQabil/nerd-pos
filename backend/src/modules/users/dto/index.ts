@@ -18,6 +18,7 @@ import {
 import { PartialType } from '@nestjs/mapped-types';
 import { Exclude, Expose } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PaginatedResponseDto } from '../../../common/dto';
 
 // ==================== LOGIN ====================
 
@@ -308,4 +309,95 @@ export class UserListItemDto {
   @Expose()
   @ApiProperty({ description: 'Active status', example: true })
   isActive: boolean;
+}
+
+export class UserProfileResponseDto extends UserResponseDto {
+  @Expose()
+  @ApiPropertyOptional({ description: 'Role display name', example: 'Cashier' })
+  roleName?: string;
+}
+
+export class UserLoginResponseDto {
+  @ApiProperty({ description: 'Access token', example: 'eyJhbGciOi...' })
+  token: string;
+
+  @ApiProperty({ description: 'User profile', type: () => UserProfileResponseDto })
+  user: UserProfileResponseDto;
+}
+
+export class ManagerAuthResponseDto {
+  @ApiProperty({ description: 'Manager PIN validation result', example: true })
+  valid: boolean;
+
+  @ApiPropertyOptional({ description: 'Manager user ID', example: 'u23e4567-e89b-12d3-a456-426614174020' })
+  managerId?: string;
+}
+
+export class PermissionCheckResponseDto {
+  @ApiProperty({ description: 'Permission check result', example: true })
+  hasPermission: boolean;
+}
+
+export class UserPaginatedResponseDto extends PaginatedResponseDto<UserListItemDto> {
+  @ApiProperty({
+    description: 'Users for current page',
+    type: () => UserListItemDto,
+    isArray: true,
+  })
+  data: UserListItemDto[];
+}
+
+export class RoleResponseDto {
+  @ApiProperty({ description: 'Role ID (UUID)', example: 'role_admin' })
+  id: string;
+
+  @ApiProperty({ description: 'Role name', example: 'ADMIN' })
+  name: string;
+
+  @ApiProperty({ description: 'Role name (Arabic)', example: 'ADMIN (AR)' })
+  nameAr: string;
+
+  @ApiPropertyOptional({ description: 'Role description', example: 'Administrator with full access' })
+  description?: string | null;
+
+  @ApiProperty({ description: 'Role level', example: 1 })
+  level: number;
+
+  @ApiProperty({ description: 'System role flag', example: true })
+  isSystem: boolean;
+
+  @ApiProperty({ description: 'Active flag', example: true })
+  isActive: boolean;
+
+  @ApiProperty({ description: 'Created timestamp', example: '2026-01-10T08:00:00Z' })
+  createdAt: Date;
+
+  @ApiProperty({ description: 'Updated timestamp', example: '2026-01-20T14:30:00Z' })
+  updatedAt: Date;
+}
+
+export class PermissionResponseDto {
+  @ApiProperty({ description: 'Permission ID (UUID)', example: 'perm_1' })
+  id: string;
+
+  @ApiProperty({ description: 'Permission code', example: 'products.create' })
+  code: string;
+
+  @ApiProperty({ description: 'Permission name (English)', example: 'Create products' })
+  name: string;
+
+  @ApiProperty({ description: 'Permission name (Arabic)', example: 'Create products (AR)' })
+  nameAr: string;
+
+  @ApiPropertyOptional({ description: 'Permission description', example: 'Allows creating products' })
+  description?: string | null;
+
+  @ApiProperty({ description: 'Module name', example: 'products' })
+  module: string;
+
+  @ApiPropertyOptional({ description: 'Module section', example: 'catalog' })
+  section?: string | null;
+
+  @ApiProperty({ description: 'Created timestamp', example: '2026-01-10T08:00:00Z' })
+  createdAt: Date;
 }

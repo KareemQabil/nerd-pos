@@ -37,3 +37,5 @@ export class DateRangeDto {
   @Type(() => Date)
   endDate: Date;
 }
+
+export * from './reports-response.dto';

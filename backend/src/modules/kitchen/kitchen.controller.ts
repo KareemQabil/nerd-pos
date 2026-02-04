@@ -9,30 +9,29 @@ import {
   Put,
   Body,
   Param,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { KitchenService } from './kitchen.service';
-import { CreateKitchenStationDto, UpdateKitchenStationDto } from './dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import {
+  CreateKitchenStationDto,
+  UpdateKitchenStationDto,
+  KitchenStationResponseDto,
+  KitchenTicketResponseDto,
+  KitchenTicketWithItemsResponseDto,
+} from './dto';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Kitchen')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('kitchen')
 export class KitchenController {
   constructor(private readonly service: KitchenService) { }
@@ -43,26 +42,11 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_VIEW) // Kitchen staff
   @ApiOperation({ summary: 'Get active tickets', description: 'Returns active kitchen tickets for station' })
   @ApiParam({ name: 'stationId', description: 'Kitchen Station UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Active tickets retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'tkt_123',
-            orderId: 'ord_456',
-            orderNumber: 'ORD-001',
-            status: 'PENDING',
-            items: [],
-            createdAt: '2026-01-23T12:00:00Z',
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: KitchenTicketWithItemsResponseDto,
+    isArray: true,
   })
   async getActiveTickets(@Param('stationId') stationId: string) {
     return this.service.getActiveTickets(stationId);
@@ -72,26 +56,12 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_VIEW) // Kitchen staff
   @ApiOperation({ summary: 'Get ticket by ID', description: 'Returns ticket with items' })
   @ApiParam({ name: 'id', description: 'Kitchen Ticket UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Ticket found',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          id: 'tkt_123',
-          orderNumber: 'ORD-001',
-          status: 'IN_PROGRESS',
-          items: [
-            { id: 'item_1', name: 'Burger', quantity: 2, status: 'PENDING' },
-          ],
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: KitchenTicketWithItemsResponseDto,
   })
-  @ApiNotFoundResponse({ description: 'Ticket not found' })
+  @ApiErrorResponse({ status: 404, description: 'Ticket not found' })
   async getTicket(@Param('id') id: string) {
     return this.service.getTicketWithItems(id);
   }
@@ -100,28 +70,11 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_VIEW) // Kitchen staff
   @ApiOperation({ summary: 'Get tickets by order', description: 'Returns all kitchen tickets for order' })
   @ApiParam({ name: 'orderId', description: 'Order UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Order tickets retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'tkt_123',
-            station: 'GRILL',
-            status: 'COMPLETED',
-          },
-          {
-            id: 'tkt_124',
-            station: 'SALAD',
-            status: 'PENDING',
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: KitchenTicketResponseDto,
+    isArray: true,
   })
   async getTicketsByOrder(@Param('orderId') orderId: string) {
     return this.service.getTicketsByOrder(orderId);
@@ -131,9 +84,9 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_UPDATE) // Kitchen staff
   @ApiOperation({ summary: 'Start preparation', description: 'Marks ticket as IN_PROGRESS' })
   @ApiParam({ name: 'id', description: 'Kitchen Ticket UUID' })
-  @ApiResponse({ status: 200, description: 'Preparation started' })
-  @ApiNotFoundResponse({ description: 'Ticket not found' })
-  @ApiBadRequestResponse({ description: 'Ticket already started or completed' })
+  @ApiResultResponse({ status: 200, description: 'Preparation started', type: KitchenTicketResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Ticket not found' })
+  @ApiErrorResponse({ status: 400, description: 'Ticket already started or completed' })
   async startPreparation(@Param('id') id: string) {
     return this.service.startPreparation(id);
   }
@@ -142,8 +95,8 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_UPDATE) // Kitchen staff
   @ApiOperation({ summary: 'Mark ticket ready', description: 'Marks ticket as READY for serving' })
   @ApiParam({ name: 'id', description: 'Kitchen Ticket UUID' })
-  @ApiResponse({ status: 200, description: 'Ticket marked ready' })
-  @ApiNotFoundResponse({ description: 'Ticket not found' })
+  @ApiResultResponse({ status: 200, description: 'Ticket marked ready', type: KitchenTicketResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Ticket not found' })
   async markReady(@Param('id') id: string) {
     return this.service.markTicketReady(id);
   }
@@ -152,8 +105,8 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_UPDATE) // Kitchen staff
   @ApiOperation({ summary: 'Complete ticket', description: 'Marks ticket as COMPLETED' })
   @ApiParam({ name: 'id', description: 'Kitchen Ticket UUID' })
-  @ApiResponse({ status: 200, description: 'Ticket completed' })
-  @ApiNotFoundResponse({ description: 'Ticket not found' })
+  @ApiResultResponse({ status: 200, description: 'Ticket completed', type: KitchenTicketResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Ticket not found' })
   async completeTicket(@Param('id') id: string) {
     return this.service.completeTicket(id);
   }
@@ -163,8 +116,8 @@ export class KitchenController {
   @ApiOperation({ summary: 'Bump item', description: 'Marks individual ticket item as completed' })
   @ApiParam({ name: 'ticketId', description: 'Kitchen Ticket UUID' })
   @ApiParam({ name: 'itemId', description: 'Ticket Item UUID' })
-  @ApiResponse({ status: 200, description: 'Item bumped' })
-  @ApiNotFoundResponse({ description: 'Ticket or item not found' })
+  @ApiResultResponse({ status: 200, description: 'Item bumped' })
+  @ApiErrorResponse({ status: 404, description: 'Ticket or item not found' })
   async bumpItem(
     @Param('ticketId') ticketId: string,
     @Param('itemId') itemId: string,
@@ -177,24 +130,11 @@ export class KitchenController {
   @Get('stations')
   @Permissions(PERMISSIONS.KITCHEN_VIEW) // Kitchen staff
   @ApiOperation({ summary: 'Get all stations', description: 'Returns all kitchen stations' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Stations retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'st_1',
-            name: 'Grill Station',
-            activeTickets: 3,
-            isOnline: true,
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: KitchenStationResponseDto,
+    isArray: true,
   })
   async getAllStations() {
     return this.service.getAllStations();
@@ -203,8 +143,8 @@ export class KitchenController {
   @Post('stations')
   @Permissions(PERMISSIONS.KITCHEN_STATION_CREATE) // 🔒 Admin only
   @ApiOperation({ summary: 'Create station', description: 'Creates new kitchen station. Admin only.' })
-  @ApiResponse({ status: 201, description: 'Station created' })
-  @ApiBadRequestResponse({ description: 'Validation error or duplicate station name' })
+  @ApiResultResponse({ status: 201, description: 'Station created', type: KitchenStationResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or duplicate station name' })
   async createStation(@Body() dto: CreateKitchenStationDto) {
     return this.service.createStation(dto);
   }
@@ -213,8 +153,8 @@ export class KitchenController {
   @Permissions(PERMISSIONS.KITCHEN_STATION_UPDATE) // Manager+
   @ApiOperation({ summary: 'Update station', description: 'Updates kitchen station. Manager+ required.' })
   @ApiParam({ name: 'id', description: 'Station UUID' })
-  @ApiResponse({ status: 200, description: 'Station updated' })
-  @ApiNotFoundResponse({ description: 'Station not found' })
+  @ApiResultResponse({ status: 200, description: 'Station updated', type: KitchenStationResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Station not found' })
   async updateStation(
     @Param('id') id: string,
     @Body() dto: UpdateKitchenStationDto,

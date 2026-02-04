@@ -107,3 +107,7 @@ export class UpdateTicketItemStatusDto {
   @IsIn(['NEW', 'PREPARING', 'READY'])
   status: 'NEW' | 'PREPARING' | 'READY';
 }
+
+// ==================== RESPONSE DTOs ====================
+
+export * from './kitchen-response.dto';

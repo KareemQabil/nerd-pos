@@ -8,7 +8,7 @@
 
 import { IsOptional, IsString, IsUUID, IsInt, Max } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LookupQueryDto {
     @ApiPropertyOptional({
@@ -52,5 +52,25 @@ export interface LookupItem {
     nameEn: string;
     nameAr: string;
     active?: boolean;
+    metadata?: Record<string, any>;
+}
+
+export class LookupItemResponseDto {
+    @ApiProperty({ description: 'Lookup item UUID', example: '123e4567-e89b-12d3-a456-426614174000' })
+    id: string;
+
+    @ApiProperty({ description: 'English display name', example: 'Beverages' })
+    nameEn: string;
+
+    @ApiProperty({ description: 'Arabic display name', example: '??????' })
+    nameAr: string;
+
+    @ApiPropertyOptional({ description: 'Active flag', example: true })
+    active?: boolean;
+
+    @ApiPropertyOptional({
+        description: 'Additional metadata for the lookup item',
+        example: { code: 'BEV' },
+    })
     metadata?: Record<string, any>;
 }

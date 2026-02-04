@@ -1,29 +1,28 @@
 // Compliance Controller
 // Security: Block 2 - All endpoints secured with @Permissions
 
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { ComplianceService } from './compliance.service';
-import { GenerateInvoiceDto, SubmitInvoiceDto } from './dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import {
+  GenerateInvoiceDto,
+  SubmitInvoiceDto,
+  ComplianceInvoiceResponseDto,
+  HashChainStatusResponseDto,
+} from './dto';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Compliance')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('compliance')
 export class ComplianceController {
   constructor(private readonly service: ComplianceService) { }
@@ -31,27 +30,12 @@ export class ComplianceController {
   @Post('invoice/generate')
   @Permissions(PERMISSIONS.COMPLIANCE_GENERATE) // Cashier+
   @ApiOperation({ summary: 'Generate tax invoice', description: 'Generates ETA/ZATCA compliant invoice for order' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 201,
     description: 'Invoice generated',
-    schema: {
-      example: {
-        success: true,
-        message: 'Invoice generated successfully',
-        data: {
-          id: 'inv_123456789',
-          orderId: 'ord_123',
-          invoiceNumber: 'INV-2026-001',
-          totalAmount: 115.0,
-          taxAmount: 15.0,
-          status: 'GENERATED',
-          hash: 'a1b2c3d4...',
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: ComplianceInvoiceResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Order not found or already invoiced' })
+  @ApiErrorResponse({ status: 400, description: 'Order not found or already invoiced' })
   async generate(@Body() dto: GenerateInvoiceDto & { orderData: any }) {
     return this.service.generateInvoice(dto.orderId, dto.orderData);
   }
@@ -59,25 +43,13 @@ export class ComplianceController {
   @Post('invoice/submit')
   @Permissions(PERMISSIONS.COMPLIANCE_GENERATE) // Cashier+
   @ApiOperation({ summary: 'Submit invoice to tax authority', description: 'Submits invoice to ETA/ZATCA for approval' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Invoice submitted',
-    schema: {
-      example: {
-        success: true,
-        message: 'Invoice submitted successfully',
-        data: {
-          invoiceId: 'inv_123',
-          status: 'SUBMITTED',
-          submissionId: 'sub_999',
-          ackTime: '2026-01-23T12:05:00Z',
-        },
-        timestamp: '2026-01-23T12:05:00Z',
-      },
-    },
+    type: ComplianceInvoiceResponseDto,
   })
-  @ApiNotFoundResponse({ description: 'Invoice not found' })
-  @ApiBadRequestResponse({ description: 'Invoice already submitted or invalid' })
+  @ApiErrorResponse({ status: 404, description: 'Invoice not found' })
+  @ApiErrorResponse({ status: 400, description: 'Invoice already submitted or invalid' })
   async submit(@Body() dto: SubmitInvoiceDto) {
     return this.service.submitInvoice(dto.invoiceId);
   }
@@ -86,24 +58,12 @@ export class ComplianceController {
   @Permissions(PERMISSIONS.COMPLIANCE_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Get invoice by order', description: 'Returns compliance invoice for order. Manager+ required.' })
   @ApiParam({ name: 'orderId', description: 'Order UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Invoice found',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          id: 'inv_123',
-          orderId: 'ord_123',
-          status: 'CLEARED',
-          qrCode: 'base64_encoded_qr_code...',
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: ComplianceInvoiceResponseDto,
   })
-  @ApiNotFoundResponse({ description: 'Invoice not found for order' })
+  @ApiErrorResponse({ status: 404, description: 'Invoice not found for order' })
   async findByOrder(@Param('orderId') orderId: string) {
     return this.service.findByOrder(orderId);
   }
@@ -111,24 +71,11 @@ export class ComplianceController {
   @Get('invoice/pending')
   @Permissions(PERMISSIONS.COMPLIANCE_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Get pending invoices', description: 'Returns invoices pending submission. Manager+ required.' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Pending invoices retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'inv_124',
-            status: 'GENERATED',
-            amount: 50.0,
-            generatedAt: '2026-01-23T12:10:00Z',
-          },
-        ],
-        timestamp: '2026-01-23T12:15:00Z',
-      },
-    },
+    type: ComplianceInvoiceResponseDto,
+    isArray: true,
   })
   async getPending() {
     return this.service.getPendingInvoices();
@@ -137,21 +84,10 @@ export class ComplianceController {
   @Get('hash-chain/verify')
   @Permissions(PERMISSIONS.COMPLIANCE_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Verify hash chain', description: 'Verifies integrity of invoice hash chain. Manager+ required.' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Hash chain verification result',
-    schema: {
-      example: {
-        success: true,
-        message: 'Hash chain verification complete',
-        data: {
-          isValid: true,
-          brokenAt: null,
-          lastVerifiedHash: 'h1a2s3h4...',
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: HashChainStatusResponseDto,
   })
   async verifyChain() {
     return this.service.verifyHashChain();

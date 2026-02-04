@@ -11,19 +11,13 @@ import {
   Param,
   Query,
   Request,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { RequestWithUser } from '../auth/interfaces/request.interface';
 import { UsersService } from './users.service';
@@ -38,19 +32,26 @@ import {
   CreateRoleDto,
   UpdateRoleDto,
   CreatePermissionDto,
+  UserLoginResponseDto,
+  UserProfileResponseDto,
+  UserResponseDto,
+  UserPaginatedResponseDto,
+  RoleResponseDto,
+  PermissionResponseDto,
+  ManagerAuthResponseDto,
+  PermissionCheckResponseDto,
 } from './dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 import { ForbiddenAppException } from '../../common/exceptions';
 import { ErrorMessages } from '../../common/constants';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('users')
 export class UsersController {
   constructor(private readonly service: UsersService) { }
@@ -60,26 +61,12 @@ export class UsersController {
   @Post('login')
   @Public()
   @ApiOperation({ summary: 'User login', description: 'Authenticates user with username and password. Returns JWT token.' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Login successful, returns access token',
-    schema: {
-      example: {
-        success: true,
-        message: 'Login successful',
-        data: {
-          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-          user: {
-            id: 'usr_123',
-            username: 'admin',
-            role: 'ADMIN',
-          },
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: UserLoginResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid credentials' })
+  @ApiErrorResponse({ status: 400, description: 'Invalid credentials' })
   async login(@Body() dto: LoginDto) {
     return this.service.login(dto.username, dto.password);
   }
@@ -87,19 +74,12 @@ export class UsersController {
   @Post('verify-pin')
   @Permissions(PERMISSIONS.SESSIONS_OPEN) // Required for any authenticated user
   @ApiOperation({ summary: 'Verify user PIN', description: 'Verifies 4-digit PIN for quick authentication' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'PIN verified successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'PIN verified',
-        data: { verified: true },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    resultSchema: { type: 'boolean', example: true },
   })
-  @ApiBadRequestResponse({ description: 'Invalid PIN' })
+  @ApiErrorResponse({ status: 400, description: 'Invalid PIN' })
   async verifyPin(@Body() dto: VerifyPinDto & { userId: string }) {
     return this.service.verifyPin(dto.userId, dto.pin);
   }
@@ -107,19 +87,12 @@ export class UsersController {
   @Post('manager-auth')
   @Permissions(PERMISSIONS.SESSIONS_CLOSE) // 🔒 Manager+ (manager auth required)
   @ApiOperation({ summary: 'Manager authentication', description: 'Verifies manager PIN for elevated operations. Manager+ required.' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Manager PIN verified',
-    schema: {
-      example: {
-        success: true,
-        message: 'Manager authenticated',
-        data: { verified: true },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: ManagerAuthResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid manager PIN' })
+  @ApiErrorResponse({ status: 400, description: 'Invalid manager PIN' })
   async verifyManagerPin(@Body() dto: VerifyPinDto) {
     return this.service.verifyManagerPin(dto.pin);
   }
@@ -129,24 +102,12 @@ export class UsersController {
   @Post()
   @Permissions(PERMISSIONS.USERS_CREATE) // 🔒 Admin only
   @ApiOperation({ summary: 'Create user', description: 'Creates a new user account. Admin only.' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 201,
     description: 'User created successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'User created successfully',
-        data: {
-          id: 'usr_456',
-          username: 'cashier1',
-          role: 'CASHIER',
-          isActive: true,
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: UserResponseDto,
   })
-  @ApiBadRequestResponse({ description: 'Validation error or username already exists' })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or username already exists' })
   async create(@Body() dto: CreateUserDto) {
     return this.service.createUser(dto);
   }
@@ -156,30 +117,10 @@ export class UsersController {
   @ApiOperation({ summary: 'Get all users', description: 'Returns paginated list of users. Manager+ required.' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Users retrieved',
-    type: PaginatedResponseDto,
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'usr_123',
-            username: 'admin',
-            role: 'ADMIN',
-            isActive: true,
-          },
-        ],
-        meta: {
-          total: 5,
-          page: 1,
-          limit: 10,
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: UserPaginatedResponseDto,
   })
   async getAll(@Query() pagination: PaginationDto) {
     const result = await this.service.findAllPaginated({
@@ -202,24 +143,12 @@ export class UsersController {
   @Permissions(PERMISSIONS.USERS_VIEW) // 🔒 Manager+ (or self via ownership check)
   @ApiOperation({ summary: 'Get user by ID', description: 'Returns user details. Users can view own profile, Manager+ can view all.' })
   @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'User found',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          id: 'usr_123',
-          username: 'admin',
-          role: 'ADMIN',
-          permissions: ['*'],
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: UserProfileResponseDto,
   })
-  @ApiNotFoundResponse({ description: 'User not found' })
+  @ApiErrorResponse({ status: 404, description: 'User not found' })
   async findById(@Param('id') id: string, @Request() req: RequestWithUser) {
     // Self-ownership check: user can only view their own profile
     const userId = req.user.sub;
@@ -240,9 +169,9 @@ export class UsersController {
   @Permissions(PERMISSIONS.USERS_UPDATE) // 🔒 Admin only (or self for limited fields)
   @ApiOperation({ summary: 'Update user', description: 'Updates user information. Users can edit own profile, Admin can edit all.' })
   @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({ status: 200, description: 'User updated' })
-  @ApiNotFoundResponse({ description: 'User not found' })
-  @ApiBadRequestResponse({ description: 'Validation error' })
+  @ApiResultResponse({ status: 200, description: 'User updated', type: UserResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'User not found' })
+  @ApiErrorResponse({ status: 400, description: 'Validation error' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
@@ -263,8 +192,8 @@ export class UsersController {
   @Permissions(PERMISSIONS.USERS_PIN_UPDATE) // Self or Admin
   @ApiOperation({ summary: 'Update user PIN', description: 'Updates 4-digit PIN. Self or Admin.' })
   @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({ status: 200, description: 'PIN updated' })
-  @ApiBadRequestResponse({ description: 'Invalid PIN format' })
+  @ApiResultResponse({ status: 200, description: 'PIN updated' })
+  @ApiErrorResponse({ status: 400, description: 'Invalid PIN format' })
   async updatePin(@Param('id') id: string, @Body() dto: UpdatePinDto) {
     return this.service.updatePin(id, dto.newPin);
   }
@@ -273,8 +202,8 @@ export class UsersController {
   @Permissions(PERMISSIONS.USERS_PASSWORD_CHANGE) // Self or Admin
   @ApiOperation({ summary: 'Change password', description: 'Changes user password. Requires current password.' })
   @ApiParam({ name: 'id', description: 'User UUID' })
-  @ApiResponse({ status: 200, description: 'Password changed' })
-  @ApiBadRequestResponse({ description: 'Current password incorrect or new password invalid' })
+  @ApiResultResponse({ status: 200, description: 'Password changed' })
+  @ApiErrorResponse({ status: 400, description: 'Current password incorrect or new password invalid' })
   async changePassword(
     @Param('id') id: string,
     @Body() dto: ChangePasswordDto,
@@ -291,7 +220,11 @@ export class UsersController {
   @ApiOperation({ summary: 'Check user permission', description: 'Checks if user has specific permission. Admin only.' })
   @ApiParam({ name: 'id', description: 'User UUID' })
   @ApiParam({ name: 'code', description: 'Permission code (e.g., products.create)' })
-  @ApiResponse({ status: 200, description: 'Permission check result' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Permission check result',
+    type: PermissionCheckResponseDto,
+  })
   async hasPermission(@Param('id') id: string, @Param('code') code: string) {
     return { hasPermission: await this.service.hasPermission(id, code) };
   }
@@ -301,24 +234,11 @@ export class UsersController {
   @Get('roles')
   @Permissions(PERMISSIONS.ROLES_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Get all roles', description: 'Returns all roles with permissions. Manager+ required.' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Roles retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'role_admin',
-            name: 'ADMIN',
-            description: 'Administrator with full access',
-            permissions: ['*'],
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: RoleResponseDto,
+    isArray: true,
   })
   async getAllRoles() {
     return this.service.getAllRoles();
@@ -327,8 +247,8 @@ export class UsersController {
   @Post('roles')
   @Permissions(PERMISSIONS.ROLES_MANAGE) // 🔒 Admin only
   @ApiOperation({ summary: 'Create role', description: 'Creates a new role. Admin only.' })
-  @ApiResponse({ status: 201, description: 'Role created' })
-  @ApiBadRequestResponse({ description: 'Validation error or role name exists' })
+  @ApiResultResponse({ status: 201, description: 'Role created', type: RoleResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or role name exists' })
   async createRole(@Body() dto: CreateRoleDto) {
     return this.service.createRole(dto);
   }
@@ -337,8 +257,8 @@ export class UsersController {
   @Permissions(PERMISSIONS.ROLES_MANAGE) // 🔒 Admin only
   @ApiOperation({ summary: 'Update role', description: 'Updates role and permissions. Admin only.' })
   @ApiParam({ name: 'id', description: 'Role UUID' })
-  @ApiResponse({ status: 200, description: 'Role updated' })
-  @ApiNotFoundResponse({ description: 'Role not found' })
+  @ApiResultResponse({ status: 200, description: 'Role updated', type: RoleResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Role not found' })
   async updateRole(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
     return this.service.updateRole(id, dto);
   }
@@ -348,24 +268,11 @@ export class UsersController {
   @Get('permissions')
   @Permissions(PERMISSIONS.PERMISSIONS_VIEW) // 🔒 Admin only
   @ApiOperation({ summary: 'Get all permissions', description: 'Returns all system permissions. Admin only.' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Permissions retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'perm_1',
-            code: 'products.create',
-            description: 'Create products',
-            module: 'products',
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: PermissionResponseDto,
+    isArray: true,
   })
   async getAllPermissions() {
     return this.service.getAllPermissions();
@@ -375,7 +282,12 @@ export class UsersController {
   @Permissions(PERMISSIONS.PERMISSIONS_VIEW) // 🔒 Admin only
   @ApiOperation({ summary: 'Get permissions by module', description: 'Returns permissions for specific module. Admin only.' })
   @ApiParam({ name: 'module', description: 'Module name (e.g., products, sales)' })
-  @ApiResponse({ status: 200, description: 'Module permissions retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Module permissions retrieved',
+    type: PermissionResponseDto,
+    isArray: true,
+  })
   async getPermissionsByModule(@Param('module') module: string) {
     return this.service.getPermissionsByModule(module);
   }
@@ -383,8 +295,8 @@ export class UsersController {
   @Post('permissions')
   @Permissions(PERMISSIONS.PERMISSIONS_ASSIGN) // 🔒 Admin only
   @ApiOperation({ summary: 'Create permission', description: 'Creates a new permission. Admin only.' })
-  @ApiResponse({ status: 201, description: 'Permission created' })
-  @ApiBadRequestResponse({ description: 'Validation error or permission code exists' })
+  @ApiResultResponse({ status: 201, description: 'Permission created', type: PermissionResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or permission code exists' })
   async createPermission(@Body() dto: CreatePermissionDto) {
     return this.service.createPermission(dto);
   }

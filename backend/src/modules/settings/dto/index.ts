@@ -199,3 +199,5 @@ export class UpdateModuleSettingDto {
   @IsObject()
   config: any;
 }
+
+export * from './settings-response.dto';

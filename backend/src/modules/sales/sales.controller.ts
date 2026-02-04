@@ -243,7 +243,12 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get orders by customer', description: 'Returns all orders for a customer' })
   @ApiParam({ name: 'customerId', description: 'Customer UUID' })
-  @ApiResponse({ status: 200, description: 'Orders retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Orders retrieved',
+    type: SalesOrderResponseDto,
+    isArray: true,
+  })
   async findByCustomer(@Param('customerId') customerId: string) {
     return this.service.findOrdersByCustomer(customerId);
   }

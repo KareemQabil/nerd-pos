@@ -25,3 +25,5 @@ export class VerifyHashChainDto {
   @IsString()
   endDate?: string;
 }
+
+export * from './compliance-response.dto';

@@ -106,3 +106,5 @@ export class AuditQueryDto {
   @Type(() => Date)
   endDate?: Date;
 }
+
+export * from './audit-response.dto';

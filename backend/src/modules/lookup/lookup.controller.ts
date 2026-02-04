@@ -8,10 +8,15 @@
  */
 
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { LookupService } from './lookup.service';
-import { LookupQueryDto, LookupItem } from '../../common/dto/lookup.dto';
+import {
+    LookupQueryDto,
+    LookupItem,
+    LookupItemResponseDto,
+} from '../../common/dto/lookup.dto';
 import { Public } from '../auth/decorators/public.decorator';
+import { ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Lookup - Reference Data')
 @Controller('lookup')
@@ -24,9 +29,11 @@ export class LookupController {
         summary: 'Get all categories for dropdown',
         description: 'Returns id, nameEn, nameAr for all active categories',
     })
-    @ApiResponse({
+    @ApiResultResponse({
         status: 200,
-        description: 'List of categories',
+        description: 'Categories retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
     })
     async getCategories(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getCategories(dto);
@@ -38,6 +45,12 @@ export class LookupController {
         summary: 'Get products for dropdown',
         description: 'Supports filtering by categoryId (parentId) and search term',
     })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Products retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getProducts(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getProducts(dto);
     }
@@ -48,6 +61,12 @@ export class LookupController {
         summary: 'Get tables for dropdown',
         description: 'Supports filtering by floorId (parentId)',
     })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Tables retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getTables(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getTables(dto);
     }
@@ -55,6 +74,12 @@ export class LookupController {
     @Get('floors')
     @Public()
     @ApiOperation({ summary: 'Get floors for dropdown' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Floors retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getFloors(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getFloors(dto);
     }
@@ -64,6 +89,12 @@ export class LookupController {
     @ApiOperation({
         summary: 'Get users for dropdown',
         description: 'Supports filtering by role (e.g., CASHIER, KITCHEN)',
+    })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Users retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
     })
     async getUsers(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getUsers(dto);
@@ -75,6 +106,12 @@ export class LookupController {
         summary: 'Search customers by phone or name',
         description: 'For customer search in orders',
     })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Customers retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getCustomers(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getCustomers(dto);
     }
@@ -82,6 +119,12 @@ export class LookupController {
     @Get('kitchen-stations')
     @Public()
     @ApiOperation({ summary: 'Get kitchen stations for dropdown' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Kitchen stations retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getKitchenStations(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getKitchenStations(dto);
     }
@@ -92,6 +135,12 @@ export class LookupController {
         summary: 'Get modifier groups for dropdown',
         description: 'For product modifiers',
     })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Modifier groups retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getModifierGroups(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getModifierGroups(dto);
     }
@@ -99,6 +148,12 @@ export class LookupController {
     @Get('warehouses')
     @Public()
     @ApiOperation({ summary: 'Get warehouses for dropdown' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Warehouses retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getWarehouses(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getWarehouses(dto);
     }
@@ -106,6 +161,12 @@ export class LookupController {
     @Get('delivery-zones')
     @Public()
     @ApiOperation({ summary: 'Get delivery zones for dropdown' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Delivery zones retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getDeliveryZones(@Query() dto: LookupQueryDto): Promise<LookupItem[]> {
         return this.lookupService.getDeliveryZones(dto);
     }
@@ -115,6 +176,12 @@ export class LookupController {
     @Get('payment-methods')
     @Public()
     @ApiOperation({ summary: 'Get available payment methods' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Payment methods retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getPaymentMethods(): Promise<LookupItem[]> {
         return this.lookupService.getPaymentMethods();
     }
@@ -122,6 +189,12 @@ export class LookupController {
     @Get('order-types')
     @Public()
     @ApiOperation({ summary: 'Get available order types' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Order types retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getOrderTypes(): Promise<LookupItem[]> {
         return this.lookupService.getOrderTypes();
     }
@@ -129,6 +202,12 @@ export class LookupController {
     @Get('order-statuses')
     @Public()
     @ApiOperation({ summary: 'Get all order statuses' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Order statuses retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getOrderStatuses(): Promise<LookupItem[]> {
         return this.lookupService.getOrderStatuses();
     }
@@ -136,6 +215,12 @@ export class LookupController {
     @Get('table-statuses')
     @Public()
     @ApiOperation({ summary: 'Get all table statuses' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Table statuses retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getTableStatuses(): Promise<LookupItem[]> {
         return this.lookupService.getTableStatuses();
     }
@@ -143,6 +228,12 @@ export class LookupController {
     @Get('discount-types')
     @Public()
     @ApiOperation({ summary: 'Get discount types' })
+    @ApiResultResponse({
+        status: 200,
+        description: 'Discount types retrieved',
+        type: LookupItemResponseDto,
+        isArray: true,
+    })
     async getDiscountTypes(): Promise<LookupItem[]> {
         return this.lookupService.getDiscountTypes();
     }

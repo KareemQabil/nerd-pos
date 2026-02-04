@@ -45,6 +45,32 @@
 - Created response DTOs for Auth, Sessions, Payments, Inventory, Products, and Sales modules and swapped controllers to `{ result, error }` decorators.
 - Inventory/product Swagger examples were out of sync with entity shapes; new DTOs align with current entities.
 - Remaining controllers still using `@ApiResponse`: Users, Kitchen, Discounts, Compliance, Tables, Lookup, Reports, Delivery, Settings, Audit.
+- Lookup controller only annotates `getCategories` with `@ApiResponse`; other lookup endpoints have no response decorator yet.
+- Reports and Settings controllers still use inline `@ApiResponse` examples for multiple endpoints (daily sales, Z-report, top selling, inventory valuation, store/tax/terminal/module settings).
+- Audit and Compliance controllers still use inline `@ApiResponse` examples for audit history and invoice endpoints.
+- Sales controller still has a commented-out `@ApiResponse` in the disabled `findByCustomer` block.
+- Reports module has only an empty dto index; response DTOs need to be added.
+- Settings module dto folder currently only has index; response DTOs need to be added.
+- Audit module dto folder only has index; response DTOs need to be added.
+- Compliance module dto folder only has index; response DTOs need to be added.
+- Reports service return shapes:
+  - Daily sales: `{ date, totalSales, totalTax, orderCount, averageOrderValue }`.
+  - Z-report: `{ sessionId, sessionNumber, openedAt, closedAt, openingBalance, closingBalance, expectedBalance, variance, totalSales, cashSales, cardSales, otherSales, refunds, orderCount }`.
+  - Top selling: groupBy results with `{ productId, _sum: { quantity, lineTotal } }`.
+  - Inventory valuation: `{ totalValue, itemCount, items: [{ productId, productName, quantity, cost, value }] }`.
+- Settings service returns entity types for store, tax, and terminal; module settings are `Record<string, unknown>` with defaults by module.
+- Audit service returns arrays of `AuditLog` entities for entity/user/module queries.
+- Compliance service returns `ZATCAInvoice` for generate/submit/find, `HashChainStatus` for verify, and arrays of `ZATCAInvoice` for pending.
+- AuditLog entity fields use `entityType`, `oldValues`, `newValues` with aliases (`entity`, `before`, `after`) and many optional metadata fields.
+- Compliance entity `InvoiceCompliance`/`ZATCAInvoice` includes invoice/hash fields, qr code data, submission status aliases, and timestamps; `HashChainStatus` fields are `lastInvoiceId`, `lastHash`, `chainValid`, `totalInvoices`, plus optional broken hash details.
+- Existing controllers use `ApiResultResponse` for success and `ApiErrorResponse` for error statuses (e.g., CustomersController), replacing `ApiBadRequestResponse`/`ApiNotFoundResponse` in Swagger docs.
+- `LookupItem` is an interface in `src/common/dto/lookup.dto.ts`; Swagger needs a class DTO, so a response class should be added for lookup endpoints.
+- Audit module only defines request DTOs (`CreateAuditLogDto`, `AuditQueryDto`); response DTOs are missing.
+- Compliance and Settings modules define request DTOs only; response DTOs need to be added.
+- `src/common/dto/index.ts` re-exports `lookup.dto`, so adding `LookupItemResponseDto` there will be picked up automatically.
+- Existing response DTOs (e.g., inventory) use `Date`-typed fields with ISO examples; follow that pattern for new response DTOs.
+- Settings controller module settings endpoint returns raw config object; Swagger should use a generic object schema via `resultSchema`.
+- `rg` confirms no remaining `@ApiResponse` or old Swagger error decorators in `src/modules` after updates.
 
 ## Technical Decisions
 <!-- 

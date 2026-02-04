@@ -10,19 +10,13 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { TablesService } from './tables.service';
 import {
@@ -33,16 +27,19 @@ import {
   TransferTableDto,
   CreateReservationDto,
   UpdateReservationStatusDto,
+  FloorResponseDto,
+  FloorWithTablesResponseDto,
+  TableResponseDto,
+  TableReservationResponseDto,
 } from './dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Tables')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('tables')
 export class TablesController {
   constructor(private readonly service: TablesService) { }
@@ -52,24 +49,11 @@ export class TablesController {
   @Get('floors')
   @Permissions(PERMISSIONS.TABLES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get all floors', description: 'Returns all floor/section layouts' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Floors retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'floor_1',
-            name: 'Main Hall',
-            tableCount: 10,
-            activeTables: 5,
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: FloorResponseDto,
+    isArray: true,
   })
   async getAllFloors() {
     return this.service.getAllFloors();
@@ -79,25 +63,12 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get floor with tables', description: 'Returns floor layout with all tables' })
   @ApiParam({ name: 'id', description: 'Floor UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Floor with tables',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          id: 'floor_1',
-          name: 'Main Hall',
-          tables: [
-            { id: 'tbl_1', number: 'T1', seats: 4, status: 'AVAILABLE', x: 10, y: 10 },
-          ],
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: FloorWithTablesResponseDto,
   })
-  @ApiNotFoundResponse({ description: 'Floor not found' })
+  @ApiErrorResponse({ status: 404, description: 'Floor not found' })
   async getFloorWithTables(@Param('id') id: string) {
     return this.service.getFloorWithTables(id);
   }
@@ -105,8 +76,8 @@ export class TablesController {
   @Post('floors')
   @Permissions(PERMISSIONS.TABLES_FLOOR_MANAGE) // 🔒 Admin only
   @ApiOperation({ summary: 'Create floor', description: 'Creates new floor/section. Admin only.' })
-  @ApiResponse({ status: 201, description: 'Floor created' })
-  @ApiBadRequestResponse({ description: 'Validation error or duplicate floor name' })
+  @ApiResultResponse({ status: 201, description: 'Floor created', type: FloorResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or duplicate floor name' })
   async createFloor(@Body() dto: CreateFloorDto) {
     return this.service.createFloor(dto);
   }
@@ -115,8 +86,8 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_FLOOR_MANAGE) // 🔒 Admin only
   @ApiOperation({ summary: 'Update floor', description: 'Updates floor details. Admin only.' })
   @ApiParam({ name: 'id', description: 'Floor UUID' })
-  @ApiResponse({ status: 200, description: 'Floor updated' })
-  @ApiNotFoundResponse({ description: 'Floor not found' })
+  @ApiResultResponse({ status: 200, description: 'Floor updated', type: FloorResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Floor not found' })
   async updateFloor(@Param('id') id: string, @Body() dto: UpdateFloorDto) {
     return this.service.updateFloor(id, dto);
   }
@@ -126,8 +97,8 @@ export class TablesController {
   @Post()
   @Permissions(PERMISSIONS.TABLES_CREATE) // Manager+
   @ApiOperation({ summary: 'Create table', description: 'Creates new table. Manager+ required.' })
-  @ApiResponse({ status: 201, description: 'Table created' })
-  @ApiBadRequestResponse({ description: 'Validation error or duplicate table number' })
+  @ApiResultResponse({ status: 201, description: 'Table created', type: TableResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or duplicate table number' })
   async createTable(@Body() dto: CreateTableDto) {
     return this.service.createTable(dto);
   }
@@ -136,8 +107,8 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_UPDATE) // Manager+
   @ApiOperation({ summary: 'Update table', description: 'Updates table details. Manager+ required.' })
   @ApiParam({ name: 'id', description: 'Table UUID' })
-  @ApiResponse({ status: 200, description: 'Table updated' })
-  @ApiNotFoundResponse({ description: 'Table not found' })
+  @ApiResultResponse({ status: 200, description: 'Table updated', type: TableResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Table not found' })
   async updateTable(@Param('id') id: string, @Body() dto: UpdateTableDto) {
     return this.service.updateTable(id, dto);
   }
@@ -146,7 +117,12 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get tables by floor', description: 'Returns all tables on specified floor' })
   @ApiParam({ name: 'floorId', description: 'Floor UUID' })
-  @ApiResponse({ status: 200, description: 'Tables retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Tables retrieved',
+    type: TableResponseDto,
+    isArray: true,
+  })
   async getTablesByFloor(@Param('floorId') floorId: string) {
     return this.service.getTablesByFloor(floorId);
   }
@@ -155,7 +131,12 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get available tables', description: 'Returns tables with AVAILABLE status' })
   @ApiQuery({ name: 'floorId', required: false, description: 'Filter by floor UUID' })
-  @ApiResponse({ status: 200, description: 'Available tables retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Available tables retrieved',
+    type: TableResponseDto,
+    isArray: true,
+  })
   async getAvailable(@Query('floorId') floorId?: string) {
     return this.service.getAvailableTables(floorId);
   }
@@ -164,7 +145,12 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get occupied tables', description: 'Returns tables with OCCUPIED status' })
   @ApiQuery({ name: 'floorId', required: false, description: 'Filter by floor UUID' })
-  @ApiResponse({ status: 200, description: 'Occupied tables retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Occupied tables retrieved',
+    type: TableResponseDto,
+    isArray: true,
+  })
   async getOccupied(@Query('floorId') floorId?: string) {
     return this.service.getOccupiedTables(floorId);
   }
@@ -173,9 +159,9 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_ASSIGN) // Cashier+
   @ApiOperation({ summary: 'Assign order to table', description: 'Associates an order with a table' })
   @ApiParam({ name: 'id', description: 'Table UUID' })
-  @ApiResponse({ status: 200, description: 'Order assigned to table' })
-  @ApiNotFoundResponse({ description: 'Table not found' })
-  @ApiBadRequestResponse({ description: 'Table already occupied' })
+  @ApiResultResponse({ status: 200, description: 'Order assigned to table', type: TableResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Table not found' })
+  @ApiErrorResponse({ status: 400, description: 'Table already occupied' })
   async assignOrder(@Param('id') id: string, @Body() dto: { orderId: string }) {
     return this.service.assignOrderToTable(id, dto.orderId);
   }
@@ -184,8 +170,8 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_ASSIGN) // Cashier+
   @ApiOperation({ summary: 'Release table', description: 'Releases table and marks for cleaning' })
   @ApiParam({ name: 'id', description: 'Table UUID' })
-  @ApiResponse({ status: 200, description: 'Table released' })
-  @ApiNotFoundResponse({ description: 'Table not found' })
+  @ApiResultResponse({ status: 200, description: 'Table released', type: TableResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Table not found' })
   async release(@Param('id') id: string) {
     return this.service.releaseTable(id);
   }
@@ -194,8 +180,8 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_CLEAN) // Cashier+
   @ApiOperation({ summary: 'Mark table clean', description: 'Marks table as cleaned and available' })
   @ApiParam({ name: 'id', description: 'Table UUID' })
-  @ApiResponse({ status: 200, description: 'Table marked clean' })
-  @ApiNotFoundResponse({ description: 'Table not found' })
+  @ApiResultResponse({ status: 200, description: 'Table marked clean', type: TableResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Table not found' })
   async markClean(@Param('id') id: string) {
     return this.service.markTableClean(id);
   }
@@ -203,8 +189,8 @@ export class TablesController {
   @Post('transfer')
   @Permissions(PERMISSIONS.TABLES_TRANSFER) // 🔒 Manager+
   @ApiOperation({ summary: 'Transfer table', description: 'Transfers order between tables. Manager+ required.' })
-  @ApiResponse({ status: 200, description: 'Table transferred' })
-  @ApiBadRequestResponse({ description: 'Validation error or target table occupied' })
+  @ApiResultResponse({ status: 200, description: 'Table transferred' })
+  @ApiErrorResponse({ status: 400, description: 'Validation error or target table occupied' })
   async transfer(@Body() dto: TransferTableDto) {
     return this.service.transferTable(dto);
   }
@@ -213,8 +199,8 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_ASSIGN) // Cashier+
   @ApiOperation({ summary: 'Assign waiter to table', description: 'Assigns waiter responsibility for table' })
   @ApiParam({ name: 'id', description: 'Table UUID' })
-  @ApiResponse({ status: 200, description: 'Waiter assigned' })
-  @ApiNotFoundResponse({ description: 'Table not found' })
+  @ApiResultResponse({ status: 200, description: 'Waiter assigned', type: TableResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Table not found' })
   async assignWaiter(
     @Param('id') id: string,
     @Body() dto: { waiterId: string },
@@ -227,8 +213,8 @@ export class TablesController {
   @Post('reservations')
   @Permissions(PERMISSIONS.TABLES_RESERVATION_MANAGE) // Manager+
   @ApiOperation({ summary: 'Create reservation', description: 'Creates a table reservation. Manager+ required.' })
-  @ApiResponse({ status: 201, description: 'Reservation created' })
-  @ApiBadRequestResponse({ description: 'Time slot not available' })
+  @ApiResultResponse({ status: 201, description: 'Reservation created', type: TableReservationResponseDto })
+  @ApiErrorResponse({ status: 400, description: 'Time slot not available' })
   async createReservation(@Body() dto: CreateReservationDto) {
     return this.service.createReservation(dto);
   }
@@ -237,8 +223,8 @@ export class TablesController {
   @Permissions(PERMISSIONS.TABLES_RESERVATION_MANAGE) // Manager+
   @ApiOperation({ summary: 'Update reservation status', description: 'Updates reservation status (confirmed, cancelled, etc.). Manager+ required.' })
   @ApiParam({ name: 'id', description: 'Reservation UUID' })
-  @ApiResponse({ status: 200, description: 'Reservation status updated' })
-  @ApiNotFoundResponse({ description: 'Reservation not found' })
+  @ApiResultResponse({ status: 200, description: 'Reservation status updated', type: TableReservationResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Reservation not found' })
   async updateReservationStatus(
     @Param('id') id: string,
     @Body() dto: UpdateReservationStatusDto,
@@ -249,7 +235,12 @@ export class TablesController {
   @Get('reservations/today')
   @Permissions(PERMISSIONS.TABLES_RESERVATION_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get today reservations', description: 'Returns all reservations for today' })
-  @ApiResponse({ status: 200, description: 'Today reservations retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Today reservations retrieved',
+    type: TableReservationResponseDto,
+    isArray: true,
+  })
   async getTodayReservations() {
     return this.service.getTodayReservations();
   }
@@ -259,7 +250,12 @@ export class TablesController {
   @ApiOperation({ summary: 'Get table reservations', description: 'Returns reservations for table on specific date' })
   @ApiParam({ name: 'tableId', description: 'Table UUID' })
   @ApiQuery({ name: 'date', required: true, description: 'Date in ISO format (YYYY-MM-DD)' })
-  @ApiResponse({ status: 200, description: 'Table reservations retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Table reservations retrieved',
+    type: TableReservationResponseDto,
+    isArray: true,
+  })
   async getReservationsByTable(
     @Param('tableId') tableId: string,
     @Query('date') date: string,

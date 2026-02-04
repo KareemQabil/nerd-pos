@@ -69,13 +69,16 @@
   WHAT: Same structure as Phase 1, for the next phase.
   WHY: Keep a separate log entry for each phase to track progress clearly.
 -->
-- **Status:** in_progress
+- **Status:** complete
 - Actions taken:
   - Refactored customer controller Swagger responses to DTO-based envelopes.
   - Added customer response DTOs for Swagger clarity.
   - Updated response envelope docs and validation utilities to use `{ result, error }`.
   - Migrated Auth, Sessions, Payments, Inventory, Products, and Sales controllers to unified Swagger decorators.
   - Added response DTOs for Auth, Sessions, Payments, Inventory, Sales, and Products (catalog + pagination).
+  - Added lookup response DTO and migrated Lookup controller to ApiResultResponse.
+  - Added response DTOs for Reports, Settings, Audit, and Compliance modules and migrated their controllers to ApiResultResponse/ApiErrorResponse.
+  - Removed legacy Swagger decorators (@ApiResponse, ApiBadRequestResponse, etc.) from remaining controllers.
 - Files created/modified:
   - src/modules/customers/customers.controller.ts (updated)
   - src/modules/customers/dto/customer-response.dto.ts (created)
@@ -105,6 +108,21 @@
   - src/modules/products/products.controller.ts (updated)
   - src/common/dto/message-response.dto.ts (created)
   - src/common/dto/index.ts (updated)
+  - src/common/dto/lookup.dto.ts (updated)
+  - src/modules/lookup/lookup.controller.ts (updated)
+  - src/modules/reports/dto/reports-response.dto.ts (created)
+  - src/modules/reports/dto/index.ts (updated)
+  - src/modules/reports/reports.controller.ts (updated)
+  - src/modules/settings/dto/settings-response.dto.ts (created)
+  - src/modules/settings/dto/index.ts (updated)
+  - src/modules/settings/settings.controller.ts (updated)
+  - src/modules/audit/dto/audit-response.dto.ts (created)
+  - src/modules/audit/dto/index.ts (updated)
+  - src/modules/audit/audit.controller.ts (updated)
+  - src/modules/compliance/dto/compliance-response.dto.ts (created)
+  - src/modules/compliance/dto/index.ts (updated)
+  - src/modules/compliance/compliance.controller.ts (updated)
+  - src/modules/sales/sales.controller.ts (updated)
 
 ## Test Results
 <!-- 
@@ -149,7 +167,7 @@
 <!-- If you can answer these, context is solid -->
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 3 |
+| Where am I? | Phase 4 |
 | Where am I going? | Phase 4 (Testing & Verification), Phase 5 (Delivery) |
 | What's the goal? | Refactor Swagger responses to DTO-based `{ result, error }` envelope with unified config. |
 | What have I learned? | See findings.md |

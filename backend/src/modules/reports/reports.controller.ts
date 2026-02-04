@@ -1,29 +1,29 @@
 // Reports Controller
 // Security: Block 2 - All endpoints secured with @Permissions
 
-import { Controller, Get, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Param } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
+import {
+  DailySalesReportDto,
+  ZReportDto,
+  TopSellingItemDto,
+  InventoryValuationDto,
+} from './dto';
 
 @ApiTags('Reports')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly service: ReportsService) { }
@@ -32,29 +32,12 @@ export class ReportsController {
   @Permissions(PERMISSIONS.REPORTS_SALES_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Get daily sales report', description: 'Generates daily sales summary. Manager+ required.' })
   @ApiQuery({ name: 'date', required: true, description: 'Date in ISO format (YYYY-MM-DD)' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Daily sales report generated',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          date: '2026-01-23',
-          totalSales: 5000.0,
-          totalOrders: 150,
-          averageOrderValue: 33.33,
-          categoryBreakdown: {
-            'Main Dishes': 3000.0,
-            'Beverages': 1000.0,
-            'Desserts': 1000.0,
-          },
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: DailySalesReportDto,
   })
-  @ApiBadRequestResponse({ description: 'Invalid date format' })
+  @ApiErrorResponse({ status: 400, description: 'Invalid date format' })
   async dailySales(@Query('date') date: string) {
     return this.service.generateDailySalesReport(new Date(date));
   }
@@ -63,30 +46,12 @@ export class ReportsController {
   @Permissions(PERMISSIONS.REPORTS_SALES_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Generate Z-Report', description: 'Generates end-of-day Z-Report for session. Manager+ required.' })
   @ApiParam({ name: 'sessionId', description: 'Session UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Z-Report generated',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          sessionId: 'sess_123',
-          openedAt: '2026-01-23T08:00:00Z',
-          closedAt: '2026-01-23T22:00:00Z',
-          totalSales: 4500.0,
-          paymentBreakdown: {
-            CASH: 2000.0,
-            CARD: 2500.0,
-          },
-          netSales: 3913.04,
-          taxAmount: 586.96,
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: ZReportDto,
   })
-  @ApiNotFoundResponse({ description: 'Session not found' })
+  @ApiErrorResponse({ status: 404, description: 'Session not found' })
   async zReport(@Param('sessionId') sessionId: string) {
     return this.service.generateZReport(sessionId);
   }
@@ -97,25 +62,11 @@ export class ReportsController {
   @ApiQuery({ name: 'startDate', required: true, description: 'Start date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'endDate', required: true, description: 'End date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'limit', required: false, description: 'Number of items to return (default: 10)' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Top selling items retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            rank: 1,
-            productId: 'prod_1',
-            name: 'Cheeseburger',
-            quantitySold: 150,
-            totalRevenue: 2250.0,
-          },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: TopSellingItemDto,
+    isArray: true,
   })
   async topSelling(
     @Query('startDate') start: string,
@@ -132,21 +83,10 @@ export class ReportsController {
   @Get('inventory-valuation')
   @Permissions(PERMISSIONS.REPORTS_INVENTORY_VIEW) // 🔒 Manager+
   @ApiOperation({ summary: 'Get inventory valuation', description: 'Returns current inventory value. Manager+ required.' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Inventory valuation retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          totalValue: 50000.0,
-          itemCount: 2500,
-          lastUpdated: '2026-01-23T12:00:00Z',
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: InventoryValuationDto,
   })
   async inventoryValuation() {
     return this.service.getInventoryValuation();
