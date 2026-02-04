@@ -41,6 +41,10 @@
 - Core envelope is `{ result, error }` in runtime code, but several comments/docs still reference `{ data, error }`.
 - `response-validator.utils.ts` validates `data`, which is inconsistent with the runtime envelope.
 - Added shared Swagger envelope DTOs and response decorators to standardize `{ result, error }` schemas.
+- Controllers with inline response examples still to migrate: Auth, Sessions, Payments, Inventory, Products/Categories/Modifiers, Sales.
+- Created response DTOs for Auth, Sessions, Payments, Inventory, Products, and Sales modules and swapped controllers to `{ result, error }` decorators.
+- Inventory/product Swagger examples were out of sync with entity shapes; new DTOs align with current entities.
+- Remaining controllers still using `@ApiResponse`: Users, Kitchen, Discounts, Compliance, Tables, Lookup, Reports, Delivery, Settings, Audit.
 
 ## Technical Decisions
 <!-- 
@@ -88,6 +92,12 @@
 - `src/common/dto/api-response.dto.ts`
 - `src/common/decorators/api-response.decorator.ts`
 - `src/modules/customers/dto/customer-response.dto.ts`
+- `src/modules/auth/dto/auth-response.dto.ts`
+- `src/modules/sessions/dto/session-response.dto.ts`
+- `src/modules/payments/dto/payment-response.dto.ts`
+- `src/modules/inventory/dto/inventory-response.dto.ts`
+- `src/modules/sales/dto/sales-response.dto.ts`
+- `src/modules/products/dto/catalog-response.dto.ts`
 - `src/modules/customers/customers.controller.ts`
 
 ## Visual/Browser Findings

@@ -253,3 +253,7 @@ export class SetDeliveryAddressDto {
   @IsString()
   zoneId?: string;
 }
+
+// ==================== RESPONSE DTOs ====================
+
+export * from './sales-response.dto';

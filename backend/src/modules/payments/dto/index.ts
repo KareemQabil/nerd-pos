@@ -216,6 +216,10 @@ export class CreateRefundDto {
   userId: string;
 }
 
+// ==================== RESPONSE DTOs ====================
+
+export * from './payment-response.dto';
+
 export class ApproveRefundDto {
   @ApiProperty({
     description: 'Manager/Admin UUID approving the refund',

@@ -2,10 +2,7 @@
  * Product Response DTO
  *
  * Prevents business-sensitive data leakage by excluding:
- * - costPrice (margin information - business confidential)
- *
- * @example
- * const safeProduct = plainToClass(ProductResponseDto, product, { excludeExtraneousValues: true });
+ * - cost (margin information - business confidential)
  */
 
 import { Exclude, Expose } from 'class-transformer';
@@ -22,70 +19,96 @@ export class ProductResponseDto {
   sku: string;
 
   @Expose()
-  @ApiProperty({ description: 'Product name in default language', example: 'Shawarma Plate' })
-  name: string;
+  @ApiPropertyOptional({ description: 'Product barcode', example: '6281234567890' })
+  barcode?: string | null;
 
   @Expose()
-  @ApiProperty({ description: 'Product name in Arabic', example: '??? ??????' })
+  @ApiProperty({ description: 'Product name (English)', example: 'Shawarma Plate' })
+  nameEn: string;
+
+  @Expose()
+  @ApiProperty({ description: 'Product name (Arabic)', example: 'Shawarma Plate (AR)' })
   nameAr: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Product description', example: 'Beef shawarma plate with rice and salad' })
-  description?: string;
+  @ApiPropertyOptional({ description: 'Product description (English)', example: 'Beef shawarma plate with rice and salad' })
+  descriptionEn?: string | null;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Product description in Arabic', example: '??? ?????? ??? ?? ????? ???????' })
-  descriptionAr?: string;
-
-  @Expose()
-  @ApiProperty({ description: 'Selling price', example: 35.0 })
-  price: number;
-
-  // ? EXCLUDED: costPrice - business confidential margin data
+  @ApiPropertyOptional({ description: 'Product description (Arabic)', example: 'Beef shawarma plate (AR)' })
+  descriptionAr?: string | null;
 
   @Expose()
   @ApiPropertyOptional({ description: 'Category ID', example: '723e4567-e89b-12d3-a456-426614174006' })
   categoryId?: string;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Product barcode', example: '6281234567890' })
-  barcode?: string;
+  @ApiProperty({ description: 'Selling price', example: 35.0 })
+  price: number;
 
   @Expose()
-  @ApiProperty({ description: 'Product type', enum: ['SIMPLE', 'COMPOSITE', 'VARIANT'], example: 'SIMPLE' })
-  type: string;
+  @ApiProperty({ description: 'Tax category', example: 'STANDARD' })
+  taxCategory: string;
 
   @Expose()
-  @ApiProperty({ description: 'Whether the product is active', example: true })
-  isActive: boolean;
+  @ApiProperty({ description: 'Unit of measure', example: 'PIECE' })
+  unitOfMeasure: string;
 
   @Expose()
   @ApiProperty({ description: 'Whether inventory tracking is enabled', example: true })
   trackInventory: boolean;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Minimum stock level', example: 10 })
-  minStockLevel?: number;
+  @ApiProperty({ description: 'Allow negative stock', example: false })
+  allowNegativeStock: boolean;
+
+  @Expose()
+  @ApiProperty({ description: 'Has modifiers', example: true })
+  hasModifiers: boolean;
+
+  @Expose()
+  @ApiProperty({ description: 'Replenishment method', example: 'BUY' })
+  replenishmentMethod: string;
+
+  @Expose()
+  @ApiPropertyOptional({ description: 'Kitchen station ID', example: 'station_1' })
+  kitchenStationId?: string | null;
+
+  @Expose()
+  @ApiPropertyOptional({ description: 'Income account ID', example: 'acc_income_1' })
+  incomeAccountId?: string | null;
+
+  @Expose()
+  @ApiPropertyOptional({ description: 'Expense account ID', example: 'acc_expense_1' })
+  expenseAccountId?: string | null;
+
+  @Expose()
+  @ApiPropertyOptional({ description: 'Preparation time (minutes)', example: 10 })
+  preparationTimeMinutes?: number | null;
 
   @Expose()
   @ApiPropertyOptional({ description: 'Product image URL', example: 'https://cdn.example.com/shawarma.jpg' })
-  imageUrl?: string;
+  imageUrl?: string | null;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Display order for sorting', example: 1 })
-  displayOrder?: number;
+  @ApiPropertyOptional({ description: 'Color code', example: '#FF9900' })
+  colorCode?: string | null;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Tax group ID', example: 'a23e4567-e89b-12d3-a456-426614174009' })
-  taxGroupId?: string;
+  @ApiProperty({ description: 'Whether the product is active', example: true })
+  isActive: boolean;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Created timestamp', example: '2026-01-15T10:30:00Z' })
-  createdAt?: Date;
+  @ApiPropertyOptional({ description: 'Custom fields payload', example: { spiceLevel: 'medium' } })
+  customFields?: Record<string, unknown> | null;
 
   @Expose()
-  @ApiPropertyOptional({ description: 'Last updated timestamp', example: '2026-01-20T14:45:00Z' })
-  updatedAt?: Date;
+  @ApiProperty({ description: 'Created timestamp', example: '2026-01-15T10:30:00Z' })
+  createdAt: Date;
+
+  @Expose()
+  @ApiProperty({ description: 'Last updated timestamp', example: '2026-01-20T14:45:00Z' })
+  updatedAt: Date;
 }
 
 /**
@@ -103,10 +126,10 @@ export class ProductListItemDto {
 
   @Expose()
   @ApiProperty({ description: 'Product name (English)', example: 'Shawarma Plate' })
-  name: string;
+  nameEn: string;
 
   @Expose()
-  @ApiProperty({ description: 'Product name (Arabic)', example: '??? ??????' })
+  @ApiProperty({ description: 'Product name (Arabic)', example: 'Shawarma Plate (AR)' })
   nameAr: string;
 
   @Expose()
@@ -123,5 +146,5 @@ export class ProductListItemDto {
 
   @Expose()
   @ApiPropertyOptional({ description: 'Product image URL', example: 'https://cdn.example.com/shawarma.jpg' })
-  imageUrl?: string;
+  imageUrl?: string | null;
 }

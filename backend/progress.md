@@ -74,6 +74,8 @@
   - Refactored customer controller Swagger responses to DTO-based envelopes.
   - Added customer response DTOs for Swagger clarity.
   - Updated response envelope docs and validation utilities to use `{ result, error }`.
+  - Migrated Auth, Sessions, Payments, Inventory, Products, and Sales controllers to unified Swagger decorators.
+  - Added response DTOs for Auth, Sessions, Payments, Inventory, Sales, and Products (catalog + pagination).
 - Files created/modified:
   - src/modules/customers/customers.controller.ts (updated)
   - src/modules/customers/dto/customer-response.dto.ts (created)
@@ -82,6 +84,27 @@
   - src/common/interceptors/transform.interceptor.ts (updated)
   - src/common/filters/http-exception.filter.ts (updated)
   - src/main.ts (updated)
+  - src/modules/auth/dto/auth-response.dto.ts (created)
+  - src/modules/auth/dto/index.ts (created)
+  - src/modules/auth/auth.controller.ts (updated)
+  - src/modules/sessions/dto/session-response.dto.ts (created)
+  - src/modules/sessions/dto/index.ts (updated)
+  - src/modules/sessions/sessions.controller.ts (updated)
+  - src/modules/payments/dto/payment-response.dto.ts (created)
+  - src/modules/payments/dto/index.ts (updated)
+  - src/modules/payments/payments.controller.ts (updated)
+  - src/modules/inventory/dto/inventory-response.dto.ts (created)
+  - src/modules/inventory/dto/index.ts (updated)
+  - src/modules/inventory/inventory.controller.ts (updated)
+  - src/modules/sales/dto/sales-response.dto.ts (created)
+  - src/modules/sales/dto/index.ts (updated)
+  - src/modules/sales/sales.controller.ts (updated)
+  - src/modules/products/dto/product-response.dto.ts (updated)
+  - src/modules/products/dto/catalog-response.dto.ts (created)
+  - src/modules/products/dto/index.ts (updated)
+  - src/modules/products/products.controller.ts (updated)
+  - src/common/dto/message-response.dto.ts (created)
+  - src/common/dto/index.ts (updated)
 
 ## Test Results
 <!-- 

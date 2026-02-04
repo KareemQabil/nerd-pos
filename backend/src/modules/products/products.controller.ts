@@ -12,22 +12,17 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
+  ApiBody,
 } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
-import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
+import { MessageResponseDto, PaginationDto, PaginatedResponseDto } from '../../common/dto';
 import {
   CreateProductDto,
   UpdateProductDto,
@@ -37,19 +32,24 @@ import {
   UpdateModifierGroupDto,
   CreateModifierOptionDto,
   UpdateModifierOptionDto,
-  AssignModifierGroupDto,
+  ProductResponseDto,
+  ProductListItemDto,
+  ProductPaginatedResponseDto,
+  CategoryResponseDto,
+  CategoryPaginatedResponseDto,
+  ModifierGroupResponseDto,
+  ModifierOptionResponseDto,
+  ModifierGroupPaginatedResponseDto,
 } from './dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 import { examples } from '../../common/fixtures/swagger-examples';
-import { ApiBody } from '@nestjs/swagger';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Products')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated - JWT token missing or invalid' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated - JWT token missing or invalid' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @ApiTags('Products')
 @ApiBearerAuth()
 @Controller('products')
@@ -62,9 +62,13 @@ export class ProductsController {
   @Permissions(PERMISSIONS.PRODUCTS_CREATE) // Manager+
   @ApiOperation({ summary: 'Create a new product' })
   @ApiBody({ schema: { example: examples.products.createProductRequest.value } })
-  @ApiResponse({ status: 201, description: 'Product created successfully', content: { 'application/json': { example: examples.products.createProductSuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.products.unauthorizedError.value } } })
-  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.products.validationError.value } } })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Product created successfully',
+    type: ProductResponseDto,
+  })
+  @ApiErrorResponse({ status: 401, description: 'Unauthorized' })
+  @ApiErrorResponse({ status: 422, description: 'Validation error' })
   async createProduct(@Body() dto: CreateProductDto) {
     return this.service.createProduct(dto);
   }
@@ -72,29 +76,10 @@ export class ProductsController {
   @Get()
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
   @ApiOperation({ summary: 'Get all products (paginated)' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'List of products',
-    schema: {
-      example: {
-        data: {
-          data: [
-            {
-              id: '123e4567-e89b-12d3-a456-426614174000',
-              nameEn: 'Cheeseburger',
-              price: 25.0,
-            },
-          ],
-          meta: {
-            total: 100,
-            page: 1,
-            limit: 10,
-            totalPages: 10,
-          },
-        },
-        error: null,
-      },
-    },
+    type: ProductPaginatedResponseDto,
   })
   async findAllProducts(@Query() pagination: PaginationDto) {
     const result = await this.service.findAllProductsPaginated({
@@ -114,7 +99,12 @@ export class ProductsController {
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
   @ApiOperation({ summary: 'Search products' })
   @ApiQuery({ name: 'q', required: false, description: 'Search query' })
-  @ApiResponse({ status: 200, description: 'Search results' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Search results',
+    type: ProductListItemDto,
+    isArray: true,
+  })
   async searchProducts(@Query('q') query: string) {
     return this.service.searchProducts(query || '');
   }
@@ -123,8 +113,8 @@ export class ProductsController {
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
   @ApiOperation({ summary: 'Get product by ID' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
-  @ApiResponse({ status: 200, description: 'Product found' })
-  @ApiNotFoundResponse({ description: 'Product not found' })
+  @ApiResultResponse({ status: 200, description: 'Product found', type: ProductResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Product not found' })
   async findProductById(@Param('id') id: string) {
     return this.service.findProductById(id);
   }
@@ -133,8 +123,8 @@ export class ProductsController {
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
   @ApiOperation({ summary: 'Get product by SKU' })
   @ApiParam({ name: 'sku', description: 'Product SKU' })
-  @ApiResponse({ status: 200, description: 'Product found' })
-  @ApiNotFoundResponse({ description: 'Product not found' })
+  @ApiResultResponse({ status: 200, description: 'Product found', type: ProductResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Product not found' })
   async findProductBySku(@Param('sku') sku: string) {
     return this.service.findProductBySku(sku);
   }
@@ -143,9 +133,9 @@ export class ProductsController {
   @Permissions(PERMISSIONS.PRODUCTS_UPDATE) // Manager+
   @ApiOperation({ summary: 'Update product' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
-  @ApiResponse({ status: 200, description: 'Product updated successfully' })
-  @ApiNotFoundResponse({ description: 'Product not found' })
-  @ApiBadRequestResponse({ description: 'Validation error' })
+  @ApiResultResponse({ status: 200, description: 'Product updated successfully', type: ProductResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Product not found' })
+  @ApiErrorResponse({ status: 400, description: 'Validation error' })
   async updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.service.updateProduct(id, dto);
   }
@@ -154,8 +144,8 @@ export class ProductsController {
   @Permissions(PERMISSIONS.PRODUCTS_UPDATE) // Manager+
   @ApiOperation({ summary: 'Deactivate product' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
-  @ApiResponse({ status: 200, description: 'Product deactivated' })
-  @ApiNotFoundResponse({ description: 'Product not found' })
+  @ApiResultResponse({ status: 200, description: 'Product deactivated', type: ProductResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Product not found' })
   async deactivateProduct(@Param('id') id: string) {
     return this.service.deactivateProduct(id);
   }
@@ -164,8 +154,8 @@ export class ProductsController {
   @Permissions(PERMISSIONS.PRODUCTS_DELETE) // 🔒 Admin only
   @ApiOperation({ summary: 'Delete product' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
-  @ApiResponse({ status: 200, description: 'Product deleted' })
-  @ApiNotFoundResponse({ description: 'Product not found' })
+  @ApiResultResponse({ status: 200, description: 'Product deleted', type: MessageResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Product not found' })
   async deleteProduct(@Param('id') id: string) {
     await this.service.deleteProduct(id);
     return { message: 'Product deleted' };
@@ -177,7 +167,12 @@ export class ProductsController {
   @Permissions(PERMISSIONS.MODIFIERS_VIEW) // All roles
   @ApiOperation({ summary: 'Get product modifier groups' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
-  @ApiResponse({ status: 200, description: 'Modifier groups retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Modifier groups retrieved',
+    type: ModifierGroupResponseDto,
+    isArray: true,
+  })
   async getProductModifierGroups(@Param('id') id: string) {
     return this.service.getProductModifierGroups(id);
   }
@@ -186,7 +181,7 @@ export class ProductsController {
   @Permissions(PERMISSIONS.MODIFIERS_UPDATE) // Manager+
   @ApiOperation({ summary: 'Assign modifier group to product' })
   @ApiParam({ name: 'id', description: 'Product UUID' })
-  @ApiResponse({ status: 200, description: 'Modifier group assigned' })
+  @ApiResultResponse({ status: 200, description: 'Modifier group assigned', type: MessageResponseDto })
   async assignModifierGroup(
     @Param('id') productId: string,
     @Body() body: { groupId: string },
@@ -203,7 +198,7 @@ export class ProductsController {
   @ApiOperation({ summary: 'Remove modifier group from product' })
   @ApiParam({ name: 'productId', description: 'Product UUID' })
   @ApiParam({ name: 'groupId', description: 'Modifier Group UUID' })
-  @ApiResponse({ status: 200, description: 'Modifier group removed' })
+  @ApiResultResponse({ status: 200, description: 'Modifier group removed', type: MessageResponseDto })
   async removeModifierGroup(
     @Param('productId') productId: string,
     @Param('groupId') groupId: string,
@@ -217,8 +212,8 @@ export class ProductsController {
 
 @ApiTags('Categories')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly service: ProductsService) { }
@@ -227,9 +222,13 @@ export class CategoriesController {
   @Permissions(PERMISSIONS.CATEGORIES_CREATE) // Manager+
   @ApiOperation({ summary: 'Create category' })
   @ApiBody({ schema: { example: examples.products.createCategoryRequest.value } })
-  @ApiResponse({ status: 201, description: 'Category created successfully', content: { 'application/json': { example: examples.products.createCategorySuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.products.unauthorizedError.value } } })
-  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.products.validationError.value } } })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Category created successfully',
+    type: CategoryResponseDto,
+  })
+  @ApiErrorResponse({ status: 401, description: 'Unauthorized' })
+  @ApiErrorResponse({ status: 422, description: 'Validation error' })
   async createCategory(@Body() dto: CreateCategoryDto) {
     return this.service.createCategory(dto);
   }
@@ -237,7 +236,11 @@ export class CategoriesController {
   @Get()
   @Permissions(PERMISSIONS.CATEGORIES_VIEW) // All roles
   @ApiOperation({ summary: 'Get all categories', description: 'Returns paginated list of categories' })
-  @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Categories retrieved successfully',
+    type: CategoryPaginatedResponseDto,
+  })
   async findAllCategories(@Query() pagination: PaginationDto) {
     const result = await this.service.findAllCategoriesPaginated({
       page: pagination.page,
@@ -255,7 +258,12 @@ export class CategoriesController {
   @Get('root')
   @Permissions(PERMISSIONS.CATEGORIES_VIEW) // All roles
   @ApiOperation({ summary: 'Get root categories' })
-  @ApiResponse({ status: 200, description: 'Root categories retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Root categories retrieved',
+    type: CategoryResponseDto,
+    isArray: true,
+  })
   async findRootCategories() {
     return this.service.findRootCategories();
   }
@@ -264,8 +272,8 @@ export class CategoriesController {
   @Permissions(PERMISSIONS.CATEGORIES_VIEW) // All roles
   @ApiOperation({ summary: 'Get category by ID' })
   @ApiParam({ name: 'id', description: 'Category UUID' })
-  @ApiResponse({ status: 200, description: 'Category found' })
-  @ApiNotFoundResponse({ description: 'Category not found' })
+  @ApiResultResponse({ status: 200, description: 'Category found', type: CategoryResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Category not found' })
   async findCategoryById(@Param('id') id: string) {
     return this.service.findCategoryById(id);
   }
@@ -274,7 +282,12 @@ export class CategoriesController {
   @Permissions(PERMISSIONS.PRODUCTS_VIEW) // All roles
   @ApiOperation({ summary: 'Get products in category' })
   @ApiParam({ name: 'id', description: 'Category UUID' })
-  @ApiResponse({ status: 200, description: 'Products retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Products retrieved',
+    type: ProductListItemDto,
+    isArray: true,
+  })
   async findProductsByCategory(@Param('id') id: string) {
     return this.service.findProductsByCategory(id);
   }
@@ -283,8 +296,8 @@ export class CategoriesController {
   @Permissions(PERMISSIONS.CATEGORIES_UPDATE) // Manager+
   @ApiOperation({ summary: 'Update category' })
   @ApiParam({ name: 'id', description: 'Category UUID' })
-  @ApiResponse({ status: 200, description: 'Category updated' })
-  @ApiNotFoundResponse({ description: 'Category not found' })
+  @ApiResultResponse({ status: 200, description: 'Category updated', type: CategoryResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Category not found' })
   async updateCategory(
     @Param('id') id: string,
     @Body() dto: UpdateCategoryDto,
@@ -296,8 +309,8 @@ export class CategoriesController {
   @Permissions(PERMISSIONS.CATEGORIES_DELETE) // 🔒 Admin only
   @ApiOperation({ summary: 'Delete category' })
   @ApiParam({ name: 'id', description: 'Category UUID' })
-  @ApiResponse({ status: 200, description: 'Category deleted' })
-  @ApiNotFoundResponse({ description: 'Category not found' })
+  @ApiResultResponse({ status: 200, description: 'Category deleted', type: MessageResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Category not found' })
   async deleteCategory(@Param('id') id: string) {
     await this.service.deleteCategory(id);
     return { message: 'Category deleted' };
@@ -308,8 +321,8 @@ export class CategoriesController {
 
 @ApiTags('Modifier Groups')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('modifier-groups')
 export class ModifierGroupsController {
   constructor(private readonly service: ProductsService) { }
@@ -317,8 +330,12 @@ export class ModifierGroupsController {
   @Post()
   @Permissions(PERMISSIONS.MODIFIERS_CREATE) // Manager+
   @ApiOperation({ summary: 'Create modifier group' })
-  @ApiResponse({ status: 201, description: 'Modifier group created' })
-  @ApiBadRequestResponse({ description: 'Validation error' })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Modifier group created',
+    type: ModifierGroupResponseDto,
+  })
+  @ApiErrorResponse({ status: 400, description: 'Validation error' })
   async createModifierGroup(@Body() dto: CreateModifierGroupDto) {
     return this.service.createModifierGroup(dto);
   }
@@ -326,7 +343,11 @@ export class ModifierGroupsController {
   @Get()
   @Permissions(PERMISSIONS.MODIFIERS_VIEW) // All roles
   @ApiOperation({ summary: 'Get all modifier groups', description: 'Returns paginated list of modifier groups' })
-  @ApiResponse({ status: 200, description: 'Modifier groups retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Modifier groups retrieved',
+    type: ModifierGroupPaginatedResponseDto,
+  })
   async findAllModifierGroups(@Query() pagination: PaginationDto) {
     const result = await this.service.findAllModifierGroupsPaginated({
       page: pagination.page,
@@ -345,8 +366,8 @@ export class ModifierGroupsController {
   @Permissions(PERMISSIONS.MODIFIERS_VIEW) // All roles
   @ApiOperation({ summary: 'Get modifier group by ID' })
   @ApiParam({ name: 'id', description: 'Modifier Group UUID' })
-  @ApiResponse({ status: 200, description: 'Modifier group found' })
-  @ApiNotFoundResponse({ description: 'Modifier group not found' })
+  @ApiResultResponse({ status: 200, description: 'Modifier group found', type: ModifierGroupResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Modifier group not found' })
   async findModifierGroupById(@Param('id') id: string) {
     return this.service.findModifierGroupById(id);
   }
@@ -355,8 +376,8 @@ export class ModifierGroupsController {
   @Permissions(PERMISSIONS.MODIFIERS_UPDATE) // Manager+
   @ApiOperation({ summary: 'Update modifier group' })
   @ApiParam({ name: 'id', description: 'Modifier Group UUID' })
-  @ApiResponse({ status: 200, description: 'Modifier group updated' })
-  @ApiNotFoundResponse({ description: 'Modifier group not found' })
+  @ApiResultResponse({ status: 200, description: 'Modifier group updated', type: ModifierGroupResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Modifier group not found' })
   async updateModifierGroup(
     @Param('id') id: string,
     @Body() dto: UpdateModifierGroupDto,
@@ -368,8 +389,8 @@ export class ModifierGroupsController {
   @Permissions(PERMISSIONS.MODIFIERS_DELETE) // 🔒 Admin only
   @ApiOperation({ summary: 'Delete modifier group' })
   @ApiParam({ name: 'id', description: 'Modifier Group UUID' })
-  @ApiResponse({ status: 200, description: 'Modifier group deleted' })
-  @ApiNotFoundResponse({ description: 'Modifier group not found' })
+  @ApiResultResponse({ status: 200, description: 'Modifier group deleted', type: MessageResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Modifier group not found' })
   async deleteModifierGroup(@Param('id') id: string) {
     await this.service.deleteModifierGroup(id);
     return { message: 'Modifier group deleted' };
@@ -381,8 +402,12 @@ export class ModifierGroupsController {
   @Permissions(PERMISSIONS.MODIFIERS_CREATE) // Manager+
   @ApiOperation({ summary: 'Add option to modifier group' })
   @ApiParam({ name: 'id', description: 'Modifier Group UUID' })
-  @ApiResponse({ status: 201, description: 'Modifier option created' })
-  @ApiBadRequestResponse({ description: 'Validation error' })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Modifier option created',
+    type: ModifierOptionResponseDto,
+  })
+  @ApiErrorResponse({ status: 400, description: 'Validation error' })
   async createModifierOption(
     @Param('id') groupId: string,
     @Body() dto: Omit<CreateModifierOptionDto, 'groupId'>,
@@ -394,8 +419,8 @@ export class ModifierGroupsController {
   @Permissions(PERMISSIONS.MODIFIERS_UPDATE) // Manager+
   @ApiOperation({ summary: 'Update modifier option' })
   @ApiParam({ name: 'id', description: 'Modifier Option UUID' })
-  @ApiResponse({ status: 200, description: 'Modifier option updated' })
-  @ApiNotFoundResponse({ description: 'Modifier option not found' })
+  @ApiResultResponse({ status: 200, description: 'Modifier option updated', type: ModifierOptionResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Modifier option not found' })
   async updateModifierOption(
     @Param('id') id: string,
     @Body() dto: UpdateModifierOptionDto,
@@ -407,8 +432,8 @@ export class ModifierGroupsController {
   @Permissions(PERMISSIONS.MODIFIERS_DELETE) // 🔒 Admin only
   @ApiOperation({ summary: 'Delete modifier option' })
   @ApiParam({ name: 'id', description: 'Modifier Option UUID' })
-  @ApiResponse({ status: 200, description: 'Modifier option deleted' })
-  @ApiNotFoundResponse({ description: 'Modifier option not found' })
+  @ApiResultResponse({ status: 200, description: 'Modifier option deleted', type: MessageResponseDto })
+  @ApiErrorResponse({ status: 404, description: 'Modifier option not found' })
   async deleteModifierOption(@Param('id') id: string) {
     await this.service.deleteModifierOption(id);
     return { message: 'Modifier option deleted' };

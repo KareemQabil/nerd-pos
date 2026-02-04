@@ -105,7 +105,7 @@ Phase 3
 -->
 | Decision | Rationale |
 |----------|-----------|
-|          |           |
+| Standardize Swagger responses using ApiResultResponse/ApiErrorResponse + module response DTOs | Removes inline examples and aligns docs with `{ result, error }` envelope. |
 
 ## Errors Encountered
 <!-- 

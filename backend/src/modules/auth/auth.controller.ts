@@ -15,14 +15,20 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
 import { LoginDto } from '../users/dto';
+import {
+  AuthLoginResponseDto,
+  AuthLogoutResponseDto,
+  AuthProfileResponseDto,
+} from './dto';
 import { examples } from '../../common/fixtures/swagger-examples';
 import { UnauthorizedAppException } from '../../common/exceptions';
 import { ErrorMessages } from '../../common/constants';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Auth')
 @ApiBearerAuth('JWT')
@@ -40,9 +46,13 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Login and set auth cookie' })
   @ApiBody({ schema: { example: examples.auth.loginRequest.value } })
-  @ApiResponse({ status: 201, description: 'Login successful, cookie set', content: { 'application/json': { example: examples.auth.loginSuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Invalid credentials', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
-  @ApiResponse({ status: 429, description: 'Too many login attempts', content: { 'application/json': { example: examples.errors.rateLimitError.value } } })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Login successful, cookie set',
+    type: AuthLoginResponseDto,
+  })
+  @ApiErrorResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiErrorResponse({ status: 429, description: 'Too many login attempts' })
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -80,7 +90,11 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 logout attempts per minute
   @Post('logout')
   @ApiOperation({ summary: 'Logout and clear auth cookie' })
-  @ApiResponse({ status: 200, description: 'Logout successful', content: { 'application/json': { example: examples.auth.logoutSuccess.value } } })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Logout successful',
+    type: AuthLogoutResponseDto,
+  })
   async logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('access_token', { path: '/' });
     return { message: 'Logged out successfully' };
@@ -92,8 +106,12 @@ export class AuthController {
    */
   @Get('profile')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'User profile retrieved', content: { 'application/json': { example: examples.auth.profileResponse.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResultResponse({
+    status: 200,
+    description: 'User profile retrieved',
+    type: AuthProfileResponseDto,
+  })
+  @ApiErrorResponse({ status: 401, description: 'Unauthorized' })
   async getProfile(@CurrentUser() user: JwtPayload) {
     return {
       id: user.sub,

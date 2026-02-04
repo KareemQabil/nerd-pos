@@ -99,3 +99,7 @@ export class CreateDenominationDto {
   @IsNumber()
   total: number;
 }
+
+// ==================== RESPONSE DTOs ====================
+
+export * from './session-response.dto';

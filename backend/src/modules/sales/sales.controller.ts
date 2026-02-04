@@ -11,19 +11,14 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
+  ApiBody,
 } from '@nestjs/swagger';
 import { SalesService } from './sales.service';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
@@ -32,19 +27,19 @@ import {
   UpdateOrderStatusDto,
   AddOrderItemDto,
   UpdateOrderItemDto,
+  SalesOrderResponseDto,
+  SalesOrderPaginatedResponseDto,
 } from './dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 import { examples } from '../../common/fixtures/swagger-examples';
-import { ApiBody } from '@nestjs/swagger';
+import { ApiErrorResponse, ApiResultResponse } from '../../common/decorators';
 
 @ApiTags('Sales')
 @ApiBearerAuth('JWT')
-@ApiUnauthorizedResponse({ description: 'Not authenticated - JWT token missing or invalid' })
-@ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated - JWT token missing or invalid' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('orders')
 export class SalesController {
   constructor(private readonly service: SalesService) { }
@@ -55,9 +50,13 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_CREATE) // Cashier+
   @ApiOperation({ summary: 'Create new order', description: 'Creates a new order (DINE_IN, TAKEAWAY, or DELIVERY)' })
   @ApiBody({ schema: { example: examples.sales.createOrderRequest.value } })
-  @ApiResponse({ status: 201, description: 'Order created successfully', content: { 'application/json': { example: examples.sales.createOrderSuccess.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
-  @ApiResponse({ status: 422, description: 'Validation error', content: { 'application/json': { example: examples.errors.validationError.value } } })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Order created successfully',
+    type: SalesOrderResponseDto,
+  })
+  @ApiErrorResponse({ status: 401, description: 'Unauthorized' })
+  @ApiErrorResponse({ status: 422, description: 'Validation error' })
   async createOrder(
     @Body() dto: CreateOrderDto,
     @CurrentUser('sub') userId: string,
@@ -69,30 +68,10 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get all orders', description: 'Returns paginated list of orders with optional status filter' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by order status (DRAFT, CONFIRMED, etc.)' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Orders retrieved successfully',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          {
-            id: 'ord_123',
-            orderNumber: 'ORD-001',
-            status: 'CONFIRMED',
-            total: 150.0,
-          },
-        ],
-        meta: {
-          total: 50,
-          page: 1,
-          limit: 10,
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-        path: '/api/v1/orders',
-      },
-    },
+    type: SalesOrderPaginatedResponseDto,
   })
   async findOrders(
     @Query() pagination: PaginationDto,
@@ -115,9 +94,13 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get order by ID', description: 'Returns order with all items and details' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({ status: 200, description: 'Order found', content: { 'application/json': { example: examples.sales.createOrderSuccess.value } } })
-  @ApiResponse({ status: 404, description: 'Order not found', content: { 'application/json': { example: examples.errors.notFoundError.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Order found',
+    type: SalesOrderResponseDto,
+  })
+  @ApiErrorResponse({ status: 404, description: 'Order not found' })
+  @ApiErrorResponse({ status: 401, description: 'Unauthorized' })
   async findOrderById(@Param('id') id: string) {
     return this.service.findOrderByIdWithItems(id);
   }
@@ -126,22 +109,12 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW) // Cashier+
   @ApiOperation({ summary: 'Get order by number', description: 'Returns order by human-readable order number' })
   @ApiParam({ name: 'orderNumber', description: 'Order number (e.g., ORD-20260123-001)' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 200,
     description: 'Order found',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: {
-          id: 'ord_123',
-          orderNumber: 'ORD-20260123-001',
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: SalesOrderResponseDto,
   })
-  @ApiNotFoundResponse({ description: 'Order not found' })
+  @ApiErrorResponse({ status: 404, description: 'Order not found' })
   async findOrderByNumber(@Param('orderNumber') orderNumber: string) {
     return this.service.findOrderByNumber(orderNumber);
   }
@@ -152,9 +125,13 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_CONFIRM) // Cashier+
   @ApiOperation({ summary: 'Confirm order', description: 'Confirms order and sends to kitchen' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({ status: 200, description: 'Order confirmed', content: { 'application/json': { example: examples.sales.confirmOrderSuccess.value } } })
-  @ApiResponse({ status: 404, description: 'Order not found', content: { 'application/json': { example: examples.errors.notFoundError.value } } })
-  @ApiResponse({ status: 401, description: 'Unauthorized', content: { 'application/json': { example: examples.errors.unauthorizedError.value } } })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Order confirmed',
+    type: SalesOrderResponseDto,
+  })
+  @ApiErrorResponse({ status: 404, description: 'Order not found' })
+  @ApiErrorResponse({ status: 401, description: 'Unauthorized' })
   async confirmOrder(@Param('id') id: string) {
     return this.service.confirmOrder(id);
   }
@@ -163,8 +140,12 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_UPDATE) // Cashier+
   @ApiOperation({ summary: 'Update order status', description: 'Updates order status' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({ status: 200, description: 'Status updated' })
-  @ApiNotFoundResponse({ description: 'Order not found' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Status updated',
+    type: SalesOrderResponseDto,
+  })
+  @ApiErrorResponse({ status: 404, description: 'Order not found' })
   async updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,
@@ -176,8 +157,12 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_CANCEL) // 🔒 Manager+
   @ApiOperation({ summary: 'Cancel order', description: 'Cancels order. Manager+ role required.' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({ status: 200, description: 'Order cancelled' })
-  @ApiNotFoundResponse({ description: 'Order not found' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Order cancelled',
+    type: SalesOrderResponseDto,
+  })
+  @ApiErrorResponse({ status: 404, description: 'Order not found' })
   async cancelOrder(
     @Param('id') id: string,
     @Body() body: { reason?: string },
@@ -191,24 +176,12 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_UPDATE) // Cashier+
   @ApiOperation({ summary: 'Add item to order', description: 'Adds new item to existing order' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
-  @ApiResponse({
+  @ApiResultResponse({
     status: 201,
     description: 'Item added',
-    schema: {
-      example: {
-        success: true,
-        message: 'Item added successfully',
-        data: {
-          id: 'item_1',
-          productId: 'prod_123',
-          quantity: 1,
-          price: 15.0,
-        },
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
+    type: SalesOrderResponseDto,
   })
-  @ApiNotFoundResponse({ description: 'Order not found' })
+  @ApiErrorResponse({ status: 404, description: 'Order not found' })
   async addItem(@Param('id') id: string, @Body() dto: AddOrderItemDto) {
     return this.service.addItem(id, dto);
   }
@@ -218,8 +191,12 @@ export class SalesController {
   @ApiOperation({ summary: 'Update order item', description: 'Updates quantity or modifiers for an item' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiParam({ name: 'itemId', description: 'Order Item UUID' })
-  @ApiResponse({ status: 200, description: 'Item updated' })
-  @ApiNotFoundResponse({ description: 'Order or item not found' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Item updated',
+    type: SalesOrderResponseDto,
+  })
+  @ApiErrorResponse({ status: 404, description: 'Order or item not found' })
   async updateItem(
     @Param('id') id: string,
     @Param('itemId') itemId: string,
@@ -233,8 +210,12 @@ export class SalesController {
   @ApiOperation({ summary: 'Remove item from order', description: 'Removes item from order' })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiParam({ name: 'itemId', description: 'Order Item UUID' })
-  @ApiResponse({ status: 200, description: 'Item removed' })
-  @ApiNotFoundResponse({ description: 'Order or item not found' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Item removed',
+    type: SalesOrderResponseDto,
+  })
+  @ApiErrorResponse({ status: 404, description: 'Order or item not found' })
   async removeItem(@Param('id') id: string, @Param('itemId') itemId: string) {
     return this.service.removeItem(id, itemId);
   }
@@ -245,7 +226,12 @@ export class SalesController {
   @Permissions(PERMISSIONS.SALES_VIEW_ALL) // 🔒 Manager+
   @ApiOperation({ summary: 'Get orders by session', description: 'Returns all orders for a cashier session. Manager+ role required.' })
   @ApiParam({ name: 'sessionId', description: 'Session UUID' })
-  @ApiResponse({ status: 200, description: 'Orders retrieved' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Orders retrieved',
+    type: SalesOrderResponseDto,
+    isArray: true,
+  })
   async findBySession(@Param('sessionId') sessionId: string) {
     return this.service.findOrdersBySession(sessionId);
   }

@@ -322,3 +322,7 @@ export class AddRecipeIngredientDto {
   @IsString()
   unit: string;
 }
+
+// ==================== RESPONSE DTOs ====================
+
+export * from './inventory-response.dto';
