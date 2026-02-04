@@ -12,7 +12,6 @@ import {
   Get,
   Body,
   Res,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -22,6 +21,8 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
 import { LoginDto } from '../users/dto';
 import { examples } from '../../common/fixtures/swagger-examples';
+import { UnauthorizedAppException } from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @ApiTags('Auth')
 @ApiBearerAuth('JWT')
@@ -67,7 +68,7 @@ export class AuthController {
         message: '✅ Login successful! Cookie set. All endpoints will now work.',
       };
     } catch {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedAppException(ErrorMessages.InvalidCredentials);
     }
   }
 

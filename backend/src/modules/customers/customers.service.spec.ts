@@ -10,7 +10,10 @@
  * - BRD Coverage: BR-004 (Loyalty points, tier multipliers)
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundAppException,
+  BadRequestAppException,
+} from '../../common/exceptions';
 import { CustomersService } from './customers.service';
 import { CustomersRepository } from './customers.repository';
 import Decimal from 'decimal.js';
@@ -134,7 +137,7 @@ describe('CustomersService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -275,24 +278,33 @@ describe('CustomersService', () => {
       );
     });
 
-    it('should throw error for insufficient points', async () => {
-      const customer = {
-        id: 'cust-1',
-        loyaltyPoints: 100,
-      };
+        it('should throw error for insufficient points', async () => {
 
-      repo.findById.mockResolvedValue(customer);
+          const customer = {
 
-      await expect(service.redeemPoints('cust-1', 500)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
+            id: 'cust-1',
+
+            loyaltyPoints: 100,
+
+          };
+
+          repo.findById.mockResolvedValue(customer);
+
+    
+
+          await expect(service.redeemPoints('cust-1', 500)).rejects.toThrow(
+
+            BadRequestAppException,
+
+          );
+
+        });
 
     it('should throw NotFoundException for non-existent customer', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.redeemPoints('non-existent', 100)).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

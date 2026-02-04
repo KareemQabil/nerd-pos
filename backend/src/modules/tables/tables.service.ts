@@ -4,12 +4,15 @@
 
 import {
   Injectable,
-  NotFoundException,
-  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { TablesRepository } from './tables.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { ErrorMessages } from '../../common/constants';
+import {
+  NotFoundAppException,
+  BadRequestAppException,
+} from '../../common/exceptions';
 import {
   CreateFloorDto,
   UpdateFloorDto,
@@ -49,7 +52,7 @@ export class TablesService {
   async getFloorWithTables(floorId: string): Promise<FloorWithTables> {
     const floor = await this.repo.findFloorWithTables(floorId);
     if (!floor) {
-      throw new NotFoundException(`Floor ${floorId} not found`);
+      throw new NotFoundAppException(ErrorMessages.FloorNotFound, { floorId });
     }
     return floor;
   }
@@ -97,13 +100,14 @@ export class TablesService {
   async assignOrderToTable(tableId: string, orderId: string): Promise<Table> {
     const table = await this.repo.findById(tableId);
     if (!table) {
-      throw new NotFoundException(`Table ${tableId} not found`);
+      throw new NotFoundAppException(ErrorMessages.TableNotFound, { tableId });
     }
 
     if (table.status !== 'AVAILABLE') {
-      throw new BadRequestException(
-        `Table ${table.number} is not available (status: ${table.status})`,
-      );
+      throw new BadRequestAppException(ErrorMessages.TableNotAvailable, {
+        tableNumber: table.number,
+        status: table.status,
+      });
     }
 
     const updatedTable = await this.repo.update(tableId, {
@@ -122,7 +126,7 @@ export class TablesService {
   async releaseTable(tableId: string): Promise<Table> {
     const table = await this.repo.findById(tableId);
     if (!table) {
-      throw new NotFoundException(`Table ${tableId} not found`);
+      throw new NotFoundAppException(ErrorMessages.TableNotFound, { tableId });
     }
 
     const updatedTable = await this.repo.update(tableId, {
@@ -149,13 +153,14 @@ export class TablesService {
     const toTable = await this.repo.findById(dto.toTableId);
 
     if (!fromTable || !toTable) {
-      throw new NotFoundException('Table not found');
+      throw new NotFoundAppException(ErrorMessages.TableNotFound);
     }
 
     if (toTable.status !== 'AVAILABLE') {
-      throw new BadRequestException(
-        `Target table ${toTable.number} is not available`,
-      );
+      throw new BadRequestAppException(ErrorMessages.TableNotAvailable, {
+        tableNumber: toTable.number,
+        status: toTable.status,
+      });
     }
 
     // Release source table
@@ -193,7 +198,7 @@ export class TablesService {
     );
 
     if (conflicts.length > 0) {
-      throw new BadRequestException('Table already reserved for this time');
+      throw new BadRequestAppException(ErrorMessages.ReservationConflict);
     }
 
     const reservation = await this.repo.createReservation({

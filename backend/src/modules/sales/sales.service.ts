@@ -6,14 +6,17 @@
 
 import {
   Injectable,
-  NotFoundException,
-  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { SalesRepository } from './sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { ErrorMessages } from '../../common/constants';
+import {
+  NotFoundAppException,
+  BadRequestAppException,
+} from '../../common/exceptions';
 import {
   ICalculationStep,
   CalculationContext,
@@ -94,7 +97,7 @@ export class SalesService {
   ): Promise<OrderWithItems> {
     // FORENSIC AUDIT FIX: Validate non-empty items
     if (!dto.items || dto.items.length === 0) {
-      throw new BadRequestException('Order must have at least one item');
+      throw new BadRequestAppException(ErrorMessages.OrderItemsRequired);
     }
 
     // Resolve Session ID
@@ -102,7 +105,7 @@ export class SalesService {
     if (!sessionId) {
       const session = await this.sessionsService.getCurrentSession(createdBy);
       if (!session) {
-        throw new BadRequestException('No active session found for user');
+        throw new BadRequestAppException(ErrorMessages.SessionNotFound);
       }
       sessionId = session.id;
     }
@@ -222,7 +225,7 @@ export class SalesService {
     }));
 
     if (order.status !== OrderStatus.DRAFT) {
-      throw new BadRequestException('Only DRAFT orders can be confirmed');
+      throw new BadRequestAppException(ErrorMessages.OrderNotDraft);
     }
 
     const updated = await this.repo.update(orderId, {
@@ -260,10 +263,11 @@ export class SalesService {
     // FORENSIC AUDIT FIX: Validate state machine transition
     if (!isValidTransition(previousStatus, newStatus)) {
       const allowedNext = getAllowedTransitions(previousStatus);
-      throw new BadRequestException(
-        `Invalid order status transition: ${previousStatus} → ${newStatus}. ` +
-        `Allowed transitions from ${previousStatus}: ${allowedNext.length > 0 ? allowedNext.join(', ') : 'none (terminal state)'}`
-      );
+      throw new BadRequestAppException(ErrorMessages.InvalidStatusTransition, {
+        previousStatus,
+        newStatus,
+        allowedNext: allowedNext.length > 0 ? allowedNext.join(', ') : 'none (terminal state)',
+      });
     }
 
     const updated = await this.repo.update(orderId, {
@@ -304,9 +308,7 @@ export class SalesService {
     const order = await this.findOrderById(orderId);
 
     if ([OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(order.status as OrderStatus)) {
-      throw new BadRequestException(
-        'Cannot cancel completed or already cancelled order',
-      );
+      throw new BadRequestAppException(ErrorMessages.OrderFinalized);
     }
 
     const updated = await this.repo.update(orderId, {
@@ -331,7 +333,7 @@ export class SalesService {
     const order = await this.findOrderById(orderId);
 
     if (order.status !== OrderStatus.DRAFT) {
-      throw new BadRequestException('Can only add items to DRAFT orders');
+      throw new BadRequestAppException(ErrorMessages.OrderNotDraft);
     }
 
     // AUDIT FIX: Use Decimal.js for precision-safe financial math
@@ -377,7 +379,7 @@ export class SalesService {
     const order = await this.findOrderById(orderId);
 
     if (order.status !== OrderStatus.DRAFT) {
-      throw new BadRequestException('Can only modify items in DRAFT orders');
+      throw new BadRequestAppException(ErrorMessages.OrderNotDraft);
     }
 
     await this.repo.updateItem(itemId, dto);
@@ -390,7 +392,7 @@ export class SalesService {
     const order = await this.findOrderById(orderId);
 
     if (order.status !== OrderStatus.DRAFT) {
-      throw new BadRequestException('Can only remove items from DRAFT orders');
+      throw new BadRequestAppException(ErrorMessages.OrderNotDraft);
     }
 
     await this.repo.removeItem(itemId);
@@ -404,7 +406,7 @@ export class SalesService {
   async findOrderById(id: string): Promise<Order> {
     const order = await this.repo.findById(id);
     if (!order) {
-      throw new NotFoundException(`Order ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.OrderNotFound, { orderId: id });
     }
     return order;
   }
@@ -412,7 +414,7 @@ export class SalesService {
   async findOrderByIdWithItems(id: string): Promise<OrderWithItems> {
     const order = await this.repo.findWithItems(id);
     if (!order) {
-      throw new NotFoundException(`Order ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.OrderNotFound, { orderId: id });
     }
     return order;
   }
@@ -420,7 +422,7 @@ export class SalesService {
   async findOrderByNumber(orderNumber: string): Promise<OrderWithItems> {
     const order = await this.repo.findByOrderNumber(orderNumber);
     if (!order) {
-      throw new NotFoundException(`Order ${orderNumber} not found`);
+      throw new NotFoundAppException(ErrorMessages.OrderNotFound, { orderNumber });
     }
     return order;
   }

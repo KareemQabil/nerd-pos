@@ -4,13 +4,18 @@
 
 import {
   Injectable,
-  NotFoundException,
-  UnauthorizedException,
-  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import {
+  ErrorMessages,
+} from '../../common/constants';
+import {
+  NotFoundAppException,
+  UnauthorizedAppException,
+  BadRequestAppException,
+} from '../../common/exceptions';
 import {
   CreateUserDto,
   UpdateUserDto,
@@ -52,14 +57,14 @@ export class UsersService {
         false,
         'Invalid credentials',
       );
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedAppException(ErrorMessages.InvalidCredentials);
     }
 
     const isValid = await this.verifyPassword(password, user.password);
 
     if (!isValid) {
       await this.logAuthAttempt(user.id, 'PASSWORD', false, 'Invalid password');
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedAppException(ErrorMessages.InvalidCredentials);
     }
 
     await this.logAuthAttempt(user.id, 'PASSWORD', true);
@@ -180,7 +185,9 @@ export class UsersService {
     // Check if username exists
     const existing = await this.repo.findByUsername(dto.username);
     if (existing) {
-      throw new BadRequestException(`Username ${dto.username} already exists`);
+      throw new BadRequestAppException(ErrorMessages.UsernameExists, {
+        username: dto.username,
+      });
     }
 
     const hashedPassword = await this.hashPassword(dto.password);
@@ -209,7 +216,7 @@ export class UsersService {
   async findById(id: string): Promise<UserProfile> {
     const user = await this.repo.findWithRole(id);
     if (!user) {
-      throw new NotFoundException(`User ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.UserNotFound, { userId: id });
     }
 
     return {
@@ -261,12 +268,12 @@ export class UsersService {
   ): Promise<void> {
     const user = await this.repo.findById(userId);
     if (!user) {
-      throw new NotFoundException(`User ${userId} not found`);
+      throw new NotFoundAppException(ErrorMessages.UserNotFound, { userId });
     }
 
     const isValid = await this.verifyPassword(currentPassword, user.password);
     if (!isValid) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestAppException(ErrorMessages.InvalidCurrentPassword);
     }
 
     const newHash = await this.hashPassword(newPassword);

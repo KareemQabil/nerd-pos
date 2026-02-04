@@ -10,7 +10,7 @@
  * - Verified bumpItem uses findWithItems
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { KitchenService } from './kitchen.service';
 import { KitchenRepository } from './kitchen.repository';
 import { KitchenGateway } from './kitchen.gateway';
@@ -151,7 +151,7 @@ describe('KitchenService', () => {
     it('should throw NotFoundException for non-existent ticket', async () => {
       repo.findById.mockResolvedValue(null);
       await expect(service.startPreparation('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -292,7 +292,7 @@ describe('KitchenService', () => {
     it('should throw NotFoundException', async () => {
       repo.findWithItems.mockResolvedValue(null);
       await expect(service.getTicketWithItems('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

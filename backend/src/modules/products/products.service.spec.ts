@@ -4,7 +4,7 @@
  * Phase 2 - Unit Testing
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { ProductsService } from './products.service';
 import { ProductsRepository } from './products.repository';
 import Decimal from 'decimal.js';
@@ -257,7 +257,7 @@ describe('ProductsService', () => {
 
       await expect(
         service.updateProduct('non-existent', { price: 50 }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
   });
 
@@ -276,7 +276,7 @@ describe('ProductsService', () => {
       (repo as any).findWithRelations.mockResolvedValue(null);
 
       await expect(service.findProductById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -295,7 +295,7 @@ describe('ProductsService', () => {
       (repo as any).findBySku.mockResolvedValue(null);
 
       await expect(service.findProductBySku('INVALID-SKU')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -367,7 +367,7 @@ describe('ProductsService', () => {
       (repo as any).findCategoryById.mockResolvedValue(null);
 
       await expect(service.findCategoryById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -394,7 +394,7 @@ describe('ProductsService', () => {
 
       await expect(
         service.findModifierGroupById('non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
   });
 

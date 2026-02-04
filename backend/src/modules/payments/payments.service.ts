@@ -4,8 +4,6 @@
 
 import {
   Injectable,
-  NotFoundException,
-  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -13,6 +11,11 @@ import { PaymentsRepository } from './payments.repository';
 import { SessionsService } from '../sessions/sessions.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { ErrorMessages } from '../../common/constants';
+import {
+  NotFoundAppException,
+  BadRequestAppException,
+} from '../../common/exceptions';
 import {
   CreatePaymentDto,
   SplitPaymentDto,
@@ -51,12 +54,12 @@ export class PaymentsService {
     const amount = new Decimal(dto.amount);
 
     if (!Number.isFinite(dto.amount)) {
-      throw new BadRequestException('Payment amount must be a valid number');
+      throw new BadRequestAppException(ErrorMessages.InvalidPaymentAmount);
     }
 
     // FORENSIC AUDIT FIX: Validate positive amount
     if (amount.lte(0)) {
-      throw new BadRequestException('Payment amount must be greater than 0');
+      throw new BadRequestAppException(ErrorMessages.InvalidPaymentAmount);
     }
 
     let changeAmount = new Decimal(0);
@@ -67,7 +70,7 @@ export class PaymentsService {
       changeAmount = received.minus(amount);
 
       if (changeAmount.lessThan(0)) {
-        throw new BadRequestException('Insufficient cash received');
+        throw new BadRequestAppException(ErrorMessages.InsufficientCash);
       }
     }
 
@@ -196,7 +199,7 @@ export class PaymentsService {
     dto: CreatePaymentDto,
   ): Promise<Payment> {
     if (!Number.isFinite(dto.amount)) {
-      throw new BadRequestException('Payment amount must be a valid number');
+      throw new BadRequestAppException(ErrorMessages.InvalidPaymentAmount);
     }
 
     const amount = new Decimal(dto.amount);
@@ -208,7 +211,7 @@ export class PaymentsService {
       changeAmount = received.minus(amount);
 
       if (changeAmount.lessThan(0)) {
-        throw new BadRequestException('Insufficient cash received');
+        throw new BadRequestAppException(ErrorMessages.InsufficientCash);
       }
     }
 
@@ -247,7 +250,9 @@ export class PaymentsService {
   async processRefund(dto: CreateRefundDto): Promise<Refund> {
     const payment = await this.repo.findById(dto.paymentId);
     if (!payment) {
-      throw new NotFoundException(`Payment ${dto.paymentId} not found`);
+      throw new NotFoundAppException(ErrorMessages.PaymentNotFound, {
+        paymentId: dto.paymentId,
+      });
     }
 
     const refundAmount = new Decimal(dto.amount);
@@ -256,9 +261,9 @@ export class PaymentsService {
 
     // Validate refund amount
     if (alreadyRefunded.plus(refundAmount).greaterThan(paymentAmount)) {
-      throw new BadRequestException(
-        `Refund amount exceeds payment amount. Max refundable: ${paymentAmount.minus(alreadyRefunded)}`,
-      );
+      throw new BadRequestAppException(ErrorMessages.RefundExceedsPayment, {
+        maxRefundable: paymentAmount.minus(alreadyRefunded).toNumber(),
+      });
     }
 
     const refund = await this.repo.createRefund({
@@ -287,11 +292,11 @@ export class PaymentsService {
   async approveRefund(refundId: string, userId: string): Promise<Refund> {
     const refund = await this.repo.findRefundById(refundId);
     if (!refund) {
-      throw new NotFoundException(`Refund ${refundId} not found`);
+      throw new NotFoundAppException(ErrorMessages.RefundNotFound, { refundId });
     }
 
     if (refund.status !== 'PENDING') {
-      throw new BadRequestException('Only pending refunds can be approved');
+      throw new BadRequestAppException(ErrorMessages.InvalidRefundStatus);
     }
 
     // ATOMIC: Update refund status AND payment refundedAmount together
@@ -345,7 +350,7 @@ export class PaymentsService {
   ): Promise<Refund> {
     const refund = await this.repo.findRefundById(refundId);
     if (!refund) {
-      throw new NotFoundException(`Refund ${refundId} not found`);
+      throw new NotFoundAppException(ErrorMessages.RefundNotFound, { refundId });
     }
 
     return this.repo.updateRefund(refundId, {
@@ -363,7 +368,9 @@ export class PaymentsService {
   async findPaymentById(id: string): Promise<Payment> {
     const payment = await this.repo.findById(id);
     if (!payment) {
-      throw new NotFoundException(`Payment ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.PaymentNotFound, {
+        paymentId: id,
+      });
     }
     return this.normalizePayment(payment);
   }

@@ -1,12 +1,12 @@
 // Delivery Service
 import {
   Injectable,
-  NotFoundException,
-  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { DeliveryRepository } from './delivery.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { ErrorMessages } from '../../common/constants';
+import { BadRequestAppException } from '../../common/exceptions';
 import {
   CreateDeliveryDto,
   CreateDeliveryZoneDto,
@@ -35,9 +35,9 @@ export class DeliveryService {
   ): Promise<{ fee: number; zone: DeliveryZone | null; estimate: number }> {
     const zone = await this.repo.findZoneByDistrict(addressDistrict);
     if (!zone)
-      throw new BadRequestException(
-        `No delivery zone for district ${addressDistrict}`,
-      );
+      throw new BadRequestAppException(ErrorMessages.DeliveryZoneNotFound, {
+        district: addressDistrict,
+      });
 
     let fee = new Decimal(zone.deliveryFee);
     if (
@@ -73,7 +73,9 @@ export class DeliveryService {
   async assignDriver(deliveryId: string, driverId: string): Promise<Delivery> {
     const driver = await this.repo.findDriverById(driverId);
     if (!driver || driver.status !== 'AVAILABLE')
-      throw new BadRequestException('Driver not available');
+      throw new BadRequestAppException(ErrorMessages.DriverNotAvailable, {
+        driverId,
+      });
     const delivery = await this.repo.update(deliveryId, {
       driverId,
       status: 'ASSIGNED',

@@ -12,7 +12,6 @@ import {
   Query,
   Request,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -45,6 +44,8 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
+import { ForbiddenAppException } from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT')
@@ -226,7 +227,7 @@ export class UsersController {
 
     // Allow if viewing own profile or if ADMIN/MANAGER
     if (userId !== id && !['ADMIN', 'MANAGER'].includes(userRole)) {
-      throw new ForbiddenException('You can only view your own profile');
+      throw new ForbiddenAppException(ErrorMessages.ProfileAccessDenied);
     }
 
     return this.service.findById(id);
@@ -252,7 +253,7 @@ export class UsersController {
 
     // Self-ownership check
     if (userId !== id && !['ADMIN', 'MANAGER'].includes(userRole)) {
-      throw new ForbiddenException('You can only edit your own profile');
+      throw new ForbiddenAppException(ErrorMessages.ProfileAccessDenied);
     }
 
     return this.service.updateUser(id, dto);

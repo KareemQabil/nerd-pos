@@ -6,7 +6,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { DiscountsService } from './discounts.service';
 import { DiscountsRepository } from './discounts.repository';
 import Decimal from 'decimal.js';
@@ -36,7 +36,7 @@ const mockDiscount = {
   type: 'PERCENTAGE',
   value: 10,
   minOrderAmount: 50,
-  maxDiscountAmount: 100,
+  maxDiscount: 100,
   usedCount: 0,
   usageLimit: 100,
   isActive: true,
@@ -129,7 +129,7 @@ describe('DiscountsService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findById('nonexistent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -204,13 +204,13 @@ describe('DiscountsService', () => {
       const result = await service.validateAndCalculate('SAVE10', 50);
 
       expect(result.valid).toBe(false);
-      expect(result.message).toContain('minimum');
+      expect(result.message).toContain('Minimum');
     });
 
     it('should cap discount at maxDiscountAmount', async () => {
       repo.findByCode.mockResolvedValue({
         ...mockDiscount,
-        maxDiscountAmount: 5,
+        maxDiscount: 5,
       });
 
       const result = await service.validateAndCalculate('SAVE10', 100);

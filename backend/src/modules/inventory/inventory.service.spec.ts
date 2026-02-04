@@ -9,7 +9,8 @@
  * - Verified DTO fields from dto/index.ts
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { InventoryService } from './inventory.service';
 import { InventoryRepository } from './inventory.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -142,7 +143,10 @@ describe('InventoryService', () => {
 
   describe('getDefaultWarehouse', () => {
     it('should return default warehouse', async () => {
-      const mockWarehouse = { id: 'wh-1', isDefault: true };
+      const mockWarehouse = {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        isDefault: true,
+      };
       repo.findDefaultWarehouse.mockResolvedValue(mockWarehouse);
 
       const result = await service.getDefaultWarehouse();
@@ -152,9 +156,10 @@ describe('InventoryService', () => {
 
     it('should throw NotFoundException if no default warehouse', async () => {
       repo.findDefaultWarehouse.mockResolvedValue(null);
+      repo.findAllWarehouses.mockResolvedValue([]);
 
       await expect(service.getDefaultWarehouse()).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

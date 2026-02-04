@@ -10,12 +10,13 @@
  * - Verified DTOs from dto/index.ts
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { SalesService } from './sales.service';
 import { SalesRepository } from './sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
+import { SessionsService } from '../sessions/sessions.service';
 
 // Import calculation step classes (must mock all 7)
 import {
@@ -81,6 +82,10 @@ function createMockPrismaService() {
   return mockPrisma;
 }
 
+const mockSessionsService = {
+  getCurrentSession: jest.fn().mockResolvedValue({ id: 'session-123' }),
+};
+
 describe('SalesService', () => {
   let service: SalesService;
   let repo: ReturnType<typeof createMockRepository>;
@@ -98,6 +103,7 @@ describe('SalesService', () => {
         { provide: SalesRepository, useValue: repo },
         { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
+        { provide: SessionsService, useValue: mockSessionsService },
         { provide: ItemSubtotalStep, useValue: createMockStep() },
         { provide: ServiceChargeStep, useValue: createMockStep() },
         { provide: DeliveryChargeStep, useValue: createMockStep() },
@@ -197,6 +203,7 @@ describe('SalesService', () => {
       const confirmedOrder = { ...draftOrder, status: OrderStatus.CONFIRMED };
 
       repo.findById.mockResolvedValue(draftOrder);
+      repo.findWithItems.mockResolvedValue(draftOrder);
       repo.update.mockResolvedValue(confirmedOrder);
 
       const result = await service.confirmOrder('order-1');
@@ -314,7 +321,7 @@ describe('SalesService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findOrderById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

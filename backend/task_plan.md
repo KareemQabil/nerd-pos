@@ -1,56 +1,40 @@
-# Task Plan: Unified API Response Envelope + Error Mapping
+# Implementation Plan - Unified Error Handling
 
 ## Goal
-Implement a base `{ data, error }` response structure with centralized error message mapping and custom exceptions that accept `ErrorMessages.*`, plus provide a refactoring guide without modifying all modules.
+Refactor the entire backend to use the new `AppException` system and `ErrorMessages` constant, ensuring consistent error responses across all modules.
 
-## Current Phase
-Phase 5
+## Status
+**Completed**
 
-## Phases
+## Checklist
 
-### Phase 1: Requirements & Discovery
-- [x] Understand user intent
-- [x] Identify constraints
-- [x] Document in findings.md
-- **Status:** complete
+### Phase 1: Preparation
+- [x] Analyze `ERROR-RESPONSE-REFactoring.md`.
+- [x] Review `src/common/exceptions` and `src/common/constants/error-messages.ts`.
+- [x] Identify all feature modules in `src/modules`.
 
-### Phase 2: Planning & Structure
-- [x] Define response types and error message map location
-- [x] Identify interceptor/filter changes
-- [x] Draft refactoring guide outline
-- **Status:** complete
+### Phase 2: Refactoring & Verification (Per Module)
+**Core Modules:**
+- [x] **Auth**: Refactor Service/Controller. (No tests)
+- [x] **Users**: Refactor Service/Controller. (No tests)
+- [x] **Settings**: Refactor Service/Controller. (No tests)
 
-### Phase 3: Implementation
-- [x] Add error message constants and helper types
-- [x] Update global exception filter to map error keys
-- [x] Update success response interceptor to `{ data, error }` format
-- [x] Update/replace response validator utilities
-- [x] Add documentation/guide file
-- [x] Refactor products module to use error keys
-- [x] Update products Swagger examples for new envelope
-- [x] Implement custom exceptions (base + business validation + not found)
-- [x] Refactor products module to use custom exceptions
-- **Status:** complete
+**Operational Modules:**
+- [x] **Sales**: Refactor Service. Fix `sales.service.spec.ts`.
+- [x] **Inventory**: Refactor Service. Fix `inventory.service.spec.ts`.
+- [x] **Products**: Refactor Service. Fix `products.service.spec.ts`.
+- [x] **Customers**: Refactor Service. Fix `customers.service.spec.ts`.
+- [x] **Sessions**: Refactor Service. Fix `sessions.service.spec.ts`.
+- [x] **Payments**: Refactor Service. Fix `payments.service.spec.ts`.
+- [x] **Kitchen**: Refactor Service. Fix `kitchen.service.spec.ts`.
+- [x] **Tables**: Refactor Service. Fix `tables.service.spec.ts`.
+- [x] **Discounts**: Refactor Service. Fix `discounts.service.spec.ts`.
+- [x] **Delivery**: Refactor Service. (No tests)
+- [x] **Compliance**: Refactor Service. Fix `compliance.service.spec.ts`.
+- [x] **Reports**: Refactor Service. Fix `reports.service.spec.ts`.
+- [x] **Audit**: Verify. Run `audit.service.spec.ts`.
+- [x] **Lookup**: Verify.
 
-### Phase 4: Testing & Verification
-- [ ] Sanity-check compile (not run)
-- [ ] Document test results
-- **Status:** pending
-
-### Phase 5: Delivery
-- [x] Summarize changes and refactoring steps
-- **Status:** complete
-
-## Decisions Made
-| Decision | Rationale |
-|----------|-----------|
-| Use unified `{ data, error }` envelope across success and error | User requirement |
-| Centralize error messages in a constant map + helper | Enables `throw new AppException(ErrorMessages.Key)` |
-| Add custom exceptions for business validation + not found | Cleaner API and stronger typing |
-| Provide migration guide instead of mass refactor | User requested base structure only |
-| Start module refactor with Products | Natural fit for ParentCategoryNotFound example and high-impact module |
-
-## Errors Encountered
-| Error | Resolution |
-|-------|------------|
-| session-catchup.py missing at default path | Ran script from `/home/m4hosam/.codex/...` |
+### Phase 3: Finalization
+- [x] Run `npm run build` to ensure no compilation errors.
+- [x] Generate Final Report (`ERROR_REFACTORING_REPORT.md`).

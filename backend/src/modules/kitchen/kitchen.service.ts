@@ -2,10 +2,12 @@
 // Source: FINAL/BACKEND/08-MODULE-KITCHEN.md
 // Handles: Ticket routing, preparation tracking, bump bar, station management
 
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { KitchenRepository } from './kitchen.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { ErrorMessages } from '../../common/constants';
+import { NotFoundAppException } from '../../common/exceptions';
 import { KitchenGateway } from './kitchen.gateway';
 import { CreateKitchenStationDto, UpdateKitchenStationDto } from './dto';
 import {
@@ -149,7 +151,7 @@ export class KitchenService {
   async startPreparation(ticketId: string): Promise<KitchenTicket> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
+      throw new NotFoundAppException(ErrorMessages.TicketNotFound, { ticketId });
     }
 
     const updatedTicket = await this.repo.update(ticketId, {
@@ -175,7 +177,7 @@ export class KitchenService {
   async markTicketReady(ticketId: string): Promise<KitchenTicket> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
+      throw new NotFoundAppException(ErrorMessages.TicketNotFound, { ticketId });
     }
 
     return this.repo.update(ticketId, {
@@ -186,7 +188,7 @@ export class KitchenService {
   async completeTicket(ticketId: string): Promise<KitchenTicket> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
+      throw new NotFoundAppException(ErrorMessages.TicketNotFound, { ticketId });
     }
 
     const updatedTicket = await this.repo.update(ticketId, {
@@ -259,7 +261,7 @@ export class KitchenService {
   async getTicketWithItems(ticketId: string): Promise<KitchenTicketWithItems> {
     const ticket = await this.repo.findWithItems(ticketId);
     if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
+      throw new NotFoundAppException(ErrorMessages.TicketNotFound, { ticketId });
     }
     return ticket;
   }

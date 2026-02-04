@@ -5,8 +5,6 @@
 
 import {
   Injectable,
-  NotFoundException,
-  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -14,6 +12,11 @@ import { InventoryRepository } from './inventory.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { FIFOStrategy } from './strategies/fifo.strategy';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { ErrorMessages } from '../../common/constants';
+import {
+  NotFoundAppException,
+  BadRequestAppException,
+} from '../../common/exceptions';
 import {
   CreateWarehouseDto,
   ReceiveStockDto,
@@ -79,7 +82,7 @@ export class InventoryService {
 
     const fallback = warehouses.find((item) => isUuid(item.id));
     if (!fallback) {
-      throw new NotFoundException('No valid warehouse configured');
+      throw new NotFoundAppException(ErrorMessages.WarehouseNotConfigured);
     }
 
     if (warehouse?.isDefault) {
@@ -227,9 +230,7 @@ export class InventoryService {
 
     const newQuantity = new Decimal(item.quantityOnHand).plus(quantity);
     if (newQuantity.lessThan(0)) {
-      throw new BadRequestException(
-        'Adjustment would result in negative stock',
-      );
+      throw new BadRequestAppException(ErrorMessages.NegativeStockAdjustment);
     }
 
     // Create adjustment movement
@@ -325,9 +326,10 @@ export class InventoryService {
       warehouseId,
     );
     if (!item) {
-      throw new BadRequestException(
-        `No inventory found for product ${productId} in warehouse ${warehouseId}`,
-      );
+      throw new BadRequestAppException(ErrorMessages.InventoryNotFound, {
+        productId,
+        warehouseId,
+      });
     }
 
     // Lock inventory item row to prevent concurrent deductions
@@ -382,9 +384,9 @@ export class InventoryService {
     }
 
     if (remainingQty.gt(0)) {
-      throw new BadRequestException(
-        `Insufficient stock. Short by ${remainingQty.toNumber()}`,
-      );
+      throw new BadRequestAppException(ErrorMessages.InsufficientStock, {
+        shortBy: remainingQty.toNumber(),
+      });
     }
 
     // Update inventory item quantity using tx client
@@ -540,7 +542,7 @@ export class InventoryService {
   async calculateRecipeCost(productId: string): Promise<Decimal> {
     const recipe = await this.repo.findRecipeByProduct(productId);
     if (!recipe) {
-      throw new NotFoundException(`No recipe found for product ${productId}`);
+      throw new NotFoundAppException(ErrorMessages.RecipeNotFound, { productId });
     }
 
     const defaultWarehouse = await this.getDefaultWarehouse();
