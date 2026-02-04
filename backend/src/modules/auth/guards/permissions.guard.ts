@@ -9,15 +9,15 @@
  * 2. This guard runs second (authorizes user based on DB permissions)
  */
 
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { UsersService } from '../../users/users.service';
+import { ErrorMessages } from '../../../common/constants';
+import {
+  ForbiddenAppException,
+  UnauthorizedAppException,
+} from '../../../common/exceptions';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -44,7 +44,7 @@ export class PermissionsGuard implements CanActivate {
 
     // No user - deny access
     if (!user || !user.sub) {
-      throw new ForbiddenException('User not authenticated');
+      throw new UnauthorizedAppException(ErrorMessages.Unauthorized);
     }
 
     // Check if user has ALL required permissions
@@ -54,9 +54,9 @@ export class PermissionsGuard implements CanActivate {
     );
 
     if (!hasAllPermissions) {
-      throw new ForbiddenException(
-        `Missing required permissions: ${requiredPermissions.join(', ')}`,
-      );
+      throw new ForbiddenAppException(ErrorMessages.Forbidden, {
+        requiredPermissions,
+      });
     }
 
     return true;

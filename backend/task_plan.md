@@ -1,40 +1,44 @@
-# Implementation Plan - Unified Error Handling
+# Task Plan: Module-by-Module Refactor Verification
 
 ## Goal
-Refactor the entire backend to use the new `AppException` system and `ErrorMessages` constant, ensuring consistent error responses across all modules.
+Check every module under `src/modules` to verify whether exceptions are refactored to the new custom exceptions / ErrorMessages pattern, and provide a module-by-module summary. Apply fixes for remaining legacy spots in auth and inventory.
 
-## Status
-**Completed**
+## Current Phase
+Phase 5
 
-## Checklist
+## Phases
 
-### Phase 1: Preparation
-- [x] Analyze `ERROR-RESPONSE-REFactoring.md`.
-- [x] Review `src/common/exceptions` and `src/common/constants/error-messages.ts`.
-- [x] Identify all feature modules in `src/modules`.
+### Phase 1: Requirements & Discovery
+- [x] Confirm modules list and scope
+- [x] Document initial findings
+- **Status:** complete
 
-### Phase 2: Refactoring & Verification (Per Module)
-**Core Modules:**
-- [x] **Auth**: Refactor Service/Controller. (No tests)
-- [x] **Users**: Refactor Service/Controller. (No tests)
-- [x] **Settings**: Refactor Service/Controller. (No tests)
+### Phase 2: Planning & Structure
+- [x] Define verification criteria
+- [x] Identify scan approach (throw sites, exception types)
+- **Status:** complete
 
-**Operational Modules:**
-- [x] **Sales**: Refactor Service. Fix `sales.service.spec.ts`.
-- [x] **Inventory**: Refactor Service. Fix `inventory.service.spec.ts`.
-- [x] **Products**: Refactor Service. Fix `products.service.spec.ts`.
-- [x] **Customers**: Refactor Service. Fix `customers.service.spec.ts`.
-- [x] **Sessions**: Refactor Service. Fix `sessions.service.spec.ts`.
-- [x] **Payments**: Refactor Service. Fix `payments.service.spec.ts`.
-- [x] **Kitchen**: Refactor Service. Fix `kitchen.service.spec.ts`.
-- [x] **Tables**: Refactor Service. Fix `tables.service.spec.ts`.
-- [x] **Discounts**: Refactor Service. Fix `discounts.service.spec.ts`.
-- [x] **Delivery**: Refactor Service. (No tests)
-- [x] **Compliance**: Refactor Service. Fix `compliance.service.spec.ts`.
-- [x] **Reports**: Refactor Service. Fix `reports.service.spec.ts`.
-- [x] **Audit**: Verify. Run `audit.service.spec.ts`.
-- [x] **Lookup**: Verify.
+### Phase 3: Implementation
+- [x] Scan each module for exception usage
+- [x] Classify modules (custom exceptions vs legacy vs none)
+- [x] Refactor remaining legacy throws in auth and inventory
+- **Status:** complete
 
-### Phase 3: Finalization
-- [x] Run `npm run build` to ensure no compilation errors.
-- [x] Generate Final Report (`ERROR_REFACTORING_REPORT.md`).
+### Phase 4: Testing & Verification
+- [ ] Sanity-check summary against scan outputs
+- **Status:** pending
+
+### Phase 5: Delivery
+- [x] Provide module-by-module verification summary
+- **Status:** complete
+
+## Decisions Made
+| Decision | Rationale |
+|----------|-----------|
+| Use `rg "throw new"` per module to enumerate exception types | Fast, consistent scan across modules |
+| Consider custom exceptions as refactored when they use `*AppException` or `BusinessValidationException` | Matches new exception pattern |
+| Introduce JWT-specific error keys for config/payload failures | Keep auth errors structured |
+
+## Errors Encountered
+| Error | Resolution |
+|-------|------------|

@@ -15,6 +15,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '../decorators/current-user.decorator';
+import { ErrorMessages } from '../../../common/constants';
+import {
+  InternalServerErrorAppException,
+  UnauthorizedAppException,
+} from '../../../common/exceptions';
 
 // Custom extractor: try cookie first, then Bearer header
 const cookieOrBearerExtractor = (req: Request): string | null => {
@@ -36,7 +41,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const jwtSecret = configService.get<string>('JWT_SECRET');
 
     if (!jwtSecret || jwtSecret.length < 32) {
-      throw new Error('JWT_SECRET must be at least 32 characters long');
+      throw new InternalServerErrorAppException(ErrorMessages.JwtSecretInvalid, {
+        reason: 'JWT_SECRET must be at least 32 characters long',
+      });
     }
 
     super({
@@ -52,7 +59,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    */
   async validate(payload: JwtPayload): Promise<JwtPayload> {
     if (!payload.sub || !payload.username) {
-      throw new Error('Invalid token payload');
+      throw new UnauthorizedAppException(ErrorMessages.InvalidTokenPayload);
     }
 
     return {

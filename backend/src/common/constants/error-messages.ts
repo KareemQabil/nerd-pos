@@ -90,6 +90,16 @@ export const ErrorMessages = {
     messageEn: 'Invalid credentials.',
     messageAr: 'بيانات الاعتماد غير صالحة.',
   },
+  JwtSecretInvalid: {
+    key: 'JWT_SECRET_INVALID',
+    messageEn: 'JWT secret is invalid or missing.',
+    messageAr: 'سر JWT غير صالح أو مفقود.',
+  },
+  InvalidTokenPayload: {
+    key: 'INVALID_TOKEN_PAYLOAD',
+    messageEn: 'Invalid token payload.',
+    messageAr: 'محتوى الرمز غير صالح.',
+  },
   UserNotFound: {
     key: 'USER_NOT_FOUND',
     messageEn: 'User not found.',

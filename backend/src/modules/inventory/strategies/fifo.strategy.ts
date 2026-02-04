@@ -2,10 +2,12 @@
 // Source: FINAL/BACKEND/04-MODULE-INVENTORY.md
 // CRITICAL: Deducts stock from oldest batches first
 
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../core/prisma/prisma.service';
 import { DeductionResult } from '../entities/inventory.entity';
 import Decimal from 'decimal.js';
+import { ErrorMessages } from '../../../common/constants';
+import { BadRequestAppException } from '../../../common/exceptions';
 
 @Injectable()
 export class FIFOStrategy {
@@ -22,9 +24,10 @@ export class FIFOStrategy {
     });
 
     if (!item) {
-      throw new BadRequestException(
-        `No inventory for product ${productId} in warehouse ${warehouseId}`,
-      );
+      throw new BadRequestAppException(ErrorMessages.InventoryNotFound, {
+        productId,
+        warehouseId,
+      });
     }
 
     // Get batches ordered by receivedDate (FIFO - oldest first)
@@ -80,9 +83,11 @@ export class FIFOStrategy {
           isVirtual: true,
         });
       } else {
-        throw new BadRequestException(
-          `Insufficient stock for product ${productId}. Short by ${remaining.toNumber()} units.`,
-        );
+        throw new BadRequestAppException(ErrorMessages.InsufficientStock, {
+          productId,
+          warehouseId,
+          shortage: remaining.toNumber(),
+        });
       }
     }
 
