@@ -210,7 +210,7 @@ export class UsersService {
       new UserCreatedEvent(user.id, user.username, user.roleId || user.role),
     );
 
-    return user;
+    return this.sanitizeUser(user);
   }
 
   async findById(id: string): Promise<UserProfile> {
@@ -234,7 +234,8 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
-    return this.repo.findActive();
+    const users = await this.repo.findActive();
+    return users.map((u) => this.sanitizeUser(u));
   }
 
   // Paginated version for API endpoints
@@ -245,20 +246,33 @@ export class UsersService {
     limit: number;
     totalPages: number;
   }> {
-    return this.repo.findActivePaginated(options);
+    const result = await this.repo.findActivePaginated(options);
+    return {
+      ...result,
+      data: result.data.map((u) => this.sanitizeUser(u)),
+    };
   }
 
   async updateUser(id: string, dto: UpdateUserDto): Promise<User> {
-    const updateData: Partial<UpdateUserDto> & { passwordHash?: string } = { ...dto };
+    const updateData: any = { ...dto };
     if (dto.password) {
-      updateData.passwordHash = await this.hashPassword(dto.password);
-      delete updateData.password;
+      updateData.password = await this.hashPassword(dto.password);
     }
-    return this.repo.update(id, updateData);
+
+    const user = await this.repo.update(id, updateData);
+    return this.sanitizeUser(user);
   }
 
   async updatePin(userId: string, newPin: string): Promise<void> {
     await this.repo.update(userId, { pin: newPin });
+  }
+
+  private sanitizeUser(user: User): User {
+    if (!user) return user;
+    const sanitized = { ...user };
+    delete (sanitized as any).password;
+    delete (sanitized as any).pin;
+    return sanitized;
   }
 
   async changePassword(

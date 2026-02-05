@@ -6,21 +6,24 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersRepository } from './users.repository';
+import {
+  NotFoundAppException,
+  UnauthorizedAppException,
+} from '../../common/exceptions';
 
 function createMockRepository() {
   return {
     // Users
     findByUsername: jest.fn(),
     findById: jest.fn(),
-    findAll: jest.fn(),
+    findWithRole: jest.fn(),
+    findActive: jest.fn(),
+    findActivePaginated: jest.fn(),
+    findByRoleLevel: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
-    // PIN verification
-    findByPin: jest.fn(),
-    findManagerByPin: jest.fn(),
     // Auth logs
     createAuthLog: jest.fn(),
     // Roles & Permissions
@@ -31,7 +34,7 @@ function createMockRepository() {
     findAllPermissions: jest.fn(),
     findPermissionsByModule: jest.fn(),
     createPermission: jest.fn(),
-    findUserPermissions: jest.fn(),
+    getPermissions: jest.fn(),
   };
 }
 
@@ -42,20 +45,21 @@ function createMockEventBus() {
 const mockUser = {
   id: 'user-1',
   username: 'admin',
-  passwordHash: '$2a$10$hashedpassword',
+  password: '$2a$10$hashedpassword',
   pin: '1234',
   nameEn: 'Admin User',
   nameAr: 'مدير',
   roleId: 'role-1',
+  role: 'ADMIN',
   isActive: true,
-  role: { id: 'role-1', name: 'Manager', permissions: [] },
+  userRole: { id: 'role-1', name: 'Manager' },
 };
 
 const mockRole = {
   id: 'role-1',
   name: 'Manager',
   nameAr: 'مدير',
-  permissions: ['products.create', 'products.update'],
+  level: 2,
 };
 
 describe('UsersService', () => {
@@ -84,33 +88,35 @@ describe('UsersService', () => {
   describe('login', () => {
     it('should return auth result for valid credentials', async () => {
       repo.findByUsername.mockResolvedValue(mockUser);
-      // Mock bcrypt compare - would normally use spy
+      repo.findWithRole.mockResolvedValue(mockUser);
       jest.spyOn(service as any, 'verifyPassword').mockResolvedValue(true);
 
       const result = await service.login('admin', 'password123');
 
       expect(result).toBeDefined();
       expect(result.user).toBeDefined();
+      expect((result.user as any).password).toBeUndefined();
+      expect((result.user as any).pin).toBeUndefined();
       expect(eventBus.publish).toHaveBeenCalledWith(
         'UserLoggedIn',
         expect.anything(),
       );
     });
 
-    it('should throw UnauthorizedException for invalid username', async () => {
+    it('should throw UnauthorizedAppException for invalid username', async () => {
       repo.findByUsername.mockResolvedValue(null);
 
       await expect(service.login('invalid', 'password')).rejects.toThrow(
-        UnauthorizedException,
+        UnauthorizedAppException,
       );
     });
 
-    it('should throw UnauthorizedException for wrong password', async () => {
+    it('should throw UnauthorizedAppException for wrong password', async () => {
       repo.findByUsername.mockResolvedValue(mockUser);
       jest.spyOn(service as any, 'verifyPassword').mockResolvedValue(false);
 
       await expect(service.login('admin', 'wrongpassword')).rejects.toThrow(
-        UnauthorizedException,
+        UnauthorizedAppException,
       );
     });
   });
@@ -136,7 +142,7 @@ describe('UsersService', () => {
 
   describe('verifyManagerPin', () => {
     it('should return valid with managerId for manager PIN', async () => {
-      repo.findManagerByPin.mockResolvedValue(mockUser);
+      repo.findByRoleLevel.mockResolvedValue([mockUser]);
 
       const result = await service.verifyManagerPin('1234');
 
@@ -145,7 +151,7 @@ describe('UsersService', () => {
     });
 
     it('should return invalid for non-manager PIN', async () => {
-      repo.findManagerByPin.mockResolvedValue(null);
+      repo.findByRoleLevel.mockResolvedValue([mockUser]);
 
       const result = await service.verifyManagerPin('9999');
 
@@ -155,7 +161,8 @@ describe('UsersService', () => {
 
   // ==================== USER CRUD ====================
   describe('createUser', () => {
-    it('should create user with hashed password', async () => {
+    it('should create user and sanitize result', async () => {
+      repo.findByUsername.mockResolvedValue(null);
       repo.create.mockImplementation((data) =>
         Promise.resolve({ id: 'new', ...data }),
       );
@@ -164,6 +171,7 @@ describe('UsersService', () => {
       const result = await service.createUser({
         username: 'newuser',
         password: 'password123',
+        pin: '1234',
         nameEn: 'New User',
         nameAr: 'مستخدم جديد',
         roleId: 'role-1',
@@ -171,6 +179,8 @@ describe('UsersService', () => {
       });
 
       expect(result.id).toBeDefined();
+      expect(result.password).toBeUndefined();
+      expect(result.pin).toBeUndefined();
       expect(eventBus.publish).toHaveBeenCalledWith(
         'UserCreated',
         expect.anything(),
@@ -180,29 +190,64 @@ describe('UsersService', () => {
 
   describe('findById', () => {
     it('should return user profile', async () => {
-      repo.findById.mockResolvedValue(mockUser);
+      repo.findWithRole.mockResolvedValue(mockUser);
 
       const result = await service.findById('user-1');
 
       expect(result.username).toBe('admin');
+      expect((result as any).password).toBeUndefined();
     });
 
-    it('should throw NotFoundException if user not found', async () => {
-      repo.findById.mockResolvedValue(null);
+    it('should throw NotFoundAppException if user not found', async () => {
+      repo.findWithRole.mockResolvedValue(null);
 
       await expect(service.findById('invalid')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
 
   describe('findAll', () => {
-    it('should return all users', async () => {
-      repo.findAll.mockResolvedValue([mockUser, { ...mockUser, id: 'user-2' }]);
+    it('should return sanitized users', async () => {
+      repo.findActive.mockResolvedValue([mockUser, { ...mockUser, id: 'user-2' }]);
 
       const result = await service.findAll();
 
       expect(result).toHaveLength(2);
+      expect(result[0].password).toBeUndefined();
+      expect(result[0].pin).toBeUndefined();
+    });
+  });
+
+  describe('findAllPaginated', () => {
+    it('should return sanitized paginated users', async () => {
+      repo.findActivePaginated.mockResolvedValue({
+        data: [mockUser],
+        total: 1,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      });
+
+      const result = await service.findAllPaginated({});
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].password).toBeUndefined();
+      expect(result.data[0].pin).toBeUndefined();
+    });
+  });
+
+  describe('updateUser', () => {
+    it('should update and sanitize result', async () => {
+      repo.update.mockImplementation((id, data) =>
+        Promise.resolve({ ...mockUser, ...data, id }),
+      );
+
+      const result = await service.updateUser('user-1', { nameEn: 'Updated' });
+
+      expect(result.nameEn).toBe('Updated');
+      expect(result.password).toBeUndefined();
+      expect(result.pin).toBeUndefined();
     });
   });
 
@@ -218,14 +263,14 @@ describe('UsersService', () => {
   });
 
   describe('createRole', () => {
-    it('should create role with permissions', async () => {
+    it('should create role', async () => {
       repo.createRole.mockResolvedValue(mockRole);
 
       const result = await service.createRole({
-        name: 'New Role',
-        nameAr: 'دور جديد',
+        name: 'Manager',
+        nameAr: 'مدير',
         permissionIds: ['perm-1'],
-        level: 5,
+        level: 2,
       });
 
       expect(result.name).toBe('Manager');
@@ -235,9 +280,9 @@ describe('UsersService', () => {
   // ==================== PERMISSIONS ====================
   describe('hasPermission', () => {
     it('should return true if user has permission', async () => {
-      repo.findUserPermissions.mockResolvedValue([
-        'products.create',
-        'products.update',
+      repo.findWithRole.mockResolvedValue(mockUser);
+      repo.getPermissions.mockResolvedValue([
+        { code: 'products.create', module: 'products' },
       ]);
 
       const result = await service.hasPermission('user-1', 'products.create');
@@ -246,7 +291,8 @@ describe('UsersService', () => {
     });
 
     it('should return false if user lacks permission', async () => {
-      repo.findUserPermissions.mockResolvedValue(['products.view']);
+      repo.findWithRole.mockResolvedValue(mockUser);
+      repo.getPermissions.mockResolvedValue([{ code: 'products.view', module: 'products' }]);
 
       const result = await service.hasPermission('user-1', 'products.delete');
 

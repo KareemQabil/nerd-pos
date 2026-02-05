@@ -28,6 +28,22 @@ export class UsersRepository extends BaseRepository<User> {
 
   // ==================== USERS ====================
 
+  private readonly safeSelect = {
+    id: true,
+    username: true,
+    email: true,
+    nameAr: true,
+    nameEn: true,
+    phone: true,
+    roleId: true,
+    role: true,
+    isActive: true,
+    lastLogin: true,
+    createdAt: true,
+    updatedAt: true,
+    userRole: true,
+  };
+
   async findByUsername(username: string): Promise<User | null> {
     return (this.prisma as any).user.findUnique({
       where: { username },
@@ -52,7 +68,7 @@ export class UsersRepository extends BaseRepository<User> {
   async findActive(): Promise<User[]> {
     return (this.prisma as any).user.findMany({
       where: { isActive: true },
-      include: { userRole: true },
+      select: this.safeSelect,
       orderBy: { nameEn: 'asc' },
     });
   }
@@ -70,7 +86,7 @@ export class UsersRepository extends BaseRepository<User> {
     const [data, total] = await Promise.all([
       (this.prisma as any).user.findMany({
         where,
-        include: { userRole: true },
+        select: this.safeSelect,
         orderBy: { nameEn: 'asc' },
         skip,
         take: limit,
@@ -91,9 +107,9 @@ export class UsersRepository extends BaseRepository<User> {
     return (this.prisma as any).user.findMany({
       where: {
         isActive: true,
-        role: { level },
+        userRole: { level },
       },
-      include: { role: true },
+      include: { userRole: true },
     });
   }
 
