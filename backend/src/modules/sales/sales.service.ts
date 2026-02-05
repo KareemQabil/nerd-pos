@@ -171,6 +171,7 @@ export class SalesService {
       orderType: dto.type ?? 'DINE_IN', // HARDENED: fallback to DINE_IN
       businessDate: new Date(), // HARDENED: always set to now
       status: OrderStatus.DRAFT, // HARDENED: explicit status
+      ...(dto.tableId ? { table: { connect: { id: dto.tableId } } } : {}),
       session: { connect: { id: sessionId } }, // REQUIRED: Link order to session
       // Calculated values with SAFE fallbacks
       itemSubtotal: safeToNumber(calculated.itemSubtotal, 0),
@@ -310,16 +311,36 @@ export class SalesService {
   }
 
   async cancelOrder(orderId: string, reason?: string): Promise<Order> {
-    const order = await this.findOrderById(orderId);
+    const order = await this.findOrderByIdWithItems(orderId);
 
     if (
-      [OrderStatus.COMPLETED, OrderStatus.CANCELLED].includes(
+      [OrderStatus.COMPLETED, OrderStatus.PAID].includes(
         order.status as OrderStatus,
       )
     ) {
       throw new BadRequestException(
+        'Cannot cancel a completed/paid order. Use Refund instead.',
+      );
+    }
+
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new BadRequestException(
         'Cannot cancel completed or already cancelled order',
       );
+    }
+
+    const payments = (order as { payments?: { amount?: Prisma.Decimal | number }[] })
+      .payments ?? [];
+    if (payments.length > 0) {
+      const totalPaid = payments.reduce(
+        (sum, payment) => sum.plus(new Decimal(payment.amount ?? 0)),
+        new Decimal(0),
+      );
+      const orderTotal = new Decimal(order.grandTotal ?? 0);
+
+      if (totalPaid.greaterThanOrEqualTo(orderTotal)) {
+        throw new BadRequestException('Cannot cancel a paid order');
+      }
     }
 
     const updated = await this.repo.update(orderId, {

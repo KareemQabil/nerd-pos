@@ -158,6 +158,15 @@ export class TablesService {
       );
     }
 
+    const updatedOrders = await this.repo.transferActiveOrderTable(
+      dto.orderId,
+      dto.fromTableId,
+      dto.toTableId,
+    );
+    if (updatedOrders === 0) {
+      throw new BadRequestException('No active order found for table transfer');
+    }
+
     // Release source table
     await this.repo.update(dto.fromTableId, {
       status: 'AVAILABLE',

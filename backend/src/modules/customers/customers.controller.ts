@@ -174,6 +174,61 @@ export class CustomersController {
     return this.service.findByPhone(phone);
   }
 
+  // ==================== TIERS ====================
+
+  @Get('tiers')
+  @Permissions(PERMISSIONS.CUSTOMERS_LOYALTY_VIEW) // Cashier+
+  @ApiOperation({
+    summary: 'Get all loyalty tiers',
+    description: 'Returns all loyalty tier configurations',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Loyalty tiers retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Request successful',
+        data: [
+          { name: 'BRONZE', minPoints: 0, multiplier: 1.0 },
+          { name: 'SILVER', minPoints: 1000, multiplier: 1.2 },
+          { name: 'GOLD', minPoints: 5000, multiplier: 1.5 },
+        ],
+        timestamp: '2026-01-23T12:00:00Z',
+      },
+    },
+  })
+  async getAllTiers() {
+    return this.service.getAllTiers();
+  }
+
+  @Post('tiers')
+  @Permissions(PERMISSIONS.SETTINGS_UPDATE) // ðŸ”’ Admin only
+  @ApiOperation({
+    summary: 'Create loyalty tier',
+    description: 'Creates a new loyalty tier. Admin only.',
+  })
+  @ApiResponse({ status: 201, description: 'Tier created' })
+  @ApiBadRequestResponse({
+    description: 'Validation error or duplicate tier name',
+  })
+  async createTier(@Body() dto: CreateLoyaltyTierDto) {
+    return this.service.createTier(dto);
+  }
+
+  @Put('tiers/:id')
+  @Permissions(PERMISSIONS.SETTINGS_UPDATE) // ðŸ”’ Admin only
+  @ApiOperation({
+    summary: 'Update loyalty tier',
+    description: 'Updates loyalty tier. Admin only.',
+  })
+  @ApiParam({ name: 'id', description: 'Tier UUID' })
+  @ApiResponse({ status: 200, description: 'Tier updated' })
+  @ApiNotFoundResponse({ description: 'Tier not found' })
+  async updateTier(@Param('id') id: string, @Body() dto: UpdateLoyaltyTierDto) {
+    return this.service.updateTier(id, dto);
+  }
+
   @Get(':id')
   @Permissions(PERMISSIONS.CUSTOMERS_VIEW) // Cashier+
   @ApiOperation({
@@ -310,58 +365,4 @@ export class CustomersController {
     return this.service.redeemPoints(id, dto.points);
   }
 
-  // ==================== TIERS ====================
-
-  @Get('tiers')
-  @Permissions(PERMISSIONS.CUSTOMERS_LOYALTY_VIEW) // Cashier+
-  @ApiOperation({
-    summary: 'Get all loyalty tiers',
-    description: 'Returns all loyalty tier configurations',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Loyalty tiers retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Request successful',
-        data: [
-          { name: 'BRONZE', minPoints: 0, multiplier: 1.0 },
-          { name: 'SILVER', minPoints: 1000, multiplier: 1.2 },
-          { name: 'GOLD', minPoints: 5000, multiplier: 1.5 },
-        ],
-        timestamp: '2026-01-23T12:00:00Z',
-      },
-    },
-  })
-  async getAllTiers() {
-    return this.service.getAllTiers();
   }
-
-  @Post('tiers')
-  @Permissions(PERMISSIONS.SETTINGS_UPDATE) // 🔒 Admin only
-  @ApiOperation({
-    summary: 'Create loyalty tier',
-    description: 'Creates a new loyalty tier. Admin only.',
-  })
-  @ApiResponse({ status: 201, description: 'Tier created' })
-  @ApiBadRequestResponse({
-    description: 'Validation error or duplicate tier name',
-  })
-  async createTier(@Body() dto: CreateLoyaltyTierDto) {
-    return this.service.createTier(dto);
-  }
-
-  @Put('tiers/:id')
-  @Permissions(PERMISSIONS.SETTINGS_UPDATE) // 🔒 Admin only
-  @ApiOperation({
-    summary: 'Update loyalty tier',
-    description: 'Updates loyalty tier. Admin only.',
-  })
-  @ApiParam({ name: 'id', description: 'Tier UUID' })
-  @ApiResponse({ status: 200, description: 'Tier updated' })
-  @ApiNotFoundResponse({ description: 'Tier not found' })
-  async updateTier(@Param('id') id: string, @Body() dto: UpdateLoyaltyTierDto) {
-    return this.service.updateTier(id, dto);
-  }
-}

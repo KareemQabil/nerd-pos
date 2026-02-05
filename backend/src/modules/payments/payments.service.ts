@@ -125,6 +125,22 @@ export class PaymentsService {
       (sum, p) => sum.plus(new Decimal(p.amount)),
       new Decimal(0),
     );
+    const orderRecord = await (this.prisma as any).salesOrder.findUnique({
+      where: { id: dto.orderId },
+      select: { grandTotal: true },
+    });
+    if (!orderRecord) {
+      throw new NotFoundException(`Order ${dto.orderId} not found`);
+    }
+
+    const orderTotal = new Decimal(orderRecord.grandTotal || 0);
+    const diff = orderTotal.minus(totalPaid).abs();
+    if (diff.greaterThan(0.01)) {
+      throw new BadRequestException(
+        `Split payment total (${totalPaid.toFixed(2)}) does not match order total (${orderTotal.toFixed(2)})`,
+      );
+    }
+
     const prePaymentCount = await (this.prisma as any).payment.count({
       where: { orderId: dto.orderId },
     });

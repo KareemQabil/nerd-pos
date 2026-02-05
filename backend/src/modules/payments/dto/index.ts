@@ -12,6 +12,7 @@ import {
   ValidateNested,
   IsPositive,
   Max,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PartialType } from '@nestjs/mapped-types';
@@ -228,6 +229,14 @@ export class ApproveRefundDto {
 // ==================== PAYMENT METHOD ====================
 
 export class CreatePaymentMethodDto {
+  @ApiProperty({
+    description: 'Payment method code',
+    example: 'CASH',
+  })
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+
   @ApiProperty({
     description: 'Payment method name (English)',
     example: 'Cash',

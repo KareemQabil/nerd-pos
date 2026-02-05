@@ -13,7 +13,7 @@ import {
   TableWithFloor,
   TableReservation,
 } from './entities/tables.entity';
-import { TableStatus, ReservationStatus } from '../../core/constants/enums';
+import { OrderStatus, TableStatus, ReservationStatus } from '../../core/constants/enums';
 
 // Type aliases for repository input types
 type CreateFloorInput = {
@@ -48,6 +48,32 @@ export class TablesRepository extends BaseRepository<Table> {
 
   protected get model() {
     return 'table';
+  }
+
+  // ==================== TABLE TRANSFER ====================
+
+  async transferActiveOrderTable(
+    orderId: string,
+    fromTableId: string,
+    toTableId: string,
+  ): Promise<number> {
+    const result = await (this.prisma as any).salesOrder.updateMany({
+      where: {
+        id: orderId,
+        tableId: fromTableId,
+        status: {
+          in: [
+            OrderStatus.DRAFT,
+            OrderStatus.CONFIRMED,
+            OrderStatus.PREPARING,
+            OrderStatus.READY,
+          ],
+        },
+      },
+      data: { tableId: toTableId },
+    });
+
+    return result?.count ?? 0;
   }
 
   // ==================== FLOORS ====================

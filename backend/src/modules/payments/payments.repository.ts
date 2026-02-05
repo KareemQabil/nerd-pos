@@ -80,16 +80,53 @@ export class PaymentsRepository extends BaseRepository<Payment> {
   async createMethod(
     data: Partial<PaymentMethod> & { name: string },
   ): Promise<PaymentMethod> {
-    return (this.prisma as any).paymentMethod.create({ data });
+    const createData: Record<string, unknown> = {
+      code: (data as any).code,
+      nameEn: data.nameEn ?? data.name,
+      nameAr: data.nameAr,
+      type: data.type,
+      requiresTerminal: data.requiresTerminal,
+      requiresReference: data.requiresReference,
+      isActive: data.isActive,
+      sortOrder: data.sortOrder,
+      receivableAccountId: data.receivableAccountId,
+      clearingAccountId: data.clearingAccountId,
+      feeAccountId: data.feeAccountId,
+    };
+
+    // Remove undefined fields so Prisma can apply defaults.
+    Object.keys(createData).forEach((key) => {
+      if (createData[key] === undefined) delete createData[key];
+    });
+
+    return (this.prisma as any).paymentMethod.create({ data: createData });
   }
 
   async updateMethod(
     id: string,
     data: Partial<PaymentMethod>,
   ): Promise<PaymentMethod> {
+    const updateData: Record<string, unknown> = {
+      code: (data as any).code,
+      nameEn: data.nameEn ?? (data as any).name,
+      nameAr: data.nameAr,
+      type: data.type,
+      requiresTerminal: data.requiresTerminal,
+      requiresReference: data.requiresReference,
+      isActive: data.isActive,
+      sortOrder: data.sortOrder,
+      receivableAccountId: data.receivableAccountId,
+      clearingAccountId: data.clearingAccountId,
+      feeAccountId: data.feeAccountId,
+    };
+
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] === undefined) delete updateData[key];
+    });
+
     return (this.prisma as any).paymentMethod.update({
       where: { id },
-      data,
+      data: updateData,
     });
   }
 
