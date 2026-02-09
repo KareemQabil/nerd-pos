@@ -2,6 +2,10 @@
 // Source: FINAL/BACKEND/15-MODULE-DELIVERY.md
 // Aligned with: prisma/schema.prisma (existing models)
 
+import { Prisma } from '@prisma/client';
+
+type Decimal = Prisma.Decimal;
+
 // ==================== DELIVERY ZONE ====================
 
 export interface DeliveryZone {
@@ -9,9 +13,9 @@ export interface DeliveryZone {
   name: string; // Matches schema
   nameAr: string; // Matches schema
   districts: string[];
-  deliveryFee: number; // Decimal in DB
-  minOrderAmount?: number | null;
-  freeDeliveryThreshold?: number | null;
+  deliveryFee: Decimal | number; // Decimal in DB
+  minOrderAmount?: Decimal | number | null;
+  freeDeliveryThreshold?: Decimal | number | null;
   estimatedTime: number;
   coordinates?: any | null; // GeoJSON
   isActive: boolean;
@@ -32,11 +36,11 @@ export interface Driver {
   vehiclePlate: string;
   phone: string;
   status: string; // OFFLINE, AVAILABLE, BUSY
-  latitude?: number | null;
-  longitude?: number | null;
+  latitude?: Decimal | number | null;
+  longitude?: Decimal | number | null;
   lastLocationUpdate?: Date | null;
   totalDeliveries: number;
-  rating?: number | null;
+  rating?: Decimal | number | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -50,7 +54,7 @@ export interface Delivery {
   addressId?: string | null;
   zoneId?: string | null;
   driverId?: string | null;
-  deliveryFee: number; // Decimal in DB
+  deliveryFee: Decimal | number; // Decimal in DB
   estimatedTime?: number | null; // minutes
   scheduledFor?: Date | null;
   dispatchedAt?: Date | null;

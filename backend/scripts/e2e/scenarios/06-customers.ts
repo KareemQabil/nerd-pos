@@ -2,6 +2,7 @@
  * Scenario 06: Customers
  */
 
+import Decimal from 'decimal.js';
 import { TestContext, TestResult } from '../config/client';
 import { logSection, logPass, logFail, logInfo, TEST_RUN_ID, TEST_DEFAULTS, TERMINALS } from '../config/env';
 import { CreateCustomerDto, AddAddressDto, UpdateCustomerDto } from '../../../src/modules/customers/dto';
@@ -216,7 +217,7 @@ async function createCustomerOrder(ctx: TestContext, customerId: string): Promis
                 productId: product.id,
                 name: product.nameEn,
                 nameAr: product.nameAr,
-                price: product.price,
+                price: new Decimal(product.price).toNumber(),
                 quantity: 1,
             },
         ],

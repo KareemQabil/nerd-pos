@@ -29,15 +29,15 @@ export interface Table {
 
   // Configuration
   capacity: number;
-  section: 'INDOOR' | 'OUTDOOR' | 'VIP';
-  shape: 'SQUARE' | 'ROUND' | 'RECTANGLE';
+  section: string;
+  shape: string;
 
   // Position (for floor plan UI)
   positionX?: number | null;
   positionY?: number | null;
 
   // Status
-  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'DIRTY';
+  status: string;
 
   // Current order
   currentOrderId?: string | null;
@@ -75,7 +75,7 @@ export interface TableReservation {
   specialRequests?: string | null;
 
   // Status
-  status: 'PENDING' | 'CONFIRMED' | 'SEATED' | 'CANCELLED' | 'NO_SHOW';
+  status: string;
 
   createdBy: string;
   createdAt: Date;

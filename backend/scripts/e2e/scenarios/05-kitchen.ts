@@ -2,6 +2,7 @@
  * Scenario 05: Kitchen (KDS)
  */
 
+import Decimal from 'decimal.js';
 import { TestContext, TestResult } from '../config/client';
 import { logSection, logPass, logFail, logInfo, TEST_RUN_ID, TEST_DEFAULTS, TERMINALS } from '../config/env';
 import { SalesHelper } from '../helpers/sales.helper';
@@ -319,7 +320,7 @@ async function createKitchenOrder(
                 productId: product.id,
                 name: product.nameEn,
                 nameAr: product.nameAr,
-                price: product.price,
+                price: new Decimal(product.price).toNumber(),
                 quantity: 1,
             },
         ],

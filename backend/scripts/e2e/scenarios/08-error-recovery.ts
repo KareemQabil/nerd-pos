@@ -150,7 +150,7 @@ async function testInvalidOrder(ctx: TestContext, setup: ErrorSetup): Promise<vo
                 productId: setup.product.id,
                 name: setup.product.nameEn,
                 nameAr: setup.product.nameAr,
-                price: setup.product.price,
+                price: new Decimal(setup.product.price).toNumber(),
                 quantity: 0,
             },
         ],
@@ -180,7 +180,7 @@ async function testAddItemToConfirmed(ctx: TestContext, setup: ErrorSetup): Prom
         productId: setup.product.id,
         name: setup.product.nameEn,
         nameAr: setup.product.nameAr,
-        price: setup.product.price,
+        price: new Decimal(setup.product.price).toNumber(),
         quantity: 1,
     };
 
@@ -229,7 +229,7 @@ async function createOrder(ctx: TestContext, setup: ErrorSetup, confirm: boolean
                 productId: setup.product.id,
                 name: setup.product.nameEn,
                 nameAr: setup.product.nameAr,
-                price: setup.product.price,
+                price: new Decimal(setup.product.price).toNumber(),
                 quantity: 1,
             },
         ],

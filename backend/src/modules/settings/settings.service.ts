@@ -5,6 +5,7 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { SettingsRepository } from './settings.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { Prisma } from '@prisma/client';
 import {
   UpdateStoreSettingsDto,
   CreateTaxSettingDto,
@@ -85,9 +86,12 @@ export class SettingsService {
       await this.repo.clearOtherDefaultTaxes(tax.id);
     }
 
+    const taxRate =
+      typeof tax.rate === 'number' ? tax.rate : new Decimal(tax.rate as any).toNumber();
+
     await this.eventBus.publish(
       'TaxSettingCreated',
-      new TaxSettingCreatedEvent(tax.id, tax.rate),
+      new TaxSettingCreatedEvent(tax.id, taxRate),
     );
 
     return tax;
@@ -195,7 +199,7 @@ export class SettingsService {
     module: string,
     config: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    await this.repo.upsertModuleSetting(module, config);
+    await this.repo.upsertModuleSetting(module, config as Prisma.InputJsonValue);
     return config;
   }
 

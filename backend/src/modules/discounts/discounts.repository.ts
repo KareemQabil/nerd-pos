@@ -11,25 +11,25 @@ import {
 import { Discount, DiscountUsage } from './entities/discounts.entity';
 
 @Injectable()
-export class DiscountsRepository extends BaseRepository<Discount> {
+export class DiscountsRepository extends BaseRepository<Discount, 'discount'> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'discount' {
     return 'discount';
   }
 
   // ==================== DISCOUNTS ====================
 
   async findByCode(code: string): Promise<Discount | null> {
-    return (this.prisma as any).discount.findUnique({
+    return this.prisma.discount.findUnique({
       where: { code },
     });
   }
 
   async findActive(): Promise<Discount[]> {
-    return (this.prisma as any).discount.findMany({
+    return this.prisma.discount.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
     });
@@ -46,13 +46,13 @@ export class DiscountsRepository extends BaseRepository<Discount> {
     const where = { isActive: true };
 
     const [data, total] = await Promise.all([
-      (this.prisma as any).discount.findMany({
+      this.prisma.discount.findMany({
         where,
         orderBy: { name: 'asc' },
         skip,
         take: limit,
       }),
-      (this.prisma as any).discount.count({ where }),
+      this.prisma.discount.count({ where }),
     ]);
 
     return {
@@ -67,14 +67,14 @@ export class DiscountsRepository extends BaseRepository<Discount> {
   async findActiveByType(
     type: 'PERCENTAGE' | 'FIXED_AMOUNT',
   ): Promise<Discount[]> {
-    return (this.prisma as any).discount.findMany({
+    return this.prisma.discount.findMany({
       where: { isActive: true, type },
       orderBy: { name: 'asc' },
     });
   }
 
   async incrementUsage(id: string): Promise<void> {
-    await (this.prisma as any).discount.update({
+    await this.prisma.discount.update({
       where: { id },
       data: { usedCount: { increment: 1 } },
     });
@@ -83,18 +83,18 @@ export class DiscountsRepository extends BaseRepository<Discount> {
   // ==================== DISCOUNT USAGE ====================
 
   async createUsage(data: any): Promise<DiscountUsage> {
-    return (this.prisma as any).discountUsage.create({ data });
+    return this.prisma.discountUsage.create({ data });
   }
 
   async findUsageByOrder(orderId: string): Promise<DiscountUsage[]> {
-    return (this.prisma as any).discountUsage.findMany({
+    return this.prisma.discountUsage.findMany({
       where: { orderId },
       include: { discount: true },
     });
   }
 
   async findUsageByCustomer(customerId: string): Promise<DiscountUsage[]> {
-    return (this.prisma as any).discountUsage.findMany({
+    return this.prisma.discountUsage.findMany({
       where: { customerId },
       orderBy: { appliedAt: 'desc' },
     });
@@ -104,7 +104,7 @@ export class DiscountsRepository extends BaseRepository<Discount> {
     discountId: string,
     customerId: string,
   ): Promise<number> {
-    return (this.prisma as any).discountUsage.count({
+    return this.prisma.discountUsage.count({
       where: { discountId, customerId },
     });
   }
@@ -112,7 +112,7 @@ export class DiscountsRepository extends BaseRepository<Discount> {
   // ==================== STATISTICS ====================
 
   async getPopularDiscounts(limit: number = 10): Promise<any[]> {
-    return (this.prisma as any).discount.findMany({
+    return this.prisma.discount.findMany({
       where: { isActive: true },
       orderBy: { usedCount: 'desc' },
       take: limit,
@@ -120,15 +120,25 @@ export class DiscountsRepository extends BaseRepository<Discount> {
   }
 
   async getUsageStats(discountId: string): Promise<{ totalUsage: number; totalDiscountGiven: number }> {
-    const usage = await (this.prisma as any).discountUsage.aggregate({
+    const usage = await this.prisma.discountUsage.aggregate({
       where: { discountId },
       _sum: { discountAmount: true },
       _count: { id: true },
     });
 
+    const sum = usage._sum.discountAmount;
+    const totalDiscountGiven =
+      sum === null || sum === undefined
+        ? 0
+        : typeof sum === 'number'
+          ? sum
+          : typeof (sum as { toNumber?: () => number }).toNumber === 'function'
+            ? (sum as { toNumber: () => number }).toNumber()
+            : Number(sum) || 0;
+
     return {
       totalUsage: usage._count.id,
-      totalDiscountGiven: usage._sum.discountAmount || 0,
+      totalDiscountGiven,
     };
   }
 }

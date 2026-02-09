@@ -3,12 +3,15 @@
 // Aligned with: prisma/schema.prisma
 // BLOCK 3 FIX: Replaced any types with proper interfaces
 
+import { Prisma } from '@prisma/client';
 import {
   OpeningHours,
   PrinterConfig,
   CustomerDisplayConfig,
   ModuleConfig,
 } from '../interfaces/settings.interfaces';
+
+type Decimal = Prisma.Decimal;
 
 // ==================== STORE SETTINGS ====================
 
@@ -17,8 +20,8 @@ export interface StoreSettings {
   nameAr: string; // Matches schema
   nameEn: string; // Matches schema
   taxNumber: string; // Matches schema
-  taxRate: number; // Decimal in DB
-  serviceCharge: number; // Decimal in DB
+  taxRate: Decimal | number; // Decimal in DB
+  serviceCharge: Decimal | number; // Decimal in DB
   currency: string; // SAR
   timezone: string; // Asia/Riyadh
   locale: string; // ar-SA
@@ -52,7 +55,7 @@ export interface TaxSetting {
   id: string;
   name: string;
   nameAr: string;
-  rate: number;
+  rate: Decimal | number;
   isDefault: boolean;
   applyToProducts: boolean;
   applyToServices: boolean;
@@ -71,11 +74,11 @@ export interface POSTerminal {
   code: string;
   ipAddress?: string | null;
   macAddress?: string | null;
-  receiptPrinter?: PrinterConfig | null;
-  kitchenPrinter?: PrinterConfig | null;
-  labelPrinter?: PrinterConfig | null;
+  receiptPrinter?: PrinterConfig | Prisma.JsonValue | null;
+  kitchenPrinter?: PrinterConfig | Prisma.JsonValue | null;
+  labelPrinter?: PrinterConfig | Prisma.JsonValue | null;
   cashDrawerPort?: string | null;
-  customerDisplay?: CustomerDisplayConfig | null;
+  customerDisplay?: CustomerDisplayConfig | Prisma.JsonValue | null;
   autoOpenDrawer: boolean;
   printReceipt: boolean;
   printKitchen: boolean;
@@ -92,6 +95,6 @@ export interface POSTerminal {
 export interface ModuleSetting {
   id: string;
   module: string;
-  config: ModuleConfig;
+  config: ModuleConfig | Prisma.JsonValue | null;
   updatedAt: Date;
 }

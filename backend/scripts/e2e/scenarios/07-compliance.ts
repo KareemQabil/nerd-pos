@@ -144,7 +144,7 @@ async function setupCompliance(ctx: TestContext): Promise<ComplianceSetup> {
                 productId: product.id,
                 name: product.nameEn,
                 nameAr: product.nameAr,
-                price: product.price,
+                price: new Decimal(product.price).toNumber(),
                 quantity: 1,
             },
         ],

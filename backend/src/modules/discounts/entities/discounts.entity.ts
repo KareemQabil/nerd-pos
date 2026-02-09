@@ -2,6 +2,10 @@
 // Source: FINAL/BACKEND/13-MODULE-DISCOUNTS.md
 // Aligned with: prisma/schema.prisma (existing models)
 
+import { Prisma } from '@prisma/client';
+
+type Decimal = Prisma.Decimal;
+
 // ==================== DISCOUNT ====================
 
 export interface Discount {
@@ -13,11 +17,11 @@ export interface Discount {
 
   // Type
   type: string; // PERCENTAGE, FIXED_AMOUNT
-  value: number; // Decimal in DB
+  value: Decimal | number; // Decimal in DB
 
   // Conditions
-  minOrderAmount?: number | null; // Decimal in DB
-  maxDiscount?: number | null; // Cap for percentage discounts
+  minOrderAmount?: Decimal | number | null; // Decimal in DB
+  maxDiscount?: Decimal | number | null; // Cap for percentage discounts
 
   // Applicability
   applicableOn: string; // ORDER, CATEGORY, PRODUCT
@@ -37,7 +41,7 @@ export interface Discount {
 
   // Authorization
   requiresApproval: boolean;
-  approvalThreshold?: number | null;
+  approvalThreshold?: Decimal | number | null;
 
   // Usage limits
   maxUses?: number | null;
@@ -62,8 +66,8 @@ export interface DiscountUsage {
   discountId: string;
   orderId: string;
   customerId?: string | null;
-  discountAmount: number; // Decimal in DB
-  orderTotal: number; // Decimal in DB
+  discountAmount: Decimal | number; // Decimal in DB
+  orderTotal: Decimal | number; // Decimal in DB
   approvedBy?: string | null;
   approvedAt?: Date | null;
   appliedAt: Date;

@@ -26,7 +26,10 @@ function getTypedPrisma(prisma: PrismaService): PrismaClient {
 }
 
 @Injectable()
-export class SessionsRepository extends BaseRepository<Session> {
+export class SessionsRepository extends BaseRepository<
+  Session,
+  'registerSession'
+> {
   private readonly prismaClient: PrismaClient;
 
   constructor(prisma: PrismaService) {
@@ -34,7 +37,7 @@ export class SessionsRepository extends BaseRepository<Session> {
     this.prismaClient = getTypedPrisma(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'registerSession' {
     return 'registerSession';
   }
 
@@ -73,14 +76,14 @@ export class SessionsRepository extends BaseRepository<Session> {
   // ==================== DENOMINATION ====================
 
   async createDenomination(data: any): Promise<Denomination> {
-    return (this.prismaClient as any).sessionDenomination.create({ data });
+    return this.prismaClient.denominationCount.create({ data });
   }
 
   async findDenominationsBySession(
     registerSessionId: string,
   ): Promise<Denomination[]> {
-    return (this.prismaClient as any).sessionDenomination.findMany({
-      where: { registerSessionId },
+    return this.prismaClient.denominationCount.findMany({
+      where: { sessionId: registerSessionId },
       orderBy: { denomination: 'desc' },
     });
   }

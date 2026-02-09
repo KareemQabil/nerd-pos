@@ -3,6 +3,7 @@
 // Aligned with: prisma/schema.prisma
 
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -20,19 +21,45 @@ import {
 } from '../../core/interfaces/pagination.interface';
 
 @Injectable()
-export class ProductsRepository extends BaseRepository<Product> {
+export class ProductsRepository extends BaseRepository<Product, 'product'> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'product' {
     return 'product';
+  }
+
+  private mapProductWithRelations(
+    product: Prisma.ProductGetPayload<{
+      include: {
+        category: true;
+        modifierGroups: {
+          include: {
+            modifierGroup: { include: { options: true } };
+          };
+        };
+      };
+    }> | null,
+  ): ProductWithRelations | null {
+    if (!product) {
+      return null;
+    }
+
+    const modifierGroups = product.modifierGroups.map(
+      (link) => link.modifierGroup,
+    );
+
+    return {
+      ...product,
+      modifierGroups,
+    };
   }
 
   // ==================== PRODUCT ====================
 
   async findWithRelations(id: string): Promise<ProductWithRelations | null> {
-    return (this.prisma as any).product.findUnique({
+    const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
         category: true,
@@ -45,10 +72,11 @@ export class ProductsRepository extends BaseRepository<Product> {
         },
       },
     });
+    return this.mapProductWithRelations(product);
   }
 
   async findBySku(sku: string): Promise<ProductWithRelations | null> {
-    return (this.prisma as any).product.findUnique({
+    const product = await this.prisma.product.findUnique({
       where: { sku },
       include: {
         category: true,
@@ -61,10 +89,11 @@ export class ProductsRepository extends BaseRepository<Product> {
         },
       },
     });
+    return this.mapProductWithRelations(product);
   }
 
   async findByCategory(categoryId: string): Promise<Product[]> {
-    return (this.prisma as any).product.findMany({
+    return this.prisma.product.findMany({
       where: { categoryId, isActive: true },
       include: {
         category: true,
@@ -81,7 +110,7 @@ export class ProductsRepository extends BaseRepository<Product> {
   }
 
   async findActive(): Promise<Product[]> {
-    return (this.prisma as any).product.findMany({
+    return this.prisma.product.findMany({
       where: { isActive: true },
       include: { category: true },
       orderBy: { nameEn: 'asc' },
@@ -97,14 +126,14 @@ export class ProductsRepository extends BaseRepository<Product> {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      (this.prisma as any).product.findMany({
+      this.prisma.product.findMany({
         where: { isActive: true },
         include: { category: true },
         orderBy: { nameEn: 'asc' },
         skip,
         take: limit,
       }),
-      (this.prisma as any).product.count({ where: { isActive: true } }),
+      this.prisma.product.count({ where: { isActive: true } }),
     ]);
 
     return {
@@ -117,7 +146,7 @@ export class ProductsRepository extends BaseRepository<Product> {
   }
 
   async searchByName(query: string): Promise<Product[]> {
-    return (this.prisma as any).product.findMany({
+    return this.prisma.product.findMany({
       where: {
         OR: [
           { nameEn: { contains: query, mode: 'insensitive' } },
@@ -137,7 +166,7 @@ export class ProductsRepository extends BaseRepository<Product> {
   // ==================== CATEGORY ====================
 
   async findAllCategories(): Promise<Category[]> {
-    return (this.prisma as any).category.findMany({
+    return this.prisma.category.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
     });
@@ -154,13 +183,13 @@ export class ProductsRepository extends BaseRepository<Product> {
     const where = { isActive: true };
 
     const [data, total] = await Promise.all([
-      (this.prisma as any).category.findMany({
+      this.prisma.category.findMany({
         where,
         orderBy: { sortOrder: 'asc' },
         skip,
         take: limit,
       }),
-      (this.prisma as any).category.count({ where }),
+      this.prisma.category.count({ where }),
     ]);
 
     return {
@@ -173,7 +202,7 @@ export class ProductsRepository extends BaseRepository<Product> {
   }
 
   async findCategoryById(id: string): Promise<CategoryWithProducts | null> {
-    return (this.prisma as any).category.findUnique({
+    return this.prisma.category.findUnique({
       where: { id },
       include: {
         products: { where: { isActive: true } },
@@ -184,26 +213,31 @@ export class ProductsRepository extends BaseRepository<Product> {
   }
 
   async findRootCategories(): Promise<Category[]> {
-    return (this.prisma as any).category.findMany({
+    return this.prisma.category.findMany({
       where: { parentId: null, isActive: true },
       include: { children: true },
       orderBy: { sortOrder: 'asc' },
     });
   }
 
-  async createCategory(data: Partial<Category>): Promise<Category> {
-    return (this.prisma as any).category.create({ data });
+  async createCategory(
+    data: Prisma.CategoryUncheckedCreateInput,
+  ): Promise<Category> {
+    return this.prisma.category.create({ data });
   }
 
-  async updateCategory(id: string, data: Partial<Category>): Promise<Category> {
-    return (this.prisma as any).category.update({
+  async updateCategory(
+    id: string,
+    data: Prisma.CategoryUncheckedUpdateInput,
+  ): Promise<Category> {
+    return this.prisma.category.update({
       where: { id },
       data,
     });
   }
 
   async deleteCategory(id: string): Promise<void> {
-    await (this.prisma as any).category.update({
+    await this.prisma.category.update({
       where: { id },
       data: { isActive: false },
     });
@@ -212,7 +246,7 @@ export class ProductsRepository extends BaseRepository<Product> {
   // ==================== MODIFIER GROUP ====================
 
   async findAllModifierGroups(): Promise<ModifierGroupWithOptions[]> {
-    return (this.prisma as any).modifierGroup.findMany({
+    return this.prisma.modifierGroup.findMany({
       where: { isActive: true },
       include: { options: { where: { isActive: true } } },
       orderBy: { sortOrder: 'asc' },
@@ -230,14 +264,14 @@ export class ProductsRepository extends BaseRepository<Product> {
     const where = { isActive: true };
 
     const [data, total] = await Promise.all([
-      (this.prisma as any).modifierGroup.findMany({
+      this.prisma.modifierGroup.findMany({
         where,
         include: { options: { where: { isActive: true } } },
         orderBy: { sortOrder: 'asc' },
         skip,
         take: limit,
       }),
-      (this.prisma as any).modifierGroup.count({ where }),
+      this.prisma.modifierGroup.count({ where }),
     ]);
 
     return {
@@ -252,30 +286,30 @@ export class ProductsRepository extends BaseRepository<Product> {
   async findModifierGroupById(
     id: string,
   ): Promise<ModifierGroupWithOptions | null> {
-    return (this.prisma as any).modifierGroup.findUnique({
+    return this.prisma.modifierGroup.findUnique({
       where: { id },
       include: { options: true },
     });
   }
 
   async createModifierGroup(
-    data: Partial<ModifierGroup>,
+    data: Prisma.ModifierGroupCreateInput,
   ): Promise<ModifierGroup> {
-    return (this.prisma as any).modifierGroup.create({ data });
+    return this.prisma.modifierGroup.create({ data });
   }
 
   async updateModifierGroup(
     id: string,
-    data: Partial<ModifierGroup>,
+    data: Prisma.ModifierGroupUpdateInput,
   ): Promise<ModifierGroup> {
-    return (this.prisma as any).modifierGroup.update({
+    return this.prisma.modifierGroup.update({
       where: { id },
       data,
     });
   }
 
   async deleteModifierGroup(id: string): Promise<void> {
-    await (this.prisma as any).modifierGroup.update({
+    await this.prisma.modifierGroup.update({
       where: { id },
       data: { isActive: false },
     });
@@ -284,23 +318,23 @@ export class ProductsRepository extends BaseRepository<Product> {
   // ==================== MODIFIER OPTIONS ====================
 
   async createModifierOption(
-    data: Partial<ModifierOption>,
+    data: Prisma.ModifierOptionUncheckedCreateInput,
   ): Promise<ModifierOption> {
-    return (this.prisma as any).modifierOption.create({ data });
+    return this.prisma.modifierOption.create({ data });
   }
 
   async updateModifierOption(
     id: string,
-    data: Partial<ModifierOption>,
+    data: Prisma.ModifierOptionUncheckedUpdateInput,
   ): Promise<ModifierOption> {
-    return (this.prisma as any).modifierOption.update({
+    return this.prisma.modifierOption.update({
       where: { id },
       data,
     });
   }
 
   async deleteModifierOption(id: string): Promise<void> {
-    await (this.prisma as any).modifierOption.update({
+    await this.prisma.modifierOption.update({
       where: { id },
       data: { isActive: false },
     });
@@ -312,8 +346,8 @@ export class ProductsRepository extends BaseRepository<Product> {
     productId: string,
     groupId: string,
   ): Promise<void> {
-    await (this.prisma as any).productModifierGroup.create({
-      data: { productId, groupId },
+    await this.prisma.productModifierGroup.create({
+      data: { productId, modifierGroupId: groupId },
     });
   }
 
@@ -321,9 +355,9 @@ export class ProductsRepository extends BaseRepository<Product> {
     productId: string,
     groupId: string,
   ): Promise<void> {
-    await (this.prisma as any).productModifierGroup.delete({
+    await this.prisma.productModifierGroup.delete({
       where: {
-        productId_groupId: { productId, groupId },
+        productId_modifierGroupId: { productId, modifierGroupId: groupId },
       },
     });
   }
@@ -331,7 +365,7 @@ export class ProductsRepository extends BaseRepository<Product> {
   async getProductModifierGroups(
     productId: string,
   ): Promise<ModifierGroupWithOptions[]> {
-    const links = await (this.prisma as any).productModifierGroup.findMany({
+    const links = await this.prisma.productModifierGroup.findMany({
       where: { productId },
       include: {
         modifierGroup: {
@@ -339,6 +373,6 @@ export class ProductsRepository extends BaseRepository<Product> {
         },
       },
     });
-    return links.map((l: any) => l.modifierGroup);
+    return links.map((link) => link.modifierGroup);
   }
 }

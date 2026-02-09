@@ -17,46 +17,46 @@ import {
 type TxClient = Prisma.TransactionClient;
 
 @Injectable()
-export class PaymentsRepository extends BaseRepository<Payment> {
+export class PaymentsRepository extends BaseRepository<Payment, 'payment'> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'payment' {
     return 'payment';
   }
 
   // ==================== PAYMENT ====================
 
   async findWithRefunds(id: string): Promise<PaymentWithRefunds | null> {
-    return (this.prisma as any).payment.findUnique({
+    return this.prisma.payment.findUnique({
       where: { id },
       include: { refunds: true },
     });
   }
 
   async findByOrder(orderId: string): Promise<Payment[]> {
-    return (this.prisma as any).payment.findMany({
+    return this.prisma.payment.findMany({
       where: { orderId },
       orderBy: { paymentDate: 'desc' },
     });
   }
 
   async findByTransaction(transactionId: string): Promise<Payment | null> {
-    return (this.prisma as any).payment.findUnique({
-      where: { transactionId },
+    return this.prisma.payment.findFirst({
+      where: { referenceNumber: transactionId },
     });
   }
 
   async findBySession(sessionId: string): Promise<Payment[]> {
-    return (this.prisma as any).payment.findMany({
+    return this.prisma.payment.findMany({
       where: { sessionId },
       orderBy: { paymentDate: 'desc' },
     });
   }
 
   async findByStatus(status: string): Promise<Payment[]> {
-    return (this.prisma as any).payment.findMany({
+    return this.prisma.payment.findMany({
       where: { status },
       orderBy: { paymentDate: 'desc' },
     });
@@ -65,23 +65,28 @@ export class PaymentsRepository extends BaseRepository<Payment> {
   // ==================== PAYMENT METHOD ====================
 
   async findAllMethods(): Promise<PaymentMethod[]> {
-    return (this.prisma as any).paymentMethod.findMany({
+    return this.prisma.paymentMethod.findMany({
       where: { isActive: true },
       orderBy: { sortOrder: 'asc' },
     });
   }
 
   async findMethodById(id: string): Promise<PaymentMethod | null> {
-    return (this.prisma as any).paymentMethod.findUnique({
+    return this.prisma.paymentMethod.findUnique({
       where: { id },
     });
   }
 
   async createMethod(
-    data: Partial<PaymentMethod> & { name: string },
+    data: Partial<PaymentMethod> & {
+      name: string;
+      nameAr: string;
+      code: string;
+      type: string;
+    },
   ): Promise<PaymentMethod> {
-    const createData: Record<string, unknown> = {
-      code: (data as any).code,
+    const createData: Prisma.PaymentMethodCreateInput = {
+      code: data.code,
       nameEn: data.nameEn ?? data.name,
       nameAr: data.nameAr,
       type: data.type,
@@ -96,19 +101,21 @@ export class PaymentsRepository extends BaseRepository<Payment> {
 
     // Remove undefined fields so Prisma can apply defaults.
     Object.keys(createData).forEach((key) => {
-      if (createData[key] === undefined) delete createData[key];
+      if ((createData as Record<string, unknown>)[key] === undefined) {
+        delete (createData as Record<string, unknown>)[key];
+      }
     });
 
-    return (this.prisma as any).paymentMethod.create({ data: createData });
+    return this.prisma.paymentMethod.create({ data: createData });
   }
 
   async updateMethod(
     id: string,
     data: Partial<PaymentMethod>,
   ): Promise<PaymentMethod> {
-    const updateData: Record<string, unknown> = {
-      code: (data as any).code,
-      nameEn: data.nameEn ?? (data as any).name,
+    const updateData: Prisma.PaymentMethodUpdateInput = {
+      code: data.code,
+      nameEn: data.nameEn,
       nameAr: data.nameAr,
       type: data.type,
       requiresTerminal: data.requiresTerminal,
@@ -121,10 +128,12 @@ export class PaymentsRepository extends BaseRepository<Payment> {
     };
 
     Object.keys(updateData).forEach((key) => {
-      if (updateData[key] === undefined) delete updateData[key];
+      if ((updateData as Record<string, unknown>)[key] === undefined) {
+        delete (updateData as Record<string, unknown>)[key];
+      }
     });
 
-    return (this.prisma as any).paymentMethod.update({
+    return this.prisma.paymentMethod.update({
       where: { id },
       data: updateData,
     });
@@ -133,21 +142,21 @@ export class PaymentsRepository extends BaseRepository<Payment> {
   // ==================== REFUND ====================
 
   async findRefundById(id: string): Promise<Refund | null> {
-    return (this.prisma as any).refund.findUnique({
+    return this.prisma.refund.findUnique({
       where: { id },
       include: { payment: true },
     });
   }
 
   async findRefundsByPayment(paymentId: string): Promise<Refund[]> {
-    return (this.prisma as any).refund.findMany({
+    return this.prisma.refund.findMany({
       where: { paymentId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async findPendingRefunds(): Promise<Refund[]> {
-    return (this.prisma as any).refund.findMany({
+    return this.prisma.refund.findMany({
       where: { status: 'PENDING' },
       include: { payment: true },
       orderBy: { createdAt: 'asc' },
@@ -159,13 +168,14 @@ export class PaymentsRepository extends BaseRepository<Payment> {
       paymentId: string;
       amount: number;
       reason: string;
+      createdBy: string;
     },
   ): Promise<Refund> {
-    return (this.prisma as any).refund.create({ data });
+    return this.prisma.refund.create({ data });
   }
 
   async updateRefund(id: string, data: Partial<Refund>): Promise<Refund> {
-    return (this.prisma as any).refund.update({
+    return this.prisma.refund.update({
       where: { id },
       data,
     });
@@ -179,7 +189,7 @@ export class PaymentsRepository extends BaseRepository<Payment> {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const result = await (this.prisma as any).payment.aggregate({
+    const result = await this.prisma.payment.aggregate({
       where: {
         status: 'COMPLETED',
         paymentDate: { gte: startOfDay, lte: endOfDay },
@@ -205,7 +215,7 @@ export class PaymentsRepository extends BaseRepository<Payment> {
     startDate: Date,
     endDate: Date,
   ): Promise<{ method: string; total: number; count: number }[]> {
-    const results = await (this.prisma as any).payment.groupBy({
+    const results = await this.prisma.payment.groupBy({
       by: ['paymentMethod'],
       where: {
         status: 'COMPLETED',

@@ -2,6 +2,10 @@
 // Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
 // Aligned with: prisma/schema.prisma
 
+import { Prisma } from '@prisma/client';
+
+type Decimal = Prisma.Decimal;
+
 // ==================== PRODUCT ====================
 
 export interface Product {
@@ -13,8 +17,8 @@ export interface Product {
   descriptionAr?: string | null; // Matches schema
   descriptionEn?: string | null; // Matches schema
   categoryId: string;
-  price: number; // Decimal in DB
-  cost: number; // Decimal in DB, default 0
+  price: Decimal | number; // Decimal in DB
+  cost: Decimal | number; // Decimal in DB, default 0
   taxCategory: string; // STANDARD | ZERO_RATED | EXEMPT
   unitOfMeasure: string; // PIECE, KG, etc.
   trackInventory: boolean; // Matches schema (not trackStock)
@@ -66,7 +70,7 @@ export interface ModifierOption {
   groupId: string; // Matches schema
   nameAr: string; // Matches schema
   nameEn: string; // Matches schema
-  price: number; // Decimal
+  price: Decimal | number; // Decimal
   sortOrder: number;
   isActive: boolean;
 }

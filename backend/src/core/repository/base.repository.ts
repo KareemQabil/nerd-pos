@@ -5,7 +5,7 @@
 // Eliminates need for `(this.prisma as any)` type casting.
 
 import { Injectable } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import {
   PaginationOptions,
   PaginatedResult,
@@ -15,28 +15,35 @@ import {
  * Generic delegate type for all Prisma models
  * Provides common CRUD operations shared across all models
  */
-type ModelDelegate<T> = {
-  findMany: (args?: any) => Promise<T[]>;
-  findUnique: (args: { where: { id: string } }) => Promise<T | null>;
-  findFirst: (args?: any) => Promise<T | null>;
-  create: (args: { data: any }) => Promise<T>;
-  update: (args: { where: { id: string }; data: any }) => Promise<T>;
-  delete: (args: { where: { id: string } }) => Promise<T>;
-  count: (args?: { where?: any }) => Promise<number>;
+export type PrismaModelDelegates = {
+  [K in keyof PrismaClient]: PrismaClient[K] extends {
+    findMany: (...args: any) => any;
+  }
+    ? K
+    : never;
+}[keyof PrismaClient];
+
+type BaseDelegate = {
+  findMany: (args?: any) => any;
+  findUnique: (args: any) => any;
+  create: (args: any) => any;
+  update: (args: any) => any;
+  delete: (args: any) => any;
+  count: (args?: any) => any;
 };
 
 @Injectable()
-export abstract class BaseRepository<T> {
+export abstract class BaseRepository<T, M extends PrismaModelDelegates> {
   constructor(protected readonly prisma: PrismaClient) {}
 
-  protected abstract get model(): string;
+  protected abstract get model(): M;
 
   /**
    * Get typed model delegate
    * Uses Prisma's generated types for type safety
    */
-  protected get delegate(): ModelDelegate<T> {
-    return (this.prisma as any)[this.model] as ModelDelegate<T>;
+  protected get delegate(): BaseDelegate {
+    return this.prisma[this.model] as unknown as BaseDelegate;
   }
 
   async findAll(): Promise<T[]> {

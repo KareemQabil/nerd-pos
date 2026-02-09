@@ -2,6 +2,7 @@
 // Source: FINAL/BACKEND/09-MODULE-CUSTOMERS.md, 08-repository.md
 
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -20,48 +21,49 @@ import {
 } from './dto/repository.dto';
 
 @Injectable()
-export class CustomersRepository extends BaseRepository<Customer> {
+export class CustomersRepository extends BaseRepository<Customer, 'customer'> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'customer' {
     return 'customer';
   }
 
   // ==================== CUSTOMER ====================
 
   async findByPhone(phone: string): Promise<Customer | null> {
-    return (this.prisma as any).customer.findFirst({
+    return this.prisma.customer.findFirst({
       where: { phone },
     });
   }
 
   async findByCode(code: string): Promise<Customer | null> {
-    return (this.prisma as any).customer.findUnique({
+    return this.prisma.customer.findUnique({
       where: { code },
     });
   }
 
   async findWithTier(id: string): Promise<CustomerWithTier | null> {
-    return (this.prisma as any).customer.findUnique({
+    return this.prisma.customer.findUnique({
       where: { id },
       include: { tier: true, addresses: true },
     });
   }
 
   async findActive(): Promise<Customer[]> {
-    return (this.prisma as any).customer.findMany({
+    return this.prisma.customer.findMany({
       where: { isActive: true },
-      orderBy: { name: 'asc' },
+      orderBy: { nameEn: 'asc' },
     });
   }
 
   async search(query: string): Promise<Customer[]> {
-    return (this.prisma as any).customer.findMany({
+    return this.prisma.customer.findMany({
       where: {
         OR: [
-          { name: { contains: query, mode: 'insensitive' } },
+          { nameEn: { contains: query, mode: Prisma.QueryMode.insensitive } },
+          { nameAr: { contains: query, mode: Prisma.QueryMode.insensitive } },
           { phone: { contains: query } },
           { code: { contains: query } },
         ],
@@ -81,19 +83,20 @@ export class CustomersRepository extends BaseRepository<Customer> {
 
     const where = {
       OR: [
-        { name: { contains: query, mode: 'insensitive' } },
+        { nameEn: { contains: query, mode: Prisma.QueryMode.insensitive } },
+        { nameAr: { contains: query, mode: Prisma.QueryMode.insensitive } },
         { phone: { contains: query } },
         { code: { contains: query } },
       ],
     };
 
     const [data, total] = await Promise.all([
-      (this.prisma as any).customer.findMany({
+      this.prisma.customer.findMany({
         where,
         skip,
         take: limit,
       }),
-      (this.prisma as any).customer.count({ where }),
+      this.prisma.customer.count({ where }),
     ]);
 
     return {
@@ -106,7 +109,7 @@ export class CustomersRepository extends BaseRepository<Customer> {
   }
 
   async countByPrefix(prefix: string): Promise<number> {
-    return (this.prisma as any).customer.count({
+    return this.prisma.customer.count({
       where: { code: { startsWith: prefix } },
     });
   }
@@ -116,7 +119,7 @@ export class CustomersRepository extends BaseRepository<Customer> {
   async findAddressesByCustomer(
     customerId: string,
   ): Promise<CustomerAddress[]> {
-    return (this.prisma as any).customerAddress.findMany({
+    return this.prisma.customerAddress.findMany({
       where: { customerId },
       orderBy: [{ isDefault: 'desc' }, { label: 'asc' }],
     });
@@ -125,26 +128,26 @@ export class CustomersRepository extends BaseRepository<Customer> {
   async addAddress(data: CreateCustomerAddressData): Promise<CustomerAddress> {
     // If setting as default, unset other defaults first
     if (data.isDefault) {
-      await (this.prisma as any).customerAddress.updateMany({
+      await this.prisma.customerAddress.updateMany({
         where: { customerId: data.customerId },
         data: { isDefault: false },
       });
     }
-    return (this.prisma as any).customerAddress.create({ data });
+    return this.prisma.customerAddress.create({ data });
   }
 
   async updateAddress(
     id: string,
     data: Partial<CreateCustomerAddressData>,
   ): Promise<CustomerAddress> {
-    return (this.prisma as any).customerAddress.update({
+    return this.prisma.customerAddress.update({
       where: { id },
       data,
     });
   }
 
   async deleteAddress(id: string): Promise<void> {
-    await (this.prisma as any).customerAddress.delete({
+    await this.prisma.customerAddress.delete({
       where: { id },
     });
   }
@@ -152,27 +155,27 @@ export class CustomersRepository extends BaseRepository<Customer> {
   // ==================== LOYALTY TIER ====================
 
   async findAllTiers(): Promise<LoyaltyTier[]> {
-    return (this.prisma as any).loyaltyTier.findMany({
+    return this.prisma.loyaltyTier.findMany({
       where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
     });
   }
 
   async findTierById(id: string): Promise<LoyaltyTier | null> {
-    return (this.prisma as any).loyaltyTier.findUnique({
+    return this.prisma.loyaltyTier.findUnique({
       where: { id },
     });
   }
 
   async createTier(data: CreateLoyaltyTierData): Promise<LoyaltyTier> {
-    return (this.prisma as any).loyaltyTier.create({ data });
+    return this.prisma.loyaltyTier.create({ data });
   }
 
   async updateTier(
     id: string,
     data: Partial<CreateLoyaltyTierData>,
   ): Promise<LoyaltyTier> {
-    return (this.prisma as any).loyaltyTier.update({
+    return this.prisma.loyaltyTier.update({
       where: { id },
       data,
     });
@@ -181,7 +184,7 @@ export class CustomersRepository extends BaseRepository<Customer> {
   // ==================== STATISTICS ====================
 
   async getTopCustomers(limit: number = 10): Promise<Customer[]> {
-    return (this.prisma as any).customer.findMany({
+    return this.prisma.customer.findMany({
       where: { isActive: true },
       orderBy: { totalSpent: 'desc' },
       take: limit,
@@ -189,9 +192,9 @@ export class CustomersRepository extends BaseRepository<Customer> {
   }
 
   async getCustomersByTier(tierId: string): Promise<Customer[]> {
-    return (this.prisma as any).customer.findMany({
+    return this.prisma.customer.findMany({
       where: { tierId, isActive: true },
-      orderBy: { name: 'asc' },
+      orderBy: { nameEn: 'asc' },
     });
   }
 }

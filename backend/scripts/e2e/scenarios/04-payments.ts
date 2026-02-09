@@ -315,7 +315,7 @@ async function createOrderForPayment(
                 productId: setup.product.id,
                 name: setup.product.nameEn,
                 nameAr: setup.product.nameAr,
-                price: setup.product.price,
+                price: new Decimal(setup.product.price).toNumber(),
                 quantity,
             },
         ],

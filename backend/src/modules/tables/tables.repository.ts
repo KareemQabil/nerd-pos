@@ -35,18 +35,18 @@ type CreateReservationInput = {
   duration?: number;
   specialRequests?: string;
   status?: string;
-  createdBy?: string;
+  createdBy: string;
 };
 
 type UpdateReservationInput = Partial<CreateReservationInput>;
 
 @Injectable()
-export class TablesRepository extends BaseRepository<Table> {
+export class TablesRepository extends BaseRepository<Table, 'table'> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'table' {
     return 'table';
   }
 
@@ -57,7 +57,7 @@ export class TablesRepository extends BaseRepository<Table> {
     fromTableId: string,
     toTableId: string,
   ): Promise<number> {
-    const result = await (this.prisma as any).salesOrder.updateMany({
+    const result = await this.prisma.salesOrder.updateMany({
       where: {
         id: orderId,
         tableId: fromTableId,
@@ -79,20 +79,20 @@ export class TablesRepository extends BaseRepository<Table> {
   // ==================== FLOORS ====================
 
   async findAllFloors(): Promise<Floor[]> {
-    return (this.prisma as any).floor.findMany({
+    return this.prisma.floor.findMany({
       where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
     });
   }
 
   async findFloorById(id: string): Promise<Floor | null> {
-    return (this.prisma as any).floor.findUnique({
+    return this.prisma.floor.findUnique({
       where: { id },
     });
   }
 
   async findFloorWithTables(id: string): Promise<FloorWithTables | null> {
-    return (this.prisma as any).floor.findUnique({
+    return this.prisma.floor.findUnique({
       where: { id },
       include: {
         tables: {
@@ -104,11 +104,11 @@ export class TablesRepository extends BaseRepository<Table> {
   }
 
   async createFloor(data: CreateFloorInput): Promise<Floor> {
-    return (this.prisma as any).floor.create({ data });
+    return this.prisma.floor.create({ data });
   }
 
   async updateFloor(id: string, data: UpdateFloorInput): Promise<Floor> {
-    return (this.prisma as any).floor.update({
+    return this.prisma.floor.update({
       where: { id },
       data,
     });
@@ -117,7 +117,7 @@ export class TablesRepository extends BaseRepository<Table> {
   // ==================== TABLES ====================
 
   async findByFloor(floorId: string): Promise<Table[]> {
-    return (this.prisma as any).table.findMany({
+    return this.prisma.table.findMany({
       where: { floorId, isActive: true },
       orderBy: { number: 'asc' },
     });
@@ -131,7 +131,7 @@ export class TablesRepository extends BaseRepository<Table> {
     if (floorId) {
       where.floorId = floorId;
     }
-    return (this.prisma as any).table.findMany({
+    return this.prisma.table.findMany({
       where,
       include: { floor: true },
       orderBy: { number: 'asc' },
@@ -146,7 +146,7 @@ export class TablesRepository extends BaseRepository<Table> {
     if (floorId) {
       where.floorId = floorId;
     }
-    return (this.prisma as any).table.findMany({
+    return this.prisma.table.findMany({
       where,
       include: { floor: true },
       orderBy: { number: 'asc' },
@@ -154,13 +154,13 @@ export class TablesRepository extends BaseRepository<Table> {
   }
 
   async findByNumber(floorId: string, number: string): Promise<Table | null> {
-    return (this.prisma as any).table.findFirst({
+    return this.prisma.table.findFirst({
       where: { floorId, number },
     });
   }
 
   async findByWaiter(waiterId: string): Promise<Table[]> {
-    return (this.prisma as any).table.findMany({
+    return this.prisma.table.findMany({
       where: { waiterId, isActive: true },
       include: { floor: true },
     });
@@ -169,7 +169,7 @@ export class TablesRepository extends BaseRepository<Table> {
   // ==================== RESERVATIONS ====================
 
   async findReservationById(id: string): Promise<TableReservation | null> {
-    return (this.prisma as any).tableReservation.findUnique({
+    return this.prisma.tableReservation.findUnique({
       where: { id },
     });
   }
@@ -180,7 +180,7 @@ export class TablesRepository extends BaseRepository<Table> {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    return (this.prisma as any).tableReservation.findMany({
+    return this.prisma.tableReservation.findMany({
       where: {
         reservedFor: { gte: today, lt: tomorrow },
         status: {
@@ -201,7 +201,7 @@ export class TablesRepository extends BaseRepository<Table> {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    return (this.prisma as any).tableReservation.findMany({
+    return this.prisma.tableReservation.findMany({
       where: {
         tableId,
         reservedFor: { gte: startOfDay, lte: endOfDay },
@@ -216,14 +216,14 @@ export class TablesRepository extends BaseRepository<Table> {
   async createReservation(
     data: CreateReservationInput,
   ): Promise<TableReservation> {
-    return (this.prisma as any).tableReservation.create({ data });
+    return this.prisma.tableReservation.create({ data });
   }
 
   async updateReservation(
     id: string,
     data: UpdateReservationInput,
   ): Promise<TableReservation> {
-    return (this.prisma as any).tableReservation.update({
+    return this.prisma.tableReservation.update({
       where: { id },
       data,
     });
@@ -236,7 +236,7 @@ export class TablesRepository extends BaseRepository<Table> {
   ): Promise<TableReservation[]> {
     const endTime = new Date(reservedFor.getTime() + duration * 60000);
 
-    return (this.prisma as any).tableReservation.findMany({
+    return this.prisma.tableReservation.findMany({
       where: {
         tableId,
         status: {

@@ -17,25 +17,25 @@ import {
 } from './entities/users.entity';
 
 @Injectable()
-export class UsersRepository extends BaseRepository<User> {
+export class UsersRepository extends BaseRepository<User, 'user'> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'user' {
     return 'user';
   }
 
   // ==================== USERS ====================
 
   async findByUsername(username: string): Promise<User | null> {
-    return (this.prisma as any).user.findUnique({
+    return this.prisma.user.findUnique({
       where: { username },
     });
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return (this.prisma as any).user.findUnique({
+    return this.prisma.user.findUnique({
       where: { email },
     });
   }
@@ -43,14 +43,14 @@ export class UsersRepository extends BaseRepository<User> {
   async findWithRole(
     id: string,
   ): Promise<(User & { userRole: Role | null }) | null> {
-    return (this.prisma as any).user.findUnique({
+    return this.prisma.user.findUnique({
       where: { id },
       include: { userRole: true },
     });
   }
 
   async findActive(): Promise<User[]> {
-    return (this.prisma as any).user.findMany({
+    return this.prisma.user.findMany({
       where: { isActive: true },
       include: { userRole: true },
       orderBy: { nameEn: 'asc' },
@@ -68,14 +68,14 @@ export class UsersRepository extends BaseRepository<User> {
     const where = { isActive: true };
 
     const [data, total] = await Promise.all([
-      (this.prisma as any).user.findMany({
+      this.prisma.user.findMany({
         where,
         include: { userRole: true },
         orderBy: { nameEn: 'asc' },
         skip,
         take: limit,
       }),
-      (this.prisma as any).user.count({ where }),
+      this.prisma.user.count({ where }),
     ]);
 
     return {
@@ -88,12 +88,12 @@ export class UsersRepository extends BaseRepository<User> {
   }
 
   async findByRoleLevel(level: number): Promise<User[]> {
-    return (this.prisma as any).user.findMany({
+    return this.prisma.user.findMany({
       where: {
         isActive: true,
-        role: { level },
+        userRole: { is: { level } },
       },
-      include: { role: true },
+      include: { userRole: true },
     });
   }
 
@@ -101,18 +101,17 @@ export class UsersRepository extends BaseRepository<User> {
 
   async createAuthLog(data: {
     userId: string;
-    action?: string;
-    method?: string;
+    method: string;
     ipAddress?: string;
     userAgent?: string;
-    success?: boolean;
+    success: boolean;
     failureReason?: string;
   }): Promise<void> {
-    await (this.prisma as any).authenticationLog.create({ data });
+    await this.prisma.authenticationLog.create({ data });
   }
 
   async findAuthLogsByUser(userId: string, limit: number = 20): Promise<any[]> {
-    return (this.prisma as any).authenticationLog.findMany({
+    return this.prisma.authenticationLog.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -122,14 +121,14 @@ export class UsersRepository extends BaseRepository<User> {
   // ==================== ROLES ====================
 
   async findAllRoles(): Promise<Role[]> {
-    return (this.prisma as any).role.findMany({
+    return this.prisma.role.findMany({
       where: { isActive: true },
       orderBy: { level: 'asc' },
     });
   }
 
   async findRoleById(id: string): Promise<Role | null> {
-    return (this.prisma as any).role.findUnique({
+    return this.prisma.role.findUnique({
       where: { id },
     });
   }
@@ -137,7 +136,7 @@ export class UsersRepository extends BaseRepository<User> {
   async findRoleWithPermissions(
     id: string,
   ): Promise<RoleWithPermissions | null> {
-    return (this.prisma as any).role.findUnique({
+    const role = await this.prisma.role.findUnique({
       where: { id },
       include: {
         permissions: {
@@ -145,10 +144,17 @@ export class UsersRepository extends BaseRepository<User> {
         },
       },
     });
+    if (!role) {
+      return null;
+    }
+    return {
+      ...role,
+      permissions: role.permissions.map((rp) => rp.permission),
+    };
   }
 
   async findRoleByName(name: string): Promise<Role | null> {
-    return (this.prisma as any).role.findUnique({
+    return this.prisma.role.findUnique({
       where: { name },
     });
   }
@@ -156,18 +162,18 @@ export class UsersRepository extends BaseRepository<User> {
   async createRole(
     data: Partial<Role> & { name: string; nameAr: string },
   ): Promise<Role> {
-    return (this.prisma as any).role.create({ data });
+    return this.prisma.role.create({ data });
   }
 
   async updateRole(id: string, data: Partial<Role>): Promise<Role> {
-    return (this.prisma as any).role.update({
+    return this.prisma.role.update({
       where: { id },
       data,
     });
   }
 
   async getPermissions(roleId: string): Promise<Permission[]> {
-    const rolePermissions = await (this.prisma as any).rolePermission.findMany({
+    const rolePermissions = await this.prisma.rolePermission.findMany({
       where: { roleId },
       include: { permission: true },
     });
@@ -179,13 +185,13 @@ export class UsersRepository extends BaseRepository<User> {
   // ==================== PERMISSIONS ====================
 
   async findAllPermissions(): Promise<Permission[]> {
-    return (this.prisma as any).permission.findMany({
+    return this.prisma.permission.findMany({
       orderBy: [{ module: 'asc' }, { code: 'asc' }],
     });
   }
 
   async findPermissionsByModule(module: string): Promise<Permission[]> {
-    return (this.prisma as any).permission.findMany({
+    return this.prisma.permission.findMany({
       where: { module },
       orderBy: { code: 'asc' },
     });
@@ -199,7 +205,7 @@ export class UsersRepository extends BaseRepository<User> {
     section?: string | null;
     description?: string | null;
   }): Promise<Permission> {
-    return (this.prisma as any).permission.create({ data });
+    return this.prisma.permission.create({ data });
   }
 
   async assignPermissionToRole(
@@ -207,7 +213,7 @@ export class UsersRepository extends BaseRepository<User> {
     permissionId: string,
     assignedBy: string,
   ): Promise<void> {
-    await (this.prisma as any).rolePermission.create({
+    await this.prisma.rolePermission.create({
       data: {
         roleId,
         permissionId,
@@ -220,7 +226,7 @@ export class UsersRepository extends BaseRepository<User> {
     roleId: string,
     permissionId: string,
   ): Promise<void> {
-    await (this.prisma as any).rolePermission.delete({
+    await this.prisma.rolePermission.delete({
       where: {
         roleId_permissionId: { roleId, permissionId },
       },

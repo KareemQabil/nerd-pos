@@ -2,6 +2,10 @@
 // Source: FINAL/BACKEND/06-MODULE-PAYMENTS.md
 // Aligned with: prisma/schema.prisma
 
+import { Prisma } from '@prisma/client';
+
+type Decimal = Prisma.Decimal;
+
 // ==================== PAYMENT METHOD CONFIG ====================
 
 export interface PaymentMethodConfig {
@@ -31,9 +35,9 @@ export interface Payment {
 
   // Payment details
   paymentMethod: string; // Matches schema: code from PaymentMethodConfig
-  amount: number; // Decimal in DB
-  amountReceived?: number | null; // Decimal in DB
-  changeGiven?: number | null; // Decimal in DB
+  amount: Decimal | number; // Decimal in DB
+  amountReceived?: Decimal | number | null; // Decimal in DB
+  changeGiven?: Decimal | number | null; // Decimal in DB
 
   // Backward compatible aliases
   method?: string; // Alias for paymentMethod
@@ -42,8 +46,8 @@ export interface Payment {
 
   // Foreign currency
   foreignCurrencyCode?: string | null;
-  foreignAmount?: number | null;
-  exchangeRate?: number | null;
+  foreignAmount?: Decimal | number | null;
+  exchangeRate?: Decimal | number | null;
 
   // Card/terminal details
   referenceNumber?: string | null;
@@ -70,8 +74,8 @@ export interface Payment {
   paidAt?: Date | null; // Alias for paymentDate
   createdBy?: string; // Alias for processedBy
   createdAt?: Date;
-  refundedAmount?: number;
-  tipAmount?: number;
+  refundedAmount?: Decimal | number | null;
+  tipAmount?: Decimal | number | null;
 }
 
 export interface PaymentWithRefunds extends Payment {
@@ -84,7 +88,7 @@ export interface PaymentWithRefunds extends Payment {
 export interface Refund {
   id: string;
   paymentId: string;
-  amount: number;
+  amount: Decimal | number;
   reason: string;
   notes?: string | null;
   approvedBy?: string | null;

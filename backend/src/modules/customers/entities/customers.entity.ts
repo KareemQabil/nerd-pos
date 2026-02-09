@@ -2,6 +2,10 @@
 // Source: FINAL/BACKEND/09-MODULE-CUSTOMERS.md
 // Aligned with: prisma/schema.prisma
 
+import { Prisma } from '@prisma/client';
+
+type Decimal = Prisma.Decimal;
+
 // ==================== CUSTOMER ====================
 
 export interface Customer {
@@ -19,7 +23,7 @@ export interface Customer {
   loyaltyTier: string; // BRONZE, SILVER, GOLD, PLATINUM
 
   // Stats - Matches schema
-  totalSpent: number; // Decimal in DB
+  totalSpent: Decimal | number; // Decimal in DB
   visitsCount: number; // Matches schema
   lastVisit?: Date | null; // Matches schema
 
@@ -37,7 +41,7 @@ export interface Customer {
   orderCount?: number; // Alias for visitsCount
   lastOrderAt?: Date | null; // Alias for lastVisit
   tierId?: string | null; // Alias for loyaltyTier
-  preferredLanguage?: 'en' | 'ar'; // Not in schema
+  preferredLanguage?: string; // Not in schema
   notes?: string | null; // Not in schema
 }
 
@@ -59,8 +63,8 @@ export interface CustomerAddress {
   apartment?: string | null;
   city: string;
   district: string;
-  latitude?: number | null;
-  longitude?: number | null;
+  latitude?: Decimal | number | null;
+  longitude?: Decimal | number | null;
   instructions?: string | null;
   isDefault: boolean;
 }
@@ -72,10 +76,10 @@ export interface LoyaltyTier {
   id: string;
   name: string;
   nameAr: string;
-  minSpent: number;
+  minSpent: Decimal | number;
   minOrders: number;
-  pointsMultiplier: number;
-  discountPercent: number;
+  pointsMultiplier: Decimal | number;
+  discountPercent: Decimal | number;
   color: string;
   icon?: string | null;
   displayOrder: number;

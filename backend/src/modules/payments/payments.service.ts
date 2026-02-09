@@ -42,6 +42,15 @@ export class PaymentsService {
     private readonly sessionsService: SessionsService,
   ) {}
 
+  private toNumber(value: unknown): number {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+    if (typeof (value as { toNumber?: () => number }).toNumber === 'function') {
+      return (value as { toNumber: () => number }).toNumber();
+    }
+    return Number(value) || 0;
+  }
+
   // ==================== SINGLE PAYMENT ====================
 
   async createPayment(dto: CreatePaymentDto): Promise<Payment> {
@@ -174,22 +183,22 @@ export class PaymentsService {
       await this.sessionsService.applyPaymentTotals(
         dto.sessionId,
         payment.method || payment.paymentMethod || 'UNKNOWN',
-        payment.amount,
+        this.toNumber(payment.amount),
         prePaymentCount === 0 && index === 0,
       );
     }
 
-    for (const payment of normalizedPayments) {
-      await this.eventBus.publish(
-        'PaymentCreated',
-        new PaymentCreatedEvent(
-          payment.id,
-          dto.orderId,
-          payment.method || payment.paymentMethod || 'UNKNOWN',
-          payment.amount,
-        ),
-      );
-    }
+      for (const payment of normalizedPayments) {
+        await this.eventBus.publish(
+          'PaymentCreated',
+          new PaymentCreatedEvent(
+            payment.id,
+            dto.orderId,
+            payment.method || payment.paymentMethod || 'UNKNOWN',
+            this.toNumber(payment.amount),
+          ),
+        );
+      }
 
     await this.eventBus.publish(
       'PaymentCompleted',
@@ -332,12 +341,13 @@ export class PaymentsService {
           .plus(refund.amount)
           .toNumber();
 
+        const paymentAmount = this.toNumber(payment.amount);
         await (tx as any).payment.update({
           where: { id: refund.paymentId },
           data: {
             refundedAmount: newRefundedAmount,
             status:
-              newRefundedAmount >= payment.amount ? 'REFUNDED' : 'COMPLETED',
+              newRefundedAmount >= paymentAmount ? 'REFUNDED' : 'COMPLETED',
           },
         });
       }
@@ -348,7 +358,11 @@ export class PaymentsService {
     // Event emission AFTER transaction commits
     await this.eventBus.publish(
       'RefundProcessed',
-      new RefundProcessedEvent(refund.id, refund.paymentId, refund.amount),
+      new RefundProcessedEvent(
+        refund.id,
+        refund.paymentId,
+        this.toNumber(refund.amount),
+      ),
     );
 
     return updatedRefund;
