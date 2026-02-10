@@ -66,6 +66,7 @@ export interface Payment {
   // Session tracking
   sessionId: string;
   processedBy: string;
+  sessionAppliedAt?: Date | null;
 
   // Metadata
   metadata?: any;

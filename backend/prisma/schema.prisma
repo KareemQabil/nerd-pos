@@ -371,6 +371,7 @@ model Payment {
   paymentDate         DateTime @default(now()) @map("payment_date")
   sessionId           String   @map("session_id")
   processedBy         String   @map("processed_by")
+  sessionAppliedAt    DateTime? @map("session_applied_at")
   metadata            Json?
   refunds             Refund[]
 

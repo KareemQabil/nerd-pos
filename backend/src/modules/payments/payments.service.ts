@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PaymentsRepository } from './payments.repository';
-import { SessionsService } from '../sessions/sessions.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
@@ -37,7 +36,6 @@ export class PaymentsService {
     private readonly repo: PaymentsRepository,
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
     @Inject('IEventBus') private readonly eventBus: IEventBus,
-    private readonly sessionsService: SessionsService,
     private readonly outboxService: OutboxService,
   ) {}
 
@@ -198,23 +196,19 @@ export class PaymentsService {
         });
 
           await this.outboxService.enqueue(tx, 'PaymentCreated', {
-            id: created.id,
+            paymentId: created.id,
             orderId: dto.orderId,
+            sessionId: dto.sessionId,
             method: created.paymentMethod || dto.method,
             amount: amount.toNumber(),
+            incrementOrders: prePaymentCount === 0,
+            isSplit: false,
           });
 
           return { payment: created, prePaymentCount: count };
         },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
-
-      await this.sessionsService.applyPaymentTotals(
-        dto.sessionId,
-        payment.paymentMethod || dto.method,
-        amount.toNumber(),
-        prePaymentCount === 0,
-      );
 
       await this.outboxService.flushPending();
 
@@ -269,26 +263,37 @@ export class PaymentsService {
           where: { orderId: dto.orderId },
         });
 
-          const results: Payment[] = [];
-          for (const paymentDto of dto.payments) {
-            const payment = await this.createPaymentWithTx(tx, {
+        const results: Payment[] = [];
+        for (const paymentDto of dto.payments) {
+          const payment = await this.createPaymentWithTx(
+            tx,
+            {
               orderId: dto.orderId,
               sessionId: dto.sessionId,
-            method: paymentDto.method,
-            amount: paymentDto.amount,
-            receivedAmount: paymentDto.receivedAmount,
-            cardLast4: paymentDto.cardLast4,
-            transactionId: paymentDto.transactionId,
-            createdBy: dto.userId,
-            });
-            results.push(payment);
-          }
+              method: paymentDto.method,
+              amount: paymentDto.amount,
+              receivedAmount: paymentDto.receivedAmount,
+              cardLast4: paymentDto.cardLast4,
+              transactionId: paymentDto.transactionId,
+              createdBy: dto.userId,
+            },
+            true,
+          );
+          results.push(payment);
+        }
 
-          await this.outboxService.enqueue(tx, 'PaymentCompleted', {
-            orderId: dto.orderId,
-            totalAmount: splitTotal.toNumber(),
-            paymentCount: results.length,
-          });
+        await this.outboxService.enqueue(tx, 'PaymentCompleted', {
+          orderId: dto.orderId,
+          sessionId: dto.sessionId,
+          totalAmount: splitTotal.toNumber(),
+          paymentCount: results.length,
+          incrementOrders: prePaymentCount === 0,
+          payments: results.map((payment) => ({
+            paymentId: payment.id,
+            method: payment.paymentMethod,
+            amount: this.toNumber(payment.amount),
+          })),
+        });
 
           return { payments: results, prePaymentCount: count };
         },
@@ -298,17 +303,7 @@ export class PaymentsService {
     // FORENSIC AUDIT FIX: Events emitted AFTER transaction commits (not inside)
     const normalizedPayments = this.normalizePayments(payments);
 
-    for (let index = 0; index < normalizedPayments.length; index += 1) {
-      const payment = normalizedPayments[index];
-      await this.sessionsService.applyPaymentTotals(
-        dto.sessionId,
-        payment.method || payment.paymentMethod || 'UNKNOWN',
-        this.toNumber(payment.amount),
-        prePaymentCount === 0 && index === 0,
-      );
-    }
-
-      await this.outboxService.flushPending();
+    await this.outboxService.flushPending();
 
       return normalizedPayments;
     }
@@ -320,6 +315,7 @@ export class PaymentsService {
   private async createPaymentWithTx(
     tx: Prisma.TransactionClient,
     dto: CreatePaymentDto,
+    isSplit: boolean = false,
   ): Promise<Payment> {
     if (!Number.isFinite(dto.amount)) {
       throw new BadRequestException('Payment amount must be a valid number');
@@ -371,10 +367,13 @@ export class PaymentsService {
       });
 
       await this.outboxService.enqueue(tx, 'PaymentCreated', {
-        id: payment.id,
+        paymentId: payment.id,
         orderId: dto.orderId,
+        sessionId: dto.sessionId,
         method: payment.paymentMethod || dto.method,
         amount: amount.toNumber(),
+        incrementOrders: false,
+        isSplit,
       });
 
       return this.normalizePayment(payment);

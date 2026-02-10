@@ -13,7 +13,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PaymentsRepository } from './payments.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { SessionsService } from '../sessions/sessions.service';
+import { OutboxService } from '../../core/outbox/outbox.service';
 import Decimal from 'decimal.js';
 
 // Mock Repository - methods from payments.repository.ts
@@ -55,6 +55,21 @@ function createMockEventBus() {
   };
 }
 
+function createMockOutboxService(eventBus: ReturnType<typeof createMockEventBus>) {
+  const events: Array<{ name: string; payload: unknown }> = [];
+  return {
+    enqueue: jest.fn(async (_tx: unknown, name: string, payload: unknown) => {
+      events.push({ name, payload });
+    }),
+    flushPending: jest.fn(async () => {
+      for (const event of events) {
+        await eventBus.publish(event.name, event.payload);
+      }
+      events.length = 0;
+    }),
+  };
+}
+
 // Mock PrismaService with $transaction support
 function createMockPrismaService() {
   const mockPrisma: any = {
@@ -84,14 +99,14 @@ describe('PaymentsService', () => {
   let service: PaymentsService;
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
+  let outboxService: ReturnType<typeof createMockOutboxService>;
   let prisma: ReturnType<typeof createMockPrismaService>;
-  let sessionsService: { applyPaymentTotals: jest.Mock };
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
+    outboxService = createMockOutboxService(eventBus);
     prisma = createMockPrismaService();
-    sessionsService = { applyPaymentTotals: jest.fn() };
 
     prisma.payment.count.mockResolvedValue(0);
     prisma.payment.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
@@ -108,7 +123,7 @@ describe('PaymentsService', () => {
         { provide: PaymentsRepository, useValue: repo },
         { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
-        { provide: SessionsService, useValue: sessionsService },
+        { provide: OutboxService, useValue: outboxService },
       ],
     }).compile();
 

@@ -308,6 +308,60 @@ export class SessionsService {
     await this.repo.update(sessionId, updatePayload);
   }
 
+  async applyPaymentTotalsFromEvent(payload: {
+    paymentId: string;
+    orderId: string;
+    sessionId: string;
+    method: string;
+    amount: number;
+    incrementOrders?: boolean;
+  }): Promise<void> {
+    if (!payload?.paymentId || !payload?.sessionId) return;
+
+    await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.payment.updateMany({
+        where: { id: payload.paymentId, sessionAppliedAt: null },
+        data: { sessionAppliedAt: new Date() },
+      });
+
+      if (updated.count === 0) {
+        return;
+      }
+
+      const session = await tx.registerSession.findUnique({
+        where: { id: payload.sessionId },
+      });
+      if (!session || session.status !== SessionStatus.OPEN) return;
+
+      const normalized = (payload.method || '').toUpperCase();
+      const cashAmount = normalized === 'CASH' ? payload.amount : 0;
+      const cardAmount =
+        normalized === 'CARD' || normalized === 'MADA' ? payload.amount : 0;
+      const otherAmount = cashAmount === 0 && cardAmount === 0 ? payload.amount : 0;
+
+      const updatePayload: Record<string, unknown> = {
+        totalCashSales: new Decimal(session.totalCashSales || 0)
+          .plus(cashAmount)
+          .toNumber(),
+        totalCardSales: new Decimal(session.totalCardSales || 0)
+          .plus(cardAmount)
+          .toNumber(),
+        totalOtherSales: new Decimal(session.totalOtherSales || 0)
+          .plus(otherAmount)
+          .toNumber(),
+      };
+
+      if (payload.incrementOrders === true) {
+        updatePayload.ordersCount = (session.ordersCount || 0) + 1;
+      }
+
+      await tx.registerSession.update({
+        where: { id: payload.sessionId },
+        data: updatePayload,
+      });
+    });
+  }
+
   async updateRefundStats(
     sessionId: string,
     refundAmount: number,
