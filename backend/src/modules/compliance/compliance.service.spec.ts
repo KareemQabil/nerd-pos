@@ -364,8 +364,12 @@ describe('ComplianceService', () => {
         modulusLength: 2048,
       });
 
-      const privatePem = privateKey.export({ type: 'pkcs1', format: 'pem' });
-      const publicPem = publicKey.export({ type: 'pkcs1', format: 'pem' });
+      const privatePem = privateKey
+        .export({ type: 'pkcs1', format: 'pem' })
+        .toString();
+      const publicPem = publicKey
+        .export({ type: 'pkcs1', format: 'pem' })
+        .toString();
 
       const signature = service.signInvoiceXmlForTest(
         xml,
@@ -373,6 +377,9 @@ describe('ComplianceService', () => {
       );
 
       expect(signature).toBeTruthy();
+      if (!signature) {
+        throw new Error('Expected signature to be generated');
+      }
 
       const isValid = service.verifySignatureForTest(
         xml,

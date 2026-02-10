@@ -473,7 +473,8 @@ export class ComplianceService {
       signature: extras?.signature || invoice.signature,
       qrCode: invoice.qrCode || invoice.qrCodeData,
       qrCodeData: invoice.qrCodeData || invoice.qrCode,
-      submissionStatus: invoice.submissionStatus || invoice.clearanceStatus,
+      submissionStatus:
+        invoice.submissionStatus ?? invoice.clearanceStatus ?? undefined,
     };
   }
 }
