@@ -17,8 +17,13 @@ async function bootstrap() {
   app.use(helmet());
 
   // CORS - Allow frontend to call API
+  const corsOrigins =
+    process.env.CORS_ORIGIN?.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean) || [];
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: corsOrigins.length ? corsOrigins : 'http://localhost:3000',
     credentials: true,
   });
 

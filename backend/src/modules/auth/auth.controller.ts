@@ -77,11 +77,12 @@ export class AuthController {
       );
       const result = await this.authService.login(user);
 
-      // Set JWT in HTTP cookie (works with Swagger UI!)
+      // Set JWT in HTTP cookie (Swagger-friendly in non-prod)
+      const isProd = process.env.NODE_ENV === 'production';
       res.cookie('access_token', result.access_token, {
-        httpOnly: false, // Allow Swagger to read for display
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        httpOnly: isProd,
+        secure: isProd,
+        sameSite: isProd ? 'strict' : 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
       });
