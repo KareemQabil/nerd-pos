@@ -8,6 +8,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { JwtService } from '@nestjs/jwt';
 import { UsersRepository } from './users.repository';
 
 function createMockRepository() {
@@ -77,6 +78,7 @@ describe('UsersService', () => {
         UsersService,
         { provide: UsersRepository, useValue: repo },
         { provide: 'IEventBus', useValue: eventBus },
+        { provide: JwtService, useValue: { sign: jest.fn(() => 'token') } },
       ],
     }).compile();
 

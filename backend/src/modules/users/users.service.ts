@@ -30,6 +30,7 @@ import {
   Permission,
   AuthResult,
 } from './entities/users.entity';
+import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 
@@ -38,6 +39,7 @@ export class UsersService {
   constructor(
     private readonly repo: UsersRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
+    private readonly jwtService: JwtService,
   ) {}
 
   // ==================== AUTHENTICATION ====================
@@ -65,11 +67,11 @@ export class UsersService {
     await this.logAuthAttempt(user.id, 'PASSWORD', true);
     await this.repo.update(user.id, { lastLogin: new Date() });
 
-    // Generate simple token (in production, use JWT)
     const token = this.generateToken(
       user.id,
       user.username,
       user.roleId || user.role,
+      user.role,
     );
 
     await this.eventBus.publish(
@@ -147,15 +149,15 @@ export class UsersService {
     userId: string,
     username: string,
     roleId: string,
+    role: string,
   ): string {
-    // Simple token (in production, use JWT)
-    const payload = JSON.stringify({
+    const payload = {
       sub: userId,
       username,
       roleId,
-      iat: Date.now(),
-    });
-    return Buffer.from(payload).toString('base64');
+      role,
+    };
+    return this.jwtService.sign(payload);
   }
 
   private async logAuthAttempt(
