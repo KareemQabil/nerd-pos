@@ -226,7 +226,7 @@ export class SalesRepository extends BaseRepository<SalesOrder, 'salesOrder'> {
   ): Promise<OrderItem> {
     const client = tx || this.prismaClient;
     // Remove orderId from item if present, then add it back
-    const { orderId: _, ...itemData } = item as any;
+    const { orderId: _orderId, ...itemData } = item;
     return client.orderItem.create({
       data: {
         ...itemData,

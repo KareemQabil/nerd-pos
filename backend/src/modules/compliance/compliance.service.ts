@@ -214,14 +214,14 @@ export class ComplianceService {
     ].join('');
   }
 
-  private calculateHash(previousHash: string, xml: string): string {
+  protected calculateHash(previousHash: string, xml: string): string {
     return crypto
       .createHash('sha256')
       .update(previousHash + xml)
       .digest('hex');
   }
 
-  private generateQRCode(
+  protected generateQRCode(
     orderData: any,
     hash: string,
     signature: string | null,
@@ -329,7 +329,7 @@ export class ComplianceService {
     return Buffer.concat(chunks);
   }
 
-  private signInvoiceXml(
+  protected signInvoiceXml(
     xml: string,
     settings?: ComplianceSettings | null,
   ): string | null {
@@ -341,7 +341,7 @@ export class ComplianceService {
     return signer.sign(privateKey, 'base64');
   }
 
-  private verifySignature(
+  protected verifySignature(
     xml: string,
     signature: string,
     settings?: ComplianceSettings | null,
@@ -438,12 +438,7 @@ export class ComplianceService {
 
   private resolveInvoiceHash(invoice?: ZATCAInvoice | null): string | null {
     if (!invoice) return null;
-    return (
-      (invoice as any).invoiceHash ||
-      (invoice as any).currentHash ||
-      (invoice as any).hash ||
-      null
-    );
+    return invoice.invoiceHash || invoice.currentHash || invoice.hash || null;
   }
 
   private normalizeInvoice(
@@ -454,39 +449,31 @@ export class ComplianceService {
       signedXml?: string | null;
       signature?: string | null;
     },
-  ): ZATCAInvoice {
+    ): ZATCAInvoice {
     if (!invoice) {
       return invoice;
     }
 
     const currentHash =
-      (invoice as any).currentHash ||
-      (invoice as any).invoiceHash ||
-      (invoice as any).hash ||
-      extras?.currentHash;
+      invoice.currentHash || invoice.invoiceHash || invoice.hash || extras?.currentHash;
     const invoiceXML =
-      (invoice as any).invoiceXML ||
-      (invoice as any).xmlContent ||
-      extras?.invoiceXML;
+      invoice.invoiceXML || invoice.xmlContent || extras?.invoiceXML;
     const signedXml =
-      (invoice as any).signedXml ||
-      (invoice as any).signedXML ||
-      extras?.signedXml;
+      invoice.signedXml || invoice.signedXML || extras?.signedXml || null;
 
     return {
       ...invoice,
       currentHash,
-      hash: (invoice as any).hash || currentHash,
-      invoiceHash: (invoice as any).invoiceHash || currentHash,
+      hash: invoice.hash || currentHash,
+      invoiceHash: invoice.invoiceHash || currentHash,
       invoiceXML,
-      xmlContent: (invoice as any).xmlContent || invoiceXML,
-      signedXML: (invoice as any).signedXML || signedXml,
-      signature: extras?.signature || (invoice as any).signature,
-      qrCode: (invoice as any).qrCode || (invoice as any).qrCodeData,
-      qrCodeData: (invoice as any).qrCodeData || (invoice as any).qrCode,
-      submissionStatus:
-        (invoice as any).submissionStatus || (invoice as any).clearanceStatus,
-      uuid: (invoice as any).uuid,
+      xmlContent: invoice.xmlContent || invoiceXML,
+      signedXml,
+      signedXML: invoice.signedXML || signedXml,
+      signature: extras?.signature || invoice.signature,
+      qrCode: invoice.qrCode || invoice.qrCodeData,
+      qrCodeData: invoice.qrCodeData || invoice.qrCode,
+      submissionStatus: invoice.submissionStatus || invoice.clearanceStatus,
     };
   }
 }

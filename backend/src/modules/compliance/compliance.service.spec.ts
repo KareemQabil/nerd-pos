@@ -15,6 +15,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ComplianceService } from './compliance.service';
 import { ComplianceRepository } from './compliance.repository';
+import { ComplianceSettings } from './entities/compliance.entity';
 import * as crypto from 'crypto';
 
 // Mock Repository - ALL methods from compliance.repository.ts
@@ -55,8 +56,52 @@ function parseTlv(buffer: Buffer): Map<number, string> {
   return map;
 }
 
+class TestComplianceService extends ComplianceService {
+  public generateQRCodeForTest(
+    orderData: any,
+    hash: string,
+    signature: string | null,
+    settings?: ComplianceSettings | null,
+  ): string {
+    return this.generateQRCode(orderData, hash, signature, settings);
+  }
+
+  public calculateHashForTest(previousHash: string, xml: string): string {
+    return this.calculateHash(previousHash, xml);
+  }
+
+  public signInvoiceXmlForTest(
+    xml: string,
+    settings?: ComplianceSettings | null,
+  ): string | null {
+    return this.signInvoiceXml(xml, settings);
+  }
+
+  public verifySignatureForTest(
+    xml: string,
+    signature: string,
+    settings?: ComplianceSettings | null,
+  ): boolean {
+    return this.verifySignature(xml, signature, settings);
+  }
+}
+
+function createSettings(
+  overrides: Partial<ComplianceSettings> = {},
+): ComplianceSettings {
+  return {
+    id: 'settings-1',
+    country: 'SA',
+    vatNumber: '300000000000003',
+    crNumber: 'CR123',
+    isProduction: false,
+    updatedAt: new Date('2026-02-10T00:00:00Z'),
+    ...overrides,
+  };
+}
+
 describe('ComplianceService', () => {
-  let service: ComplianceService;
+  let service: TestComplianceService;
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
 
@@ -66,13 +111,13 @@ describe('ComplianceService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ComplianceService,
+        { provide: ComplianceService, useClass: TestComplianceService },
         { provide: ComplianceRepository, useValue: repo },
         { provide: 'IEventBus', useValue: eventBus },
       ],
     }).compile();
 
-    service = module.get<ComplianceService>(ComplianceService);
+    service = module.get(ComplianceService) as TestComplianceService;
   });
 
   afterEach(() => {
@@ -257,7 +302,6 @@ describe('ComplianceService', () => {
 
   describe('generateQRCode', () => {
     it('should generate TLV with required tags', () => {
-      const generateQRCode = (service as any).generateQRCode.bind(service);
       const orderData = {
         sellerName: 'NerdPOS Store',
         vatNumber: '300000000000003',
@@ -265,7 +309,7 @@ describe('ComplianceService', () => {
         taxAmount: 15,
         createdAt: '2026-02-10T12:00:00Z',
       };
-      const qr = generateQRCode(orderData, 'hash123', null, null);
+      const qr = service.generateQRCodeForTest(orderData, 'hash123', null, null);
       const decoded = Buffer.from(qr, 'base64');
       const tags = parseTlv(decoded);
 
@@ -280,13 +324,10 @@ describe('ComplianceService', () => {
 
   describe('calculateHash', () => {
     it('should calculate correct SHA-256 hash', () => {
-      // Access private method via service prototype for testing
-      const calculateHash = (service as any).calculateHash.bind(service);
-
       const previousHash = 'abc123';
       const xml = '<Invoice><ID>TEST-001</ID></Invoice>';
 
-      const result = calculateHash(previousHash, xml);
+      const result = service.calculateHashForTest(previousHash, xml);
 
       // Verify it's a valid hex string
       expect(result).toMatch(/^[a-f0-9]{64}$/);
@@ -301,10 +342,11 @@ describe('ComplianceService', () => {
     });
 
     it('should chain hashes correctly', () => {
-      const calculateHash = (service as any).calculateHash.bind(service);
-
-      const hash1 = calculateHash('0'.repeat(64), '<Invoice>1</Invoice>');
-      const hash2 = calculateHash(hash1, '<Invoice>2</Invoice>');
+      const hash1 = service.calculateHashForTest(
+        '0'.repeat(64),
+        '<Invoice>1</Invoice>',
+      );
+      const hash2 = service.calculateHashForTest(hash1, '<Invoice>2</Invoice>');
 
       // Hash2 should incorporate hash1
       expect(hash2).not.toBe(hash1);
@@ -316,8 +358,6 @@ describe('ComplianceService', () => {
 
   describe('signInvoiceXml/verifySignature', () => {
     it('should sign and verify invoice XML with RSA keypair', () => {
-      const signInvoiceXml = (service as any).signInvoiceXml.bind(service);
-      const verifySignature = (service as any).verifySignature.bind(service);
       const xml = '<Invoice><ID>TEST-001</ID></Invoice>';
 
       const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
@@ -327,15 +367,18 @@ describe('ComplianceService', () => {
       const privatePem = privateKey.export({ type: 'pkcs1', format: 'pem' });
       const publicPem = publicKey.export({ type: 'pkcs1', format: 'pem' });
 
-      const signature = signInvoiceXml(xml, {
-        zatcaPrivateKey: privatePem,
-      } as any);
+      const signature = service.signInvoiceXmlForTest(
+        xml,
+        createSettings({ zatcaPrivateKey: privatePem }),
+      );
 
       expect(signature).toBeTruthy();
 
-      const isValid = verifySignature(xml, signature, {
-        zatcaCertificate: publicPem,
-      } as any);
+      const isValid = service.verifySignatureForTest(
+        xml,
+        signature,
+        createSettings({ zatcaCertificate: publicPem }),
+      );
 
       expect(isValid).toBe(true);
     });
