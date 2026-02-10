@@ -3,7 +3,7 @@
  * Production Cleanup 2026-01-23
  *
  * Generic lookup endpoints for dropdown data.
- * All endpoints marked @Public() for frontend dropdown access.
+ * Protected by JWT guard; no longer public.
  * Follows: FINAL/BACKEND/01-MODULE-STRUCTURE.md
  */
 

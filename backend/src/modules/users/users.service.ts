@@ -36,6 +36,9 @@ import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UsersService {
+  private readonly maxFailedPasswordAttempts = 5;
+  private readonly lockoutWindowMs = 15 * 60 * 1000;
+
   constructor(
     private readonly repo: UsersRepository,
     @Inject('IEventBus') private readonly eventBus: IEventBus,
@@ -56,6 +59,8 @@ export class UsersService {
       );
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    await this.ensureNotLockedOut(user.id);
 
     const isValid = await this.verifyPassword(password, user.password);
 
@@ -202,6 +207,21 @@ export class UsersService {
       success,
       failureReason,
     });
+  }
+
+  private async ensureNotLockedOut(userId: string): Promise<void> {
+    const since = new Date(Date.now() - this.lockoutWindowMs);
+    const failures = await this.repo.countFailedAuthAttempts(
+      userId,
+      'PASSWORD',
+      since,
+    );
+
+    if (failures >= this.maxFailedPasswordAttempts) {
+      throw new UnauthorizedException(
+        'Account temporarily locked due to failed login attempts. Try again later.',
+      );
+    }
   }
 
   // ==================== USER CRUD ====================

@@ -118,6 +118,21 @@ export class UsersRepository extends BaseRepository<User, 'user'> {
     });
   }
 
+  async countFailedAuthAttempts(
+    userId: string,
+    method: 'PASSWORD' | 'PIN',
+    since: Date,
+  ): Promise<number> {
+    return this.prisma.authenticationLog.count({
+      where: {
+        userId,
+        method,
+        success: false,
+        createdAt: { gte: since },
+      },
+    });
+  }
+
   // ==================== ROLES ====================
 
   async findAllRoles(): Promise<Role[]> {
