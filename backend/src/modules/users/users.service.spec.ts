@@ -10,6 +10,7 @@ import { NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtService } from '@nestjs/jwt';
 import { UsersRepository } from './users.repository';
+import * as bcrypt from 'bcryptjs';
 
 function createMockRepository() {
   return {
@@ -49,7 +50,7 @@ const mockUser = {
   id: 'user-1',
   username: 'admin',
   passwordHash: '$2a$10$hashedpassword',
-  pin: '1234',
+  pin: bcrypt.hashSync('1234', 10),
   nameEn: 'Admin User',
   nameAr: 'مدير',
   roleId: 'role-1',

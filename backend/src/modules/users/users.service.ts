@@ -106,7 +106,15 @@ export class UsersService {
       return false;
     }
 
-    const isValid = user.pin === pin;
+    let isValid = false;
+    if (this.isHashedPin(user.pin)) {
+      isValid = await bcrypt.compare(pin, user.pin);
+    } else {
+      isValid = user.pin === pin;
+      if (isValid) {
+        await this.repo.update(user.id, { pin: await this.hashPin(pin) });
+      }
+    }
 
     await this.logAuthAttempt(
       userId,
@@ -124,7 +132,19 @@ export class UsersService {
     const managers = await this.repo.findByRoleLevel(2); // MANAGER level
 
     for (const manager of managers) {
-      if (manager.pin === pin && manager.isActive) {
+      if (!manager.pin || !manager.isActive) continue;
+
+      let isValid = false;
+      if (this.isHashedPin(manager.pin)) {
+        isValid = await bcrypt.compare(pin, manager.pin);
+      } else {
+        isValid = manager.pin === pin;
+        if (isValid) {
+          await this.repo.update(manager.id, { pin: await this.hashPin(pin) });
+        }
+      }
+
+      if (isValid) {
         await this.logAuthAttempt(manager.id, 'PIN', true);
         return { valid: true, managerId: manager.id };
       }
@@ -143,6 +163,14 @@ export class UsersService {
 
   private async hashPassword(password: string): Promise<string> {
     return bcrypt.hash(password, 10);
+  }
+
+  private async hashPin(pin: string): Promise<string> {
+    return bcrypt.hash(pin, 10);
+  }
+
+  private isHashedPin(pin: string): boolean {
+    return pin.startsWith('$2');
   }
 
   private generateToken(
@@ -191,7 +219,7 @@ export class UsersService {
       username: dto.username,
       email: dto.email,
       password: hashedPassword,
-      pin: dto.pin,
+      pin: dto.pin ? await this.hashPin(dto.pin) : null,
       nameAr: dto.nameAr,
       nameEn: dto.nameEn,
       phone: dto.phone,
@@ -255,7 +283,7 @@ export class UsersService {
   }
 
   async updatePin(userId: string, newPin: string): Promise<void> {
-    await this.repo.update(userId, { pin: newPin });
+    await this.repo.update(userId, { pin: await this.hashPin(newPin) });
   }
 
   async changePassword(
