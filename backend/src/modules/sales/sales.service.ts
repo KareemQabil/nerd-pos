@@ -139,7 +139,7 @@ export class SalesService {
       const lineTotalDecimal = unitPriceDecimal
         .plus(modifierTotalDecimal)
         .times(quantityDecimal)
-        .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+        .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
 
       return {
         productId: item.productId, // Required scalar field
@@ -399,7 +399,7 @@ export class SalesService {
     const subtotal = new Decimal(dto.price)
       .plus(modifierTotal)
       .times(dto.quantity)
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)
       .toNumber();
 
     const item = await this.repo.addItem(orderId, {

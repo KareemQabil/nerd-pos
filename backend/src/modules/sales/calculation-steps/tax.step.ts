@@ -1,7 +1,7 @@
 // Step 5: Tax Amount (order: 50)
 // Source: FINAL/BACKEND/05-MODULE-SALES.md
-// ZATCA Compliance: Uses ROUND_HALF_UP and calculates tax on discounted subtotal
-// Forensic Audit Fix: Added ROUND_HALF_UP, use discountedSubtotal as base
+// ZATCA Compliance: Uses banker's rounding and calculates tax on discounted subtotal
+// Forensic Audit Fix: Added banker's rounding, use discountedSubtotal as base
 
 import { Injectable } from '@nestjs/common';
 import {
@@ -25,7 +25,7 @@ export class TaxStep implements ICalculationStep {
     ctx.taxAmount = taxBase
       .times(ctx.taxPercent)
       .dividedBy(100)
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP); // ZATCA FIX: Use ROUND_HALF_UP
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN); // Banker's rounding
 
     return ctx;
   }

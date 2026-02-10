@@ -24,7 +24,7 @@ export class DiscountStep implements ICalculationStep {
         ctx.discountAmount = discountBase
           .times(ctx.discount.value)
           .dividedBy(100)
-          .toDecimalPlaces(2, Decimal.ROUND_HALF_UP); // ZATCA: Use ROUND_HALF_UP
+          .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN); // Banker's rounding
       } else {
         // FIXED discount
         ctx.discountAmount = new Decimal(ctx.discount.value);

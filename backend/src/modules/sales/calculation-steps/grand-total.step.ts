@@ -21,7 +21,7 @@ export class GrandTotalStep implements ICalculationStep {
 
     ctx.grandTotal = base
       .plus(ctx.taxAmount)
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
 
     // Ensure non-negative
     if (ctx.grandTotal.lessThan(0)) {

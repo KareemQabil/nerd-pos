@@ -17,7 +17,7 @@ export class SubtotalBeforeTaxStep implements ICalculationStep {
     ctx.subtotalBeforeTax = ctx.itemSubtotal
       .plus(ctx.serviceCharge)
       .plus(ctx.deliveryCharge)
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
     return ctx;
   }
 }
