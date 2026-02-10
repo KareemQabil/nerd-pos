@@ -94,8 +94,124 @@ export class ComplianceService {
   }
 
   private buildInvoiceXML(orderData: any): string {
-    // Simplified - real implementation would build ZATCA-compliant XML
-    return `<Invoice><ID>${orderData.orderNumber}</ID><Total>${orderData.grandTotal}</Total></Invoice>`;
+    // UBL 2.1 (minimal) with ZATCA-friendly fields
+    const items = this.normalizeItems(orderData);
+    const currency = orderData?.currency || 'SAR';
+    const invoiceId =
+      orderData?.invoiceNumber ||
+      orderData?.orderNumber ||
+      orderData?.id ||
+      'N/A';
+
+    const issueDate = new Date(
+      orderData?.issuedAt || orderData?.createdAt || Date.now(),
+    );
+    const issueDateStr = issueDate.toISOString().slice(0, 10);
+    const issueTimeStr = issueDate.toISOString().slice(11, 19);
+
+    const subtotal = items.reduce(
+      (sum, item) => sum.plus(item.lineTotal),
+      new Decimal(0),
+    );
+    const discount = new Decimal(orderData?.discountAmount || 0);
+    const serviceCharge = new Decimal(orderData?.serviceChargeAmount || 0);
+    const deliveryCharge = new Decimal(orderData?.deliveryCharge || 0);
+
+    const taxRate = new Decimal(
+      orderData?.taxPercent ?? orderData?.taxRate ?? 15,
+    );
+    const taxBase = subtotal.minus(discount);
+    const computedTax = taxBase.times(taxRate).dividedBy(100);
+    const taxAmount = orderData?.taxAmount != null
+      ? new Decimal(orderData.taxAmount)
+      : computedTax;
+    const taxAmountRounded = taxAmount.toDecimalPlaces(
+      2,
+      Decimal.ROUND_HALF_EVEN,
+    );
+
+    const taxExclusive = taxBase.plus(serviceCharge).plus(deliveryCharge);
+    const taxInclusive = taxExclusive.plus(taxAmountRounded);
+    const payable = orderData?.grandTotal != null
+      ? new Decimal(orderData.grandTotal)
+      : taxInclusive;
+
+    const money = (val: Decimal) =>
+      val.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN).toFixed(2);
+    const rate = (val: Decimal) =>
+      val.toDecimalPlaces(4, Decimal.ROUND_HALF_EVEN).toFixed(4);
+
+    const sellerName =
+      orderData?.sellerName ||
+      orderData?.storeName ||
+      orderData?.storeNameEn ||
+      orderData?.storeNameAr ||
+      'Unknown';
+    const vatNumber =
+      orderData?.vatNumber || orderData?.taxNumber || '';
+
+    const linesXml = items
+      .map((item, idx) => {
+        return [
+          '<cac:InvoiceLine>',
+          `<cbc:ID>${idx + 1}</cbc:ID>`,
+          `<cbc:InvoicedQuantity unitCode="EA">${item.quantity.toFixed(2)}</cbc:InvoicedQuantity>`,
+          `<cbc:LineExtensionAmount currencyID="${currency}">${money(item.lineTotal)}</cbc:LineExtensionAmount>`,
+          '<cac:Item>',
+          `<cbc:Name>${this.escapeXml(item.name)}</cbc:Name>`,
+          '</cac:Item>',
+          '<cac:Price>',
+          `<cbc:PriceAmount currencyID="${currency}">${money(item.unitPrice)}</cbc:PriceAmount>`,
+          '</cac:Price>',
+          '</cac:InvoiceLine>',
+        ].join('');
+      })
+      .join('');
+
+    return [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"',
+      ' xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"',
+      ' xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">',
+      `<cbc:ID>${this.escapeXml(String(invoiceId))}</cbc:ID>`,
+      `<cbc:IssueDate>${issueDateStr}</cbc:IssueDate>`,
+      `<cbc:IssueTime>${issueTimeStr}</cbc:IssueTime>`,
+      '<cbc:InvoiceTypeCode>388</cbc:InvoiceTypeCode>',
+      `<cbc:DocumentCurrencyCode>${currency}</cbc:DocumentCurrencyCode>`,
+      `<cbc:TaxCurrencyCode>${currency}</cbc:TaxCurrencyCode>`,
+      '<cac:AccountingSupplierParty>',
+      '<cac:Party>',
+      '<cac:PartyName>',
+      `<cbc:Name>${this.escapeXml(String(sellerName))}</cbc:Name>`,
+      '</cac:PartyName>',
+      '<cac:PartyTaxScheme>',
+      `<cbc:CompanyID>${this.escapeXml(String(vatNumber))}</cbc:CompanyID>`,
+      '<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>',
+      '</cac:PartyTaxScheme>',
+      '</cac:Party>',
+      '</cac:AccountingSupplierParty>',
+      '<cac:TaxTotal>',
+      `<cbc:TaxAmount currencyID="${currency}">${money(taxAmountRounded)}</cbc:TaxAmount>`,
+      '<cac:TaxSubtotal>',
+      `<cbc:TaxableAmount currencyID="${currency}">${money(taxBase)}</cbc:TaxableAmount>`,
+      `<cbc:TaxAmount currencyID="${currency}">${money(taxAmountRounded)}</cbc:TaxAmount>`,
+      '<cac:TaxCategory>',
+      '<cbc:ID>S</cbc:ID>',
+      `<cbc:Percent>${rate(taxRate)}</cbc:Percent>`,
+      '<cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>',
+      '</cac:TaxCategory>',
+      '</cac:TaxSubtotal>',
+      '</cac:TaxTotal>',
+      '<cac:LegalMonetaryTotal>',
+      `<cbc:LineExtensionAmount currencyID="${currency}">${money(subtotal)}</cbc:LineExtensionAmount>`,
+      `<cbc:TaxExclusiveAmount currencyID="${currency}">${money(taxExclusive)}</cbc:TaxExclusiveAmount>`,
+      `<cbc:TaxInclusiveAmount currencyID="${currency}">${money(taxInclusive)}</cbc:TaxInclusiveAmount>`,
+      `<cbc:AllowanceTotalAmount currencyID="${currency}">${money(discount)}</cbc:AllowanceTotalAmount>`,
+      `<cbc:PayableAmount currencyID="${currency}">${money(payable)}</cbc:PayableAmount>`,
+      '</cac:LegalMonetaryTotal>',
+      linesXml,
+      '</Invoice>',
+    ].join('');
   }
 
   private calculateHash(previousHash: string, xml: string): string {
@@ -160,6 +276,42 @@ export class ComplianceService {
     return `INV-${new Date().getFullYear()}-${(count + 1).toString().padStart(6, '0')}`;
   }
 
+  private normalizeItems(orderData: any): Array<{
+    name: string;
+    quantity: Decimal;
+    unitPrice: Decimal;
+    lineTotal: Decimal;
+  }> {
+    const rawItems = orderData?.items || orderData?.orderItems || [];
+    return rawItems.map((item: any) => {
+      const quantity = new Decimal(item?.quantity ?? 1);
+      const unitPrice = new Decimal(
+        item?.unitPrice ?? item?.price ?? item?.unitPriceAmount ?? 0,
+      );
+      const lineTotal = item?.lineTotal != null
+        ? new Decimal(item.lineTotal)
+        : unitPrice.times(quantity);
+      const name =
+        item?.name || item?.productNameEn || item?.productName || 'Item';
+
+      return {
+        name: String(name),
+        quantity,
+        unitPrice,
+        lineTotal,
+      };
+    });
+  }
+
+  private escapeXml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
   private encodeTlv(tags: Array<{ tag: number; value: string }>): Buffer {
     const chunks: Buffer[] = [];
     for (const { tag, value } of tags) {
@@ -187,6 +339,19 @@ export class ComplianceService {
     signer.update(xml);
     signer.end();
     return signer.sign(privateKey, 'base64');
+  }
+
+  private verifySignature(
+    xml: string,
+    signature: string,
+    settings?: ComplianceSettings | null,
+  ): boolean {
+    const publicKey = settings?.zatcaCertificate;
+    if (!publicKey) return false;
+    const verifier = crypto.createVerify('RSA-SHA256');
+    verifier.update(xml);
+    verifier.end();
+    return verifier.verify(publicKey, signature, 'base64');
   }
 
   private appendSignature(xml: string, signature: string): string {

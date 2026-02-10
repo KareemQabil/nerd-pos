@@ -42,6 +42,19 @@ function createMockEventBus() {
   };
 }
 
+function parseTlv(buffer: Buffer): Map<number, string> {
+  const map = new Map<number, string>();
+  let i = 0;
+  while (i < buffer.length) {
+    const tag = buffer[i];
+    const length = buffer[i + 1];
+    const value = buffer.subarray(i + 2, i + 2 + length).toString('utf8');
+    map.set(tag, value);
+    i += 2 + length;
+  }
+  return map;
+}
+
 describe('ComplianceService', () => {
   let service: ComplianceService;
   let repo: ReturnType<typeof createMockRepository>;
@@ -139,6 +152,29 @@ describe('ComplianceService', () => {
     });
   });
 
+  // ==================== TLV QR TESTS (PHASE 3) ====================
+
+  describe('generateQRCode', () => {
+    it('should generate TLV with required tags', () => {
+      const generateQRCode = (service as any).generateQRCode.bind(service);
+      const orderData = {
+        sellerName: 'NerdPOS Store',
+        vatNumber: '300000000000003',
+        grandTotal: 115,
+        taxAmount: 15,
+        createdAt: '2026-02-10T12:00:00Z',
+      };
+      const qr = generateQRCode(orderData, 'hash123', null, null);
+      const decoded = Buffer.from(qr, 'base64');
+      const tags = parseTlv(decoded);
+
+      expect(tags.get(1)).toBe('NerdPOS Store');
+      expect(tags.get(2)).toBe('300000000000003');
+      expect(tags.get(4)).toBe('115.00');
+      expect(tags.get(5)).toBe('15.00');
+    });
+  });
+
   // ==================== HASH CALCULATION TESTS (CRITICAL) ====================
 
   describe('calculateHash', () => {
@@ -172,6 +208,35 @@ describe('ComplianceService', () => {
       // Hash2 should incorporate hash1
       expect(hash2).not.toBe(hash1);
       expect(hash2).toMatch(/^[a-f0-9]{64}$/);
+    });
+  });
+
+  // ==================== SIGNATURE TESTS (PHASE 3) ====================
+
+  describe('signInvoiceXml/verifySignature', () => {
+    it('should sign and verify invoice XML with RSA keypair', () => {
+      const signInvoiceXml = (service as any).signInvoiceXml.bind(service);
+      const verifySignature = (service as any).verifySignature.bind(service);
+      const xml = '<Invoice><ID>TEST-001</ID></Invoice>';
+
+      const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+      });
+
+      const privatePem = privateKey.export({ type: 'pkcs1', format: 'pem' });
+      const publicPem = publicKey.export({ type: 'pkcs1', format: 'pem' });
+
+      const signature = signInvoiceXml(xml, {
+        zatcaPrivateKey: privatePem,
+      } as any);
+
+      expect(signature).toBeTruthy();
+
+      const isValid = verifySignature(xml, signature, {
+        zatcaCertificate: publicPem,
+      } as any);
+
+      expect(isValid).toBe(true);
     });
   });
 
