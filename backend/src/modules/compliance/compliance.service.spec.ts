@@ -150,6 +150,107 @@ describe('ComplianceService', () => {
         BadRequestException,
       );
     });
+
+    it('should generate UBL XML with required tags and values', async () => {
+      const orderData = {
+        orderNumber: 'ORD-2026-XML-01',
+        currency: 'SAR',
+        sellerName: 'NerdPOS Store',
+        vatNumber: '300000000000003',
+        items: [
+          { name: 'Item A', quantity: 2, unitPrice: 50 },
+        ],
+        discountAmount: 10,
+        serviceChargeAmount: 0,
+        deliveryCharge: 0,
+        taxPercent: 15,
+        taxAmount: 13.5,
+        grandTotal: 103.5,
+        createdAt: '2026-02-10T12:00:00Z',
+      };
+
+      const mockInvoice = {
+        id: 'invoice-1',
+        orderId: 'order-1',
+        invoiceNumber: 'INV-2026-000001',
+        previousHash: '0'.repeat(64),
+        invoiceHash: 'a'.repeat(64),
+        submissionStatus: 'PENDING',
+      };
+
+      repo.findByOrder.mockResolvedValue(null);
+      repo.findLastInvoice.mockResolvedValue(null);
+      repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
+      repo.getSettings.mockResolvedValue(null);
+      repo.create.mockResolvedValue(mockInvoice);
+
+      const result = await service.generateInvoice('order-1', orderData);
+      const xml = result.invoiceXML || result.xmlContent;
+
+      expect(xml).toBeTruthy();
+      expect(xml).toContain('<cbc:ID>ORD-2026-XML-01</cbc:ID>');
+      expect(xml).toContain('<cbc:IssueDate>2026-02-10</cbc:IssueDate>');
+      expect(xml).toContain('<cac:TaxTotal>');
+      expect(xml).toContain('<cbc:TaxAmount currencyID="SAR">13.50</cbc:TaxAmount>');
+      expect(xml).toContain('<cac:LegalMonetaryTotal>');
+      expect(xml).toContain('<cbc:LineExtensionAmount currencyID="SAR">100.00</cbc:LineExtensionAmount>');
+      expect(xml).toContain('<cbc:TaxExclusiveAmount currencyID="SAR">90.00</cbc:TaxExclusiveAmount>');
+      expect(xml).toContain('<cbc:PayableAmount currencyID="SAR">103.50</cbc:PayableAmount>');
+    });
+
+    it('should embed monetary totals that match order data', async () => {
+      const orderData = {
+        orderNumber: 'ORD-2026-XML-02',
+        currency: 'SAR',
+        sellerName: 'NerdPOS Store',
+        vatNumber: '300000000000003',
+        items: [
+          { name: 'Item A', quantity: 2, unitPrice: 50 },
+          { name: 'Item B', quantity: 1, unitPrice: 20 },
+        ],
+        discountAmount: 5,
+        serviceChargeAmount: 2,
+        deliveryCharge: 3,
+        taxPercent: 15,
+        taxAmount: 18,
+        grandTotal: 138,
+        createdAt: '2026-02-10T12:00:00Z',
+      };
+
+      const mockInvoice = {
+        id: 'invoice-2',
+        orderId: 'order-2',
+        invoiceNumber: 'INV-2026-000002',
+        previousHash: '0'.repeat(64),
+        invoiceHash: 'b'.repeat(64),
+        submissionStatus: 'PENDING',
+      };
+
+      repo.findByOrder.mockResolvedValue(null);
+      repo.findLastInvoice.mockResolvedValue(null);
+      repo.countInvoices.mockResolvedValue(0);
+      repo.findAllOrdered.mockResolvedValue([]);
+      repo.getSettings.mockResolvedValue(null);
+      repo.create.mockResolvedValue(mockInvoice);
+
+      const result = await service.generateInvoice('order-2', orderData);
+      const xml = result.invoiceXML || result.xmlContent;
+
+      expect(xml).toBeTruthy();
+      expect(xml).toContain('<cbc:ID>ORD-2026-XML-02</cbc:ID>');
+      expect(xml).toContain('<cbc:IssueDate>2026-02-10</cbc:IssueDate>');
+      expect(xml).toContain('<cac:TaxTotal>');
+      expect(xml).toContain('<cbc:TaxAmount currencyID="SAR">18.00</cbc:TaxAmount>');
+      expect(xml).toContain('<cbc:TaxableAmount currencyID="SAR">115.00</cbc:TaxableAmount>');
+      expect(xml).toContain('<cbc:Percent>15.0000</cbc:Percent>');
+      expect(xml).toContain('<cac:LegalMonetaryTotal>');
+      expect(xml).toContain('<cbc:LineExtensionAmount currencyID="SAR">120.00</cbc:LineExtensionAmount>');
+      expect(xml).toContain('<cbc:TaxExclusiveAmount currencyID="SAR">120.00</cbc:TaxExclusiveAmount>');
+      expect(xml).toContain('<cbc:TaxInclusiveAmount currencyID="SAR">138.00</cbc:TaxInclusiveAmount>');
+      expect(xml).toContain('<cbc:AllowanceTotalAmount currencyID="SAR">5.00</cbc:AllowanceTotalAmount>');
+      expect(xml).toContain('<cbc:PayableAmount currencyID="SAR">138.00</cbc:PayableAmount>');
+    });
   });
 
   // ==================== TLV QR TESTS (PHASE 3) ====================
