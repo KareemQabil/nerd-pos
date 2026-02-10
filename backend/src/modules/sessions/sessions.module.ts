@@ -7,9 +7,10 @@ import { SessionsService } from './sessions.service';
 import { SessionsRepository } from './sessions.repository';
 
 import { SalesModule } from '../sales/sales.module';
+import { OutboxModule } from '../../core/outbox/outbox.module';
 
 @Module({
-  imports: [forwardRef(() => SalesModule)],
+  imports: [forwardRef(() => SalesModule), OutboxModule],
   controllers: [SessionsController],
   providers: [SessionsService, SessionsRepository],
   exports: [SessionsService],

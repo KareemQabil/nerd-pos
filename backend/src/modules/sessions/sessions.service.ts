@@ -10,14 +10,15 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { SessionsRepository } from './sessions.repository';
 import { SalesRepository } from '../sales/sales.repository'; // BLOCK 2 FIX
 import { PrismaService } from '../../core/prisma/prisma.service'; // BLOCK 1
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import { OutboxService } from '../../core/outbox/outbox.service';
 import { OpenSessionDto, CloseSessionDto, DenominationDto } from './dto';
 import {
   SessionOpenedEvent,
-  SessionClosedEvent,
   SessionVarianceAlertEvent,
 } from './events/sessions.events';
 import { Session, Denomination } from './entities/sessions.entity';
@@ -34,6 +35,7 @@ export class SessionsService {
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
     private readonly salesRepo: SalesRepository, // BLOCK 2 FIX: Added for pending order check
     @Inject('IEventBus') private readonly eventBus: IEventBus,
+    private readonly outboxService: OutboxService,
   ) {}
 
   // ==================== OPEN SESSION ====================
@@ -46,31 +48,44 @@ export class SessionsService {
       );
     }
 
-    // Check for existing open session
-    const existingSession = await this.repo.findOpenSession(userId);
-    if (existingSession) {
-      throw new BadRequestException(
-        `User already has an open session (ID: ${existingSession.id})`,
-      );
-    }
+    const { session, openingBalance } = await this.prisma.$transaction(
+      async (tx) => {
+        // Lock per-user to prevent concurrent opens
+        await (tx as any)
+          .$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
 
-    const openingBalance = new Decimal(dto.openingBalance);
+        const existingSession = await (tx as any).registerSession.findFirst({
+          where: { userId, status: SessionStatus.OPEN },
+        });
+        if (existingSession) {
+          throw new BadRequestException(
+            `User already has an open session (ID: ${existingSession.id})`,
+          );
+        }
 
-    const session = await this.repo.create({
-      terminalId: dto.terminalId,
-      userId: userId,
-      businessDate: new Date(),
-      openingBalance: openingBalance.toNumber(),
-      status: SessionStatus.OPEN,
-      openedAt: new Date(),
-      totalCashSales: 0,
-      totalCardSales: 0,
-      totalOtherSales: 0,
-      totalDrops: 0,
-      totalPettyCash: 0,
-      totalRefunds: 0,
-      ordersCount: 0,
-    });
+        const balance = new Decimal(dto.openingBalance);
+        const created = await (tx as any).registerSession.create({
+          data: {
+            terminalId: dto.terminalId,
+            userId: userId,
+            businessDate: new Date(),
+            openingBalance: balance.toNumber(),
+            status: SessionStatus.OPEN,
+            openedAt: new Date(),
+            totalCashSales: 0,
+            totalCardSales: 0,
+            totalOtherSales: 0,
+            totalDrops: 0,
+            totalPettyCash: 0,
+            totalRefunds: 0,
+            ordersCount: 0,
+          },
+        });
+
+        return { session: created, openingBalance: balance };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     await this.eventBus.publish(
       'SessionOpened',
@@ -115,6 +130,10 @@ export class SessionsService {
     // ATOMIC TRANSACTION: Create all denominations + update session together
     const { closedSession, declaredBalance } = await this.prisma.$transaction(
       async (tx) => {
+        // Lock the session row to prevent concurrent close/update
+        await (tx as any)
+          .$queryRaw`SELECT id FROM register_sessions WHERE id = ${session.id} FOR UPDATE`;
+
         // 1. Process denomination count (blind close)
         let total = new Decimal(0);
         for (const denom of dto.denominations) {
@@ -148,21 +167,21 @@ export class SessionsService {
           },
         });
 
+        await this.outboxService.enqueue(tx as any, 'SessionClosed', {
+          sessionId: session.id,
+          variance: variance.toNumber(),
+          declaredBalance: total.toNumber(),
+        });
+
         return { closedSession: updated, declaredBalance: total };
       },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
     // Events emitted AFTER transaction commits
     const variance = declaredBalance.minus(expectedBalance);
 
-    await this.eventBus.publish(
-      'SessionClosed',
-      new SessionClosedEvent(
-        session.id,
-        variance.toNumber(),
-        declaredBalance.toNumber(),
-      ),
-    );
+    await this.outboxService.flushPending();
 
     // Alert if variance exceeds threshold
     if (variance.abs().greaterThan(this.varianceAlertThreshold)) {

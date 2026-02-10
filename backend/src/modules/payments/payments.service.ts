@@ -20,27 +20,25 @@ import {
   CreatePaymentMethodDto,
   UpdatePaymentMethodDto,
 } from './dto';
-import {
-  PaymentCreatedEvent,
-  PaymentCompletedEvent,
-  RefundCreatedEvent,
-  RefundProcessedEvent,
-} from './events/payments.events';
+import { RefundCreatedEvent, RefundProcessedEvent } from './events/payments.events';
 import { Payment, PaymentMethod, Refund } from './entities/payments.entity';
 import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 import { v4 as uuidv4 } from 'uuid';
+import { OutboxService } from '../../core/outbox/outbox.service';
 
 @Injectable()
 export class PaymentsService {
   // Auto-approve refunds below this threshold (100 SAR)
   private readonly autoApproveThreshold = new Decimal(100);
+  private readonly maxPaymentAmount = new Decimal(999999);
 
   constructor(
     private readonly repo: PaymentsRepository,
     private readonly prisma: PrismaService, // BLOCK 1: Added for $transaction
     @Inject('IEventBus') private readonly eventBus: IEventBus,
     private readonly sessionsService: SessionsService,
+    private readonly outboxService: OutboxService,
   ) {}
 
   private toNumber(value: unknown): number {
@@ -89,6 +87,28 @@ export class PaymentsService {
     };
   }
 
+  private async ensureActivePaymentMethod(
+    tx: Prisma.TransactionClient,
+    method: string,
+    transactionId?: string,
+  ): Promise<void> {
+    const code = (method || '').toUpperCase();
+    const paymentMethod = await tx.paymentMethod.findFirst({
+      where: { code, isActive: true },
+      select: { requiresReference: true, requiresTerminal: true },
+    });
+
+    if (!paymentMethod) {
+      throw new BadRequestException(`Payment method ${code} is not available`);
+    }
+
+    if (paymentMethod.requiresReference && !transactionId) {
+      throw new BadRequestException(
+        `Payment method ${code} requires a transaction reference`,
+      );
+    }
+  }
+
   // ==================== SINGLE PAYMENT ====================
 
   async createPayment(dto: CreatePaymentDto): Promise<Payment> {
@@ -101,6 +121,9 @@ export class PaymentsService {
     // FORENSIC AUDIT FIX: Validate positive amount
     if (amount.lte(0)) {
       throw new BadRequestException('Payment amount must be greater than 0');
+    }
+    if (amount.gt(this.maxPaymentAmount)) {
+      throw new BadRequestException('Payment amount exceeds maximum limit');
     }
 
     let changeAmount = new Decimal(0);
@@ -123,6 +146,11 @@ export class PaymentsService {
 
     const { payment, prePaymentCount } = await this.prisma.$transaction(
       async (tx) => {
+        await this.ensureActivePaymentMethod(
+          tx,
+          dto.method,
+          dto.transactionId,
+        );
         const { order, totalPaid } = await this.lockOrderAndGetTotals(
           tx,
           dto.orderId,
@@ -151,11 +179,11 @@ export class PaymentsService {
           where: { orderId: dto.orderId },
         });
 
-        const created = await tx.payment.create({
-          data: {
-            orderId: dto.orderId,
-            paymentMethod: dto.method,
-            amount: amount.toNumber(),
+          const created = await tx.payment.create({
+            data: {
+              orderId: dto.orderId,
+              paymentMethod: dto.method,
+              amount: amount.toNumber(),
             amountReceived: dto.receivedAmount
               ? new Decimal(dto.receivedAmount).toNumber()
               : null,
@@ -169,29 +197,29 @@ export class PaymentsService {
           },
         });
 
-        return { payment: created, prePaymentCount: count };
-      },
+          await this.outboxService.enqueue(tx, 'PaymentCreated', {
+            id: created.id,
+            orderId: dto.orderId,
+            method: created.paymentMethod || dto.method,
+            amount: amount.toNumber(),
+          });
+
+          return { payment: created, prePaymentCount: count };
+        },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
-    await this.sessionsService.applyPaymentTotals(
-      dto.sessionId,
-      payment.paymentMethod || dto.method,
-      amount.toNumber(),
-      prePaymentCount === 0,
-    );
-
-    await this.eventBus.publish(
-      'PaymentCreated',
-      new PaymentCreatedEvent(
-        payment.id,
-        dto.orderId,
+      await this.sessionsService.applyPaymentTotals(
+        dto.sessionId,
         payment.paymentMethod || dto.method,
         amount.toNumber(),
-      ),
-    );
+        prePaymentCount === 0,
+      );
 
-    return this.normalizePayment(payment);
-  }
+      await this.outboxService.flushPending();
+
+      return this.normalizePayment(payment);
+    }
 
   // ==================== SPLIT PAYMENT ====================
 
@@ -241,23 +269,30 @@ export class PaymentsService {
           where: { orderId: dto.orderId },
         });
 
-        const results: Payment[] = [];
-        for (const paymentDto of dto.payments) {
-          const payment = await this.createPaymentWithTx(tx, {
-            orderId: dto.orderId,
-            sessionId: dto.sessionId,
+          const results: Payment[] = [];
+          for (const paymentDto of dto.payments) {
+            const payment = await this.createPaymentWithTx(tx, {
+              orderId: dto.orderId,
+              sessionId: dto.sessionId,
             method: paymentDto.method,
             amount: paymentDto.amount,
             receivedAmount: paymentDto.receivedAmount,
             cardLast4: paymentDto.cardLast4,
             transactionId: paymentDto.transactionId,
             createdBy: dto.userId,
-          });
-          results.push(payment);
-        }
+            });
+            results.push(payment);
+          }
 
-        return { payments: results, prePaymentCount: count };
-      },
+          await this.outboxService.enqueue(tx, 'PaymentCompleted', {
+            orderId: dto.orderId,
+            totalAmount: splitTotal.toNumber(),
+            paymentCount: results.length,
+          });
+
+          return { payments: results, prePaymentCount: count };
+        },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
     // FORENSIC AUDIT FIX: Events emitted AFTER transaction commits (not inside)
@@ -273,29 +308,10 @@ export class PaymentsService {
       );
     }
 
-      for (const payment of normalizedPayments) {
-        await this.eventBus.publish(
-          'PaymentCreated',
-          new PaymentCreatedEvent(
-            payment.id,
-            dto.orderId,
-            payment.method || payment.paymentMethod || 'UNKNOWN',
-            this.toNumber(payment.amount),
-          ),
-        );
-      }
+      await this.outboxService.flushPending();
 
-      await this.eventBus.publish(
-        'PaymentCompleted',
-        new PaymentCompletedEvent(
-          dto.orderId,
-          splitTotal.toNumber(),
-          payments.length,
-        ),
-      );
-
-    return normalizedPayments;
-  }
+      return normalizedPayments;
+    }
 
   /**
    * Transaction-aware payment creation for split payments.
@@ -310,6 +326,12 @@ export class PaymentsService {
     }
 
     const amount = new Decimal(dto.amount);
+    if (amount.lte(0)) {
+      throw new BadRequestException('Payment amount must be greater than 0');
+    }
+    if (amount.gt(this.maxPaymentAmount)) {
+      throw new BadRequestException('Payment amount exceeds maximum limit');
+    }
     let changeAmount = new Decimal(0);
 
     // Calculate change for cash payments
@@ -328,11 +350,13 @@ export class PaymentsService {
     if (dto.transactionId) metadata.transactionId = dto.transactionId;
     if (dto.tipAmount !== undefined) metadata.tipAmount = dto.tipAmount;
 
-    const payment = await (tx as any).payment.create({
-      data: {
-        orderId: dto.orderId,
-        paymentMethod: dto.method,
-        amount: amount.toNumber(),
+    await this.ensureActivePaymentMethod(tx, dto.method, dto.transactionId);
+
+      const payment = await (tx as any).payment.create({
+        data: {
+          orderId: dto.orderId,
+          paymentMethod: dto.method,
+          amount: amount.toNumber(),
         amountReceived: dto.receivedAmount
           ? new Decimal(dto.receivedAmount).toNumber()
           : null,
@@ -344,41 +368,75 @@ export class PaymentsService {
         processedBy: dto.createdBy,
         ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
       },
-    });
+      });
 
-    // FORENSIC AUDIT FIX: Removed event emission from inside transaction
-    // Events are now emitted AFTER transaction commits in processSplitPayment
+      await this.outboxService.enqueue(tx, 'PaymentCreated', {
+        id: payment.id,
+        orderId: dto.orderId,
+        method: payment.paymentMethod || dto.method,
+        amount: amount.toNumber(),
+      });
 
-    return this.normalizePayment(payment);
-  }
+      return this.normalizePayment(payment);
+    }
 
   // ==================== REFUNDS ====================
 
   async processRefund(dto: CreateRefundDto): Promise<Refund> {
-    const payment = await this.repo.findById(dto.paymentId);
-    if (!payment) {
-      throw new NotFoundException(`Payment ${dto.paymentId} not found`);
-    }
+    const { refund, refundAmount } = await this.prisma.$transaction(
+      async (tx) => {
+        // Lock payment + refunds to prevent race conditions
+        await (tx as any)
+          .$queryRaw`SELECT id FROM payments WHERE id = ${dto.paymentId} FOR UPDATE`;
+        await (tx as any)
+          .$queryRaw`SELECT id FROM refunds WHERE payment_id = ${dto.paymentId} FOR UPDATE`;
 
-    const refundAmount = new Decimal(dto.amount);
-    const alreadyRefunded = new Decimal(payment.refundedAmount || 0);
-    const paymentAmount = new Decimal(payment.amount);
+        const payment = await (tx as any).payment.findUnique({
+          where: { id: dto.paymentId },
+        });
+        if (!payment) {
+          throw new NotFoundException(`Payment ${dto.paymentId} not found`);
+        }
 
-    // Validate refund amount
-    if (alreadyRefunded.plus(refundAmount).greaterThan(paymentAmount)) {
-      throw new BadRequestException(
-        `Refund amount exceeds payment amount. Max refundable: ${paymentAmount.minus(alreadyRefunded)}`,
-      );
-    }
+        const amount = new Decimal(dto.amount);
+        if (amount.lte(0)) {
+          throw new BadRequestException('Refund amount must be greater than 0');
+        }
 
-    const refund = await this.repo.createRefund({
-      paymentId: dto.paymentId,
-      amount: refundAmount.toNumber(),
-      reason: dto.reason,
-      notes: dto.notes,
-      status: 'PENDING',
-      createdBy: dto.userId,
-    });
+        const totals = await (tx as any).refund.aggregate({
+          where: {
+            paymentId: dto.paymentId,
+            status: { in: ['PENDING', 'APPROVED'] },
+          },
+          _sum: { amount: true },
+        });
+
+        const alreadyRefunded = new Decimal(totals._sum.amount || 0);
+        const paymentAmount = new Decimal(payment.amount);
+
+        if (alreadyRefunded.plus(amount).greaterThan(paymentAmount)) {
+          throw new BadRequestException(
+            `Refund amount exceeds payment amount. Max refundable: ${paymentAmount.minus(
+              alreadyRefunded,
+            )}`,
+          );
+        }
+
+        const created = await (tx as any).refund.create({
+          data: {
+            paymentId: dto.paymentId,
+            amount: amount.toNumber(),
+            reason: dto.reason,
+            notes: dto.notes,
+            status: 'PENDING',
+            createdBy: dto.userId,
+          },
+        });
+
+        return { refund: created, refundAmount: amount };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     await this.eventBus.publish(
       'RefundCreated',
@@ -395,50 +453,71 @@ export class PaymentsService {
 
   // BLOCK 1 FIX: Atomic transaction for refund approval + payment update
   async approveRefund(refundId: string, userId: string): Promise<Refund> {
-    const refund = await this.repo.findRefundById(refundId);
-    if (!refund) {
-      throw new NotFoundException(`Refund ${refundId} not found`);
-    }
-
-    if (refund.status !== 'PENDING') {
-      throw new BadRequestException('Only pending refunds can be approved');
-    }
-
     // ATOMIC: Update refund status AND payment refundedAmount together
-    const updatedRefund = await this.prisma.$transaction(async (tx) => {
-      // 1. Update refund status
-      const approved = await (tx as any).refund.update({
-        where: { id: refundId },
-        data: {
-          status: 'APPROVED',
-          approvedBy: userId,
-          approvedAt: new Date(),
-        },
-      });
+    const updatedRefund = await this.prisma.$transaction(
+      async (tx) => {
+        // Lock refund + payment rows
+        await (tx as any)
+          .$queryRaw`SELECT id FROM refunds WHERE id = ${refundId} FOR UPDATE`;
+        const refund = await (tx as any).refund.findUnique({
+          where: { id: refundId },
+        });
+        if (!refund) {
+          throw new NotFoundException(`Refund ${refundId} not found`);
+        }
+        if (refund.status !== 'PENDING') {
+          throw new BadRequestException('Only pending refunds can be approved');
+        }
 
-      // 2. Get associated payment to update refunded amount
-      const payment = await (tx as any).payment.findUnique({
-        where: { id: refund.paymentId },
-      });
+        await (tx as any)
+          .$queryRaw`SELECT id FROM payments WHERE id = ${refund.paymentId} FOR UPDATE`;
+        const payment = await (tx as any).payment.findUnique({
+          where: { id: refund.paymentId },
+        });
+        if (!payment) {
+          throw new NotFoundException(
+            `Payment ${refund.paymentId} not found`,
+          );
+        }
 
-      if (payment) {
-        const newRefundedAmount = new Decimal(payment.refundedAmount || 0)
+        const approvedTotals = await (tx as any).refund.aggregate({
+          where: { paymentId: refund.paymentId, status: 'APPROVED' },
+          _sum: { amount: true },
+        });
+
+        const alreadyApproved = new Decimal(approvedTotals._sum.amount || 0);
+        const newRefundedAmount = alreadyApproved
           .plus(refund.amount)
           .toNumber();
 
         const paymentAmount = this.toNumber(payment.amount);
+        if (newRefundedAmount > paymentAmount) {
+          throw new BadRequestException(
+            'Refund approval exceeds original payment amount',
+          );
+        }
+
+        const approved = await (tx as any).refund.update({
+          where: { id: refundId },
+          data: {
+            status: 'APPROVED',
+            approvedBy: userId,
+            approvedAt: new Date(),
+          },
+        });
+
         await (tx as any).payment.update({
           where: { id: refund.paymentId },
           data: {
             refundedAmount: newRefundedAmount,
-            status:
-              newRefundedAmount >= paymentAmount ? 'REFUNDED' : 'COMPLETED',
+            status: newRefundedAmount >= paymentAmount ? 'REFUNDED' : 'COMPLETED',
           },
         });
-      }
 
-      return approved;
-    });
+        return approved;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     // Event emission AFTER transaction commits
     await this.eventBus.publish(

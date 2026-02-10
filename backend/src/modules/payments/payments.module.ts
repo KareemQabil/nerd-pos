@@ -6,9 +6,10 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PaymentsRepository } from './payments.repository';
 import { SessionsModule } from '../sessions/sessions.module';
+import { OutboxModule } from '../../core/outbox/outbox.module';
 
 @Module({
-  imports: [SessionsModule],
+  imports: [SessionsModule, OutboxModule],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaymentsRepository],
   exports: [PaymentsService],

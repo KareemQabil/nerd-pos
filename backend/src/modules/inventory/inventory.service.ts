@@ -98,12 +98,16 @@ export class InventoryService {
     dto: ReceiveStockDto,
     userId: string,
   ): Promise<InventoryItem> {
-    const { item: updatedItem, batchId } = await this.prisma.$transaction(
-      async (tx) => {
-        return this.receiveStockWithTx(dto, userId, tx, 'PURCHASE');
-      },
-      { maxWait: 10000, timeout: 20000 },
-    );
+      const { item: updatedItem, batchId } = await this.prisma.$transaction(
+        async (tx) => {
+          return this.receiveStockWithTx(dto, userId, tx, 'PURCHASE');
+        },
+        {
+          maxWait: 10000,
+          timeout: 20000,
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
 
     // Publish event after transaction commits
     await this.eventBus.publish(
@@ -129,23 +133,24 @@ export class InventoryService {
     userId: string,
   ): Promise<DeductionResult[]> {
     // ATOMIC + CONCURRENCY SAFE: lock inventory item/batches within transaction
-    const deductions = await this.prisma.$transaction(
-      async (tx) => {
-        return this.deductStockWithTx(
-          productId,
-          warehouseId,
-          quantity,
-          referenceType,
-          referenceId,
-          userId,
-          tx,
-        );
-      },
-      {
-        maxWait: 10000,
-        timeout: 20000,
-      },
-    );
+      const deductions = await this.prisma.$transaction(
+        async (tx) => {
+          return this.deductStockWithTx(
+            productId,
+            warehouseId,
+            quantity,
+            referenceType,
+            referenceId,
+            userId,
+            tx,
+          );
+        },
+        {
+          maxWait: 10000,
+          timeout: 20000,
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
 
     // Check for low stock alert (after transaction commits)
     const item = await this.repo.findByProductAndWarehouse(
@@ -179,8 +184,8 @@ export class InventoryService {
   ): Promise<InventoryItem> {
     const { productId, warehouseId, quantity, reason, notes } = dto;
 
-    const updatedItem = await this.prisma.$transaction(
-      async (tx) => {
+      const updatedItem = await this.prisma.$transaction(
+        async (tx) => {
         let item = await this.repo.findByProductAndWarehouse(
           productId,
           warehouseId,
@@ -221,9 +226,13 @@ export class InventoryService {
           where: { id: item.id },
           data: { quantityOnHand: newQuantity.toNumber() },
         });
-      },
-      { maxWait: 10000, timeout: 20000 },
-    );
+        },
+        {
+          maxWait: 10000,
+          timeout: 20000,
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
 
     await this.eventBus.publish(
       'StockAdjusted',
@@ -238,8 +247,8 @@ export class InventoryService {
 
     // ATOMIC TRANSACTION: Deduct from source + Add to destination
     // If destination update fails, source deduction will rollback
-    await this.prisma.$transaction(
-      async (tx) => {
+      await this.prisma.$transaction(
+        async (tx) => {
         // 1. Deduct from source warehouse using FIFO
         const deductions = await this.deductStockWithTx(
           productId,
@@ -270,9 +279,13 @@ export class InventoryService {
             tx,
             'TRANSFER',
           );
-      },
-      { maxWait: 10000, timeout: 20000 },
-    );
+        },
+        {
+          maxWait: 10000,
+          timeout: 20000,
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
 
     // Event Emission - AFTER TRANSACTION COMMITS
     await this.eventBus.publish(

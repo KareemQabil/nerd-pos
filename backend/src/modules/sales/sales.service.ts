@@ -26,11 +26,10 @@ import {
   ApplyDiscountDto,
 } from './dto';
 import {
-  OrderCreatedEvent,
-  OrderConfirmedEvent,
-  OrderCompletedEvent,
-  OrderCancelledEvent,
-  OrderItemAddedEvent,
+    OrderConfirmedEvent,
+    OrderCompletedEvent,
+    OrderCancelledEvent,
+    OrderItemAddedEvent,
   OrderStatusChangedEvent,
   OrderCalculatedEvent,
 } from './events/sales.events';
@@ -45,6 +44,7 @@ import {
   isValidTransition,
   getAllowedTransitions,
 } from './constants/order-state-machine';
+import { OutboxService } from '../../core/outbox/outbox.service';
 
 // Import calculation steps
 import {
@@ -64,6 +64,7 @@ import { InventoryService } from '../inventory/inventory.service';
 @Injectable()
 export class SalesService {
   private calculationSteps: ICalculationStep[];
+  private orderSequenceReady = false;
 
   constructor(
     private readonly repo: SalesRepository,
@@ -77,6 +78,7 @@ export class SalesService {
     private readonly discountStep: DiscountStep,
     private readonly grandTotalStep: GrandTotalStep,
     private readonly inventoryService: InventoryService,
+    private readonly outboxService: OutboxService,
     @Inject(forwardRef(() => SessionsService))
     private readonly sessionsService: SessionsService,
   ) {
@@ -191,47 +193,51 @@ export class SalesService {
     };
 
     // 6. Database Write - ATOMIC TRANSACTION + Inventory Deduction
-    const order = await this.prisma.$transaction(async (tx) => {
-      const created = await this.repo.createWithItems(
-        orderData,
-        itemsWithSubtotals,
-        tx,
+      const eventItems = dto.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity ?? 1,
+      }));
+
+      const orderTotal = safeToNumber(calculated.grandTotal, 0);
+
+      const order = await this.prisma.$transaction(
+        async (tx) => {
+          const created = await this.repo.createWithItems(
+            orderData,
+            itemsWithSubtotals,
+            tx,
+          );
+
+          for (const item of dto.items) {
+            await this.inventoryService.deductStockWithTx(
+              item.productId,
+              warehouseId,
+              item.quantity ?? 1,
+              'ORDER',
+              created.id,
+              createdBy,
+              tx,
+            );
+          }
+
+          await this.outboxService.enqueue(tx, 'OrderCreated', {
+            orderId: created.id,
+            orderNumber: created.orderNumber,
+            type: created.orderType,
+            grandTotal: orderTotal,
+            items: eventItems,
+          });
+
+          return created;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
 
-      for (const item of dto.items) {
-        await this.inventoryService.deductStockWithTx(
-          item.productId,
-          warehouseId,
-          item.quantity ?? 1,
-          'ORDER',
-          created.id,
-          createdBy,
-          tx,
-        );
-      }
+      // 7. Outbox publish - AFTER TRANSACTION COMMITS
+      await this.outboxService.flushPending();
 
-      return created;
-    });
-
-    // 7. Event Emission - AFTER TRANSACTION COMMITS
-    const eventItems = dto.items.map((item) => ({
-      productId: item.productId,
-      quantity: item.quantity ?? 1,
-    }));
-
-    await this.eventBus.publish(
-      'OrderCreated',
-      new OrderCreatedEvent(
-        order.id,
-        order.orderNumber,
-        order.orderType,
-        safeToNumber(calculated.grandTotal, 0),
-        eventItems,
-      ),
-    );
-
-    return order;
-  }
+      return order;
+    }
 
   // ==================== ORDER STATUS ====================
 
@@ -631,12 +637,23 @@ export class SalesService {
     );
   }
 
-  private async generateOrderNumber(): Promise<string> {
-    const date = new Date();
-    const prefix = `ORD${date.getFullYear()}${(date.getMonth() + 1)
-      .toString()
-      .padStart(2, '0')}`;
-    const count = await this.repo.countByPrefix(prefix);
-    return `${prefix}${(count + 1).toString().padStart(4, '0')}`;
-  }
+    private async ensureOrderNumberSequence(): Promise<void> {
+      if (this.orderSequenceReady) return;
+      await this.prisma.$executeRaw`CREATE SEQUENCE IF NOT EXISTS sales_order_number_seq START WITH 1`;
+      this.orderSequenceReady = true;
+    }
+
+    private async generateOrderNumber(): Promise<string> {
+      const date = new Date();
+      const prefix = `ORD${date.getFullYear()}${(date.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}`;
+
+      await this.ensureOrderNumberSequence();
+      const rows = await this.prisma.$queryRaw<{ value: number }[]>`
+        SELECT nextval('sales_order_number_seq') as value
+      `;
+      const seq = Number(rows?.[0]?.value ?? 0);
+      return `${prefix}${seq.toString().padStart(4, '0')}`;
+    }
 }

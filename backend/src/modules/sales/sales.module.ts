@@ -19,9 +19,10 @@ import {
 
 import { SessionsModule } from '../sessions/sessions.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { OutboxModule } from '../../core/outbox/outbox.module';
 
 @Module({
-  imports: [forwardRef(() => SessionsModule), InventoryModule],
+  imports: [forwardRef(() => SessionsModule), InventoryModule, OutboxModule],
   controllers: [SalesController],
   providers: [
     SalesService,
