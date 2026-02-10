@@ -37,6 +37,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './modules/auth/guards/permissions.guard';
+import { OwnershipGuard } from './modules/auth/guards/ownership.guard';
 import { HealthModule } from './common/health/health.module';
 import { LookupModule } from './modules/lookup/lookup.module';
 
@@ -95,12 +96,17 @@ import { LookupModule } from './modules/lookup/lookup.module';
       useClass: JwtAuthGuard,
     },
     // Global Permissions Guard - LEGO dynamic authorization
-    {
-      provide: APP_GUARD,
-      useClass: PermissionsGuard,
-    },
-  ],
-})
+      {
+        provide: APP_GUARD,
+        useClass: PermissionsGuard,
+      },
+      // Global Ownership Guard - resource-level ownership checks
+      {
+        provide: APP_GUARD,
+        useClass: OwnershipGuard,
+      },
+    ],
+  })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer

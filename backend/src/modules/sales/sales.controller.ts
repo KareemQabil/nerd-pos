@@ -36,6 +36,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { ResourceType } from '../auth/guards/ownership.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 import { examples } from '../../common/fixtures/swagger-examples';
@@ -47,6 +48,7 @@ import { ApiBody } from '@nestjs/swagger';
   description: 'Not authenticated - JWT token missing or invalid',
 })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ResourceType('order')
 @Controller('orders')
 export class SalesController {
   constructor(private readonly service: SalesService) {}

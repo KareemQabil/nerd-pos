@@ -33,6 +33,7 @@ import {
 } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { ResourceType } from '../auth/guards/ownership.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 import { examples } from '../../common/fixtures/swagger-examples';
@@ -42,6 +43,7 @@ import { ApiBody } from '@nestjs/swagger';
 @ApiBearerAuth('JWT')
 @ApiUnauthorizedResponse({ description: 'Not authenticated' })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ResourceType('payment')
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly service: PaymentsService) {}
@@ -172,6 +174,7 @@ export class PaymentsController {
   }
 
   @Get('order/:orderId')
+  @ResourceType('order', 'orderId')
   @Permissions(PERMISSIONS.PAYMENTS_VIEW) // Cashier+
   @ApiOperation({
     summary: 'Get payments by order',
@@ -202,6 +205,7 @@ export class PaymentsController {
   }
 
   @Get('session/:sessionId')
+  @ResourceType('session', 'sessionId')
   @Permissions(PERMISSIONS.PAYMENTS_VIEW_ALL) // 🔒 Manager+
   @ApiOperation({
     summary: 'Get payments by session',

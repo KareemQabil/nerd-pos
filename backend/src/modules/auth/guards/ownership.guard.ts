@@ -15,10 +15,19 @@ import {
   ExecutionContext,
   ForbiddenException,
   Logger,
+  SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { PrismaService } from '../../../core/prisma/prisma.service';
 
 export const SKIP_OWNERSHIP_CHECK_KEY = 'skipOwnershipCheck';
+export const RESOURCE_TYPE_KEY = 'resourceType';
+
+export type ResourceType = 'order' | 'session' | 'payment';
+export interface ResourceMeta {
+  type: ResourceType;
+  param?: string;
+}
 
 /**
  * Decorator to skip ownership check for specific routes (e.g., public resources)
@@ -33,11 +42,32 @@ export const SkipOwnershipCheck =
     return descriptor ?? target;
   };
 
+/**
+ * Decorator to mark routes for ownership checks.
+ */
+export const ResourceType =
+  (type: ResourceType, param = 'id') =>
+  (target: any, key?: string, descriptor?: PropertyDescriptor) => {
+    if (descriptor) {
+      SetMetadata(RESOURCE_TYPE_KEY, { type, param })(
+        target,
+        key,
+        descriptor,
+      );
+    } else {
+      SetMetadata(RESOURCE_TYPE_KEY, { type, param })(target);
+    }
+    return descriptor ?? target;
+  };
+
 @Injectable()
 export class OwnershipGuard implements CanActivate {
   private readonly logger = new Logger(OwnershipGuard.name);
 
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Check if ownership check should be skipped
@@ -52,7 +82,16 @@ export class OwnershipGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    const resourceId = request.params?.id;
+    const resourceMeta = this.reflector.getAllAndOverride<ResourceMeta>(
+      RESOURCE_TYPE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (!resourceMeta) {
+      return true;
+    }
+
+    const resourceId = request.params?.[resourceMeta.param ?? 'id'];
 
     // If no user (not authenticated), let JwtAuthGuard handle it
     if (!user) {
@@ -64,19 +103,72 @@ export class OwnershipGuard implements CanActivate {
       return true;
     }
 
-    // For single-tenant POS, we currently allow access within the store
-    // In production, implement resource-specific ownership checks here
-    //
-    // Example for multi-tenant:
-    // const resource = await this.getResource(resourceType, resourceId);
-    // if (resource.tenantId !== user.tenantId) {
-    //     throw new ForbiddenException('Access denied to this resource');
-    // }
+    // Privileged roles can access all resources
+    if (this.isPrivileged(user)) {
+      return true;
+    }
 
-    // For now, log access for audit purposes
-    this.logger.debug(`User ${user.sub} accessing resource ${resourceId}`);
+    const hasAccess = await this.checkOwnership(
+      resourceMeta.type,
+      resourceId,
+      user.sub,
+    );
 
+    if (!hasAccess) {
+      throw new ForbiddenException('Access denied to this resource');
+    }
+
+    this.logger.debug(`User ${user.sub} accessing ${resourceMeta.type} ${resourceId}`);
     return true;
+  }
+
+  private isPrivileged(user: { role?: string }): boolean {
+    return ['ADMIN', 'MANAGER', 'SUPERVISOR'].includes(user.role ?? '');
+  }
+
+  private async checkOwnership(
+    type: ResourceType,
+    resourceId: string,
+    userId: string,
+  ): Promise<boolean> {
+    switch (type) {
+      case 'session': {
+        const session = await this.prisma.registerSession.findUnique({
+          where: { id: resourceId },
+          select: { userId: true },
+        });
+        if (!session) return true;
+        return session.userId === userId;
+      }
+      case 'order': {
+        const order = await this.prisma.salesOrder.findUnique({
+          where: { id: resourceId },
+          select: { sessionId: true },
+        });
+        if (!order) return true;
+        const session = await this.prisma.registerSession.findUnique({
+          where: { id: order.sessionId },
+          select: { userId: true },
+        });
+        if (!session) return true;
+        return session.userId === userId;
+      }
+      case 'payment': {
+        const payment = await this.prisma.payment.findUnique({
+          where: { id: resourceId },
+          select: { sessionId: true },
+        });
+        if (!payment) return true;
+        const session = await this.prisma.registerSession.findUnique({
+          where: { id: payment.sessionId },
+          select: { userId: true },
+        });
+        if (!session) return true;
+        return session.userId === userId;
+      }
+      default:
+        return true;
+    }
   }
 }
 

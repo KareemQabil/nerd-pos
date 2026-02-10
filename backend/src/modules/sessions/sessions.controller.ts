@@ -26,6 +26,7 @@ import { SessionsService } from './sessions.service';
 import { OpenSessionDto, CloseSessionDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { ResourceType } from '../auth/guards/ownership.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../../core/constants/permissions';
 import { examples } from '../../common/fixtures/swagger-examples';
@@ -35,6 +36,7 @@ import { ApiBody } from '@nestjs/swagger';
 @ApiBearerAuth('JWT')
 @ApiUnauthorizedResponse({ description: 'Not authenticated' })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ResourceType('session')
 @Controller('sessions')
 export class SessionsController {
   constructor(private readonly service: SessionsService) {}
