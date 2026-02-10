@@ -27,6 +27,7 @@ import {
   RefundProcessedEvent,
 } from './events/payments.events';
 import { Payment, PaymentMethod, Refund } from './entities/payments.entity';
+import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -51,12 +52,46 @@ export class PaymentsService {
     return Number(value) || 0;
   }
 
+  private async lockOrderAndGetTotals(
+    tx: Prisma.TransactionClient,
+    orderId: string,
+  ): Promise<{
+    order: { id: string; grandTotal: Decimal; status: string; sessionId: string };
+    totalPaid: Decimal;
+  }> {
+    const order = await tx.salesOrder.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        grandTotal: true,
+        status: true,
+        sessionId: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order ${orderId} not found`);
+    }
+
+    await (tx as any)
+      .$queryRaw`SELECT id FROM sales_orders WHERE id = ${orderId} FOR UPDATE`;
+    await (tx as any)
+      .$queryRaw`SELECT id FROM payments WHERE order_id = ${orderId} FOR UPDATE`;
+
+    const totals = await tx.payment.aggregate({
+      where: { orderId },
+      _sum: { amount: true },
+    });
+
+    return {
+      order,
+      totalPaid: new Decimal(totals._sum.amount || 0),
+    };
+  }
+
   // ==================== SINGLE PAYMENT ====================
 
   async createPayment(dto: CreatePaymentDto): Promise<Payment> {
-    const prePaymentCount = await (this.prisma as any).payment.count({
-      where: { orderId: dto.orderId },
-    });
     const amount = new Decimal(dto.amount);
 
     if (!Number.isFinite(dto.amount)) {
@@ -86,21 +121,57 @@ export class PaymentsService {
     if (dto.transactionId) metadata.transactionId = dto.transactionId;
     if (dto.tipAmount !== undefined) metadata.tipAmount = dto.tipAmount;
 
-    const payment = await this.repo.create({
-      orderId: dto.orderId,
-      paymentMethod: dto.method,
-      amount: amount.toNumber(),
-      amountReceived: dto.receivedAmount
-        ? new Decimal(dto.receivedAmount).toNumber()
-        : null,
-      changeGiven: changeAmount.toNumber(),
-      referenceNumber: dto.transactionId || uuidv4(),
-      status: 'COMPLETED',
-      paymentDate: new Date(),
-      sessionId: dto.sessionId,
-      processedBy: dto.createdBy,
-      ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
-    });
+    const { payment, prePaymentCount } = await this.prisma.$transaction(
+      async (tx) => {
+        const { order, totalPaid } = await this.lockOrderAndGetTotals(
+          tx,
+          dto.orderId,
+        );
+
+        if (order.status === OrderStatus.CANCELLED) {
+          throw new BadRequestException('Cannot pay a cancelled order');
+        }
+
+        if (dto.sessionId && order.sessionId !== dto.sessionId) {
+          throw new BadRequestException(
+            'Payment session does not match order session',
+          );
+        }
+
+        const orderTotal = new Decimal(order.grandTotal || 0);
+        const outstanding = orderTotal.minus(totalPaid);
+        if (outstanding.lte(0)) {
+          throw new BadRequestException('Order is already fully paid');
+        }
+        if (amount.greaterThan(outstanding.plus(0.01))) {
+          throw new BadRequestException('Payment exceeds outstanding amount');
+        }
+
+        const count = await tx.payment.count({
+          where: { orderId: dto.orderId },
+        });
+
+        const created = await tx.payment.create({
+          data: {
+            orderId: dto.orderId,
+            paymentMethod: dto.method,
+            amount: amount.toNumber(),
+            amountReceived: dto.receivedAmount
+              ? new Decimal(dto.receivedAmount).toNumber()
+              : null,
+            changeGiven: changeAmount.toNumber(),
+            referenceNumber: dto.transactionId || uuidv4(),
+            status: 'COMPLETED',
+            paymentDate: new Date(),
+            sessionId: dto.sessionId,
+            processedBy: dto.createdBy,
+            ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+          },
+        });
+
+        return { payment: created, prePaymentCount: count };
+      },
+    );
 
     await this.sessionsService.applyPaymentTotals(
       dto.sessionId,
@@ -130,50 +201,64 @@ export class PaymentsService {
    */
   async processSplitPayment(dto: SplitPaymentDto): Promise<Payment[]> {
     // Validate total matches order (integration with Sales module)
-    const totalPaid = dto.payments.reduce(
+    const splitTotal = dto.payments.reduce(
       (sum, p) => sum.plus(new Decimal(p.amount)),
       new Decimal(0),
     );
-    const orderRecord = await (this.prisma as any).salesOrder.findUnique({
-      where: { id: dto.orderId },
-      select: { grandTotal: true },
-    });
-    if (!orderRecord) {
-      throw new NotFoundException(`Order ${dto.orderId} not found`);
-    }
-
-    const orderTotal = new Decimal(orderRecord.grandTotal || 0);
-    const diff = orderTotal.minus(totalPaid).abs();
-    if (diff.greaterThan(0.01)) {
-      throw new BadRequestException(
-        `Split payment total (${totalPaid.toFixed(2)}) does not match order total (${orderTotal.toFixed(2)})`,
-      );
-    }
-
-    const prePaymentCount = await (this.prisma as any).payment.count({
-      where: { orderId: dto.orderId },
-    });
 
     // ATOMIC: All split payments created together or none
-    const payments = await this.prisma.$transaction(async (tx) => {
-      const results: Payment[] = [];
+    const { payments, prePaymentCount } = await this.prisma.$transaction(
+      async (tx) => {
+        const { order, totalPaid } = await this.lockOrderAndGetTotals(
+          tx,
+          dto.orderId,
+        );
 
-      for (const paymentDto of dto.payments) {
-        const payment = await this.createPaymentWithTx(tx, {
-          orderId: dto.orderId,
-          sessionId: dto.sessionId,
-          method: paymentDto.method,
-          amount: paymentDto.amount,
-          receivedAmount: paymentDto.receivedAmount,
-          cardLast4: paymentDto.cardLast4,
-          transactionId: paymentDto.transactionId,
-          createdBy: dto.userId,
+        if (order.status === OrderStatus.CANCELLED) {
+          throw new BadRequestException('Cannot pay a cancelled order');
+        }
+
+        if (dto.sessionId && order.sessionId !== dto.sessionId) {
+          throw new BadRequestException(
+            'Payment session does not match order session',
+          );
+        }
+
+        const orderTotal = new Decimal(order.grandTotal || 0);
+        const outstanding = orderTotal.minus(totalPaid);
+        if (outstanding.lte(0)) {
+          throw new BadRequestException('Order is already fully paid');
+        }
+
+        const diff = outstanding.minus(splitTotal).abs();
+        if (diff.greaterThan(0.01)) {
+          throw new BadRequestException(
+            `Split payment total (${splitTotal.toFixed(2)}) does not match outstanding amount (${outstanding.toFixed(2)})`,
+          );
+        }
+
+        const count = await tx.payment.count({
+          where: { orderId: dto.orderId },
         });
-        results.push(payment);
-      }
 
-      return results;
-    });
+        const results: Payment[] = [];
+        for (const paymentDto of dto.payments) {
+          const payment = await this.createPaymentWithTx(tx, {
+            orderId: dto.orderId,
+            sessionId: dto.sessionId,
+            method: paymentDto.method,
+            amount: paymentDto.amount,
+            receivedAmount: paymentDto.receivedAmount,
+            cardLast4: paymentDto.cardLast4,
+            transactionId: paymentDto.transactionId,
+            createdBy: dto.userId,
+          });
+          results.push(payment);
+        }
+
+        return { payments: results, prePaymentCount: count };
+      },
+    );
 
     // FORENSIC AUDIT FIX: Events emitted AFTER transaction commits (not inside)
     const normalizedPayments = this.normalizePayments(payments);
@@ -200,14 +285,14 @@ export class PaymentsService {
         );
       }
 
-    await this.eventBus.publish(
-      'PaymentCompleted',
-      new PaymentCompletedEvent(
-        dto.orderId,
-        totalPaid.toNumber(),
-        payments.length,
-      ),
-    );
+      await this.eventBus.publish(
+        'PaymentCompleted',
+        new PaymentCompletedEvent(
+          dto.orderId,
+          splitTotal.toNumber(),
+          payments.length,
+        ),
+      );
 
     return normalizedPayments;
   }

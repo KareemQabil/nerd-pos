@@ -58,15 +58,20 @@ function createMockEventBus() {
 // Mock PrismaService with $transaction support
 function createMockPrismaService() {
   const mockPrisma: any = {
+    salesOrder: {
+      findUnique: jest.fn(),
+    },
     payment: {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
+      aggregate: jest.fn(),
     },
     refund: {
       update: jest.fn(),
     },
+    $queryRaw: jest.fn(),
   };
   // Add $transaction after to avoid circular reference
   mockPrisma.$transaction = jest.fn((callback: (tx: any) => Promise<any>) =>
@@ -89,6 +94,13 @@ describe('PaymentsService', () => {
     sessionsService = { applyPaymentTotals: jest.fn() };
 
     prisma.payment.count.mockResolvedValue(0);
+    prisma.payment.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    prisma.salesOrder.findUnique.mockResolvedValue({
+      id: 'order-1',
+      grandTotal: 150,
+      status: 'DRAFT',
+      sessionId: 'session-1',
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -130,7 +142,7 @@ describe('PaymentsService', () => {
         status: 'COMPLETED',
       };
 
-      repo.create.mockResolvedValue(mockPayment);
+      prisma.payment.create.mockResolvedValue(mockPayment);
       prisma.payment.count.mockResolvedValue(0);
 
       const result = await service.createPayment(dto);
@@ -177,7 +189,7 @@ describe('PaymentsService', () => {
         changeAmount: 0,
       };
 
-      repo.create.mockResolvedValue(mockPayment);
+      prisma.payment.create.mockResolvedValue(mockPayment);
       prisma.payment.count.mockResolvedValue(0);
 
       const result = await service.createPayment(dto);
