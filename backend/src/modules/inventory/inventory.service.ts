@@ -98,64 +98,22 @@ export class InventoryService {
     dto: ReceiveStockDto,
     userId: string,
   ): Promise<InventoryItem> {
-    const {
-      productId,
-      warehouseId,
-      quantity,
-      costPerUnit,
-      batchNumber,
-      expiryDate,
-    } = dto;
-
-    // Get or create inventory item
-    const item = await this.repo.getOrCreateInventoryItem(
-      productId,
-      warehouseId,
+    const { item: updatedItem, batchId } = await this.prisma.$transaction(
+      async (tx) => {
+        return this.receiveStockWithTx(dto, userId, tx, 'PURCHASE');
+      },
+      { maxWait: 10000, timeout: 20000 },
     );
 
-    // Create batch for FIFO tracking
-    const batch = await this.repo.createBatch({
-      inventoryItem: { connect: { id: item.id } },
-      batchNumber,
-      receivedDate: new Date(),
-      expiryDate,
-      quantityReceived: quantity,
-      quantityRemaining: quantity,
-      costPerUnit: new Decimal(costPerUnit).toNumber(),
-    });
-
-    // Create movement record
-    await this.repo.createMovement({
-      type: 'IN',
-      productId,
-      warehouseId,
-      batchId: batch.id,
-      quantity,
-      unitCost: costPerUnit,
-      totalValue: new Decimal(costPerUnit).times(quantity).toNumber(),
-      referenceType: 'PURCHASE',
-      createdBy: userId,
-    });
-
-    // Update inventory item quantity and average cost
-    const newQuantity = new Decimal(item.quantityOnHand).plus(quantity);
-    const oldTotal = new Decimal(item.quantityOnHand).times(
-      item.averageCost || 0,
-    );
-    const newTotal = oldTotal.plus(new Decimal(costPerUnit).times(quantity));
-    const newAvgCost = newQuantity.gt(0)
-      ? newTotal.dividedBy(newQuantity)
-      : new Decimal(0);
-
-    const updatedItem = await this.repo.update(item.id, {
-      quantityOnHand: newQuantity.toNumber(),
-      averageCost: newAvgCost.toNumber(),
-    });
-
-    // Publish event
+    // Publish event after transaction commits
     await this.eventBus.publish(
       'StockReceived',
-      new StockReceivedEvent(productId, warehouseId, quantity, batch.id),
+      new StockReceivedEvent(
+        dto.productId,
+        dto.warehouseId,
+        dto.quantity,
+        batchId,
+      ),
     );
 
     return updatedItem;
@@ -220,32 +178,52 @@ export class InventoryService {
     userId: string,
   ): Promise<InventoryItem> {
     const { productId, warehouseId, quantity, reason, notes } = dto;
-    const item = await this.repo.getOrCreateInventoryItem(
-      productId,
-      warehouseId,
+
+    const updatedItem = await this.prisma.$transaction(
+      async (tx) => {
+        let item = await this.repo.findByProductAndWarehouse(
+          productId,
+          warehouseId,
+          tx,
+        );
+        if (!item) {
+          item = await tx.inventoryItem.create({
+            data: { productId, warehouseId },
+          });
+        }
+
+        // Lock inventory item row to prevent concurrent updates
+        await (tx as any)
+          .$queryRaw`SELECT id FROM inventory_items WHERE id = ${item.id} FOR UPDATE`;
+
+        const newQuantity = new Decimal(item.quantityOnHand).plus(quantity);
+        if (newQuantity.lessThan(0)) {
+          throw new BadRequestException(
+            'Adjustment would result in negative stock',
+          );
+        }
+
+        // Create adjustment movement
+        await this.repo.createMovement(
+          {
+            type: 'ADJUSTMENT',
+            productId,
+            warehouseId,
+            quantity,
+            reason,
+            notes,
+            createdBy: userId,
+          },
+          tx,
+        );
+
+        return tx.inventoryItem.update({
+          where: { id: item.id },
+          data: { quantityOnHand: newQuantity.toNumber() },
+        });
+      },
+      { maxWait: 10000, timeout: 20000 },
     );
-
-    const newQuantity = new Decimal(item.quantityOnHand).plus(quantity);
-    if (newQuantity.lessThan(0)) {
-      throw new BadRequestException(
-        'Adjustment would result in negative stock',
-      );
-    }
-
-    // Create adjustment movement
-    await this.repo.createMovement({
-      type: 'ADJUSTMENT',
-      productId,
-      warehouseId,
-      quantity,
-      reason,
-      notes,
-      createdBy: userId,
-    });
-
-    const updatedItem = await this.repo.update(item.id, {
-      quantityOnHand: newQuantity.toNumber(),
-    });
 
     await this.eventBus.publish(
       'StockAdjusted',
@@ -281,16 +259,17 @@ export class InventoryService {
         const avgCost = totalCost.dividedBy(quantity);
 
         // 3. Add to destination warehouse
-        await this.receiveStockWithTx(
-          {
-            productId,
-            warehouseId: toWarehouseId,
-            quantity,
-            costPerUnit: avgCost.toNumber(),
-          },
-          userId,
-          tx,
-        );
+          await this.receiveStockWithTx(
+            {
+              productId,
+              warehouseId: toWarehouseId,
+              quantity,
+              costPerUnit: avgCost.toNumber(),
+            },
+            userId,
+            tx,
+            'TRANSFER',
+          );
       },
       { maxWait: 10000, timeout: 20000 },
     );
@@ -313,7 +292,7 @@ export class InventoryService {
    * Transaction-aware stock deduction using FIFO strategy.
    * @param tx - Prisma transaction client for atomic operations
    */
-  private async deductStockWithTx(
+  async deductStockWithTx(
     productId: string,
     warehouseId: string,
     quantity: number,
@@ -326,6 +305,7 @@ export class InventoryService {
     const item = await this.repo.findByProductAndWarehouse(
       productId,
       warehouseId,
+      tx,
     );
     if (!item) {
       throw new BadRequestException(
@@ -414,7 +394,8 @@ export class InventoryService {
     dto: ReceiveStockDto,
     userId: string,
     tx: Prisma.TransactionClient,
-  ): Promise<InventoryItem> {
+    referenceType: 'PURCHASE' | 'TRANSFER',
+  ): Promise<{ item: InventoryItem; batchId: string }> {
     const {
       productId,
       warehouseId,
@@ -423,18 +404,21 @@ export class InventoryService {
       batchNumber,
       expiryDate,
     } = dto;
-    const client = tx || this.prisma;
-
     // Get or create inventory item using tx
     let item = await this.repo.findByProductAndWarehouse(
       productId,
       warehouseId,
+      tx,
     );
     if (!item) {
-      item = await (client as any).inventoryItem.create({
+      item = await tx.inventoryItem.create({
         data: { productId, warehouseId },
       });
     }
+
+    // Lock inventory item row to prevent concurrent updates
+    await (tx as any)
+      .$queryRaw`SELECT id FROM inventory_items WHERE id = ${item.id} FOR UPDATE`;
 
     // Create batch with tx
     const batch = await this.repo.createBatch(
@@ -460,11 +444,11 @@ export class InventoryService {
         quantity,
         unitCost: costPerUnit,
         totalValue: new Decimal(costPerUnit).times(quantity).toNumber(),
-        referenceType: 'TRANSFER',
-        createdBy: userId,
-      },
-      tx,
-    );
+          referenceType,
+          createdBy: userId,
+        },
+        tx,
+      );
 
     // Update inventory item using tx
     const newQuantity = new Decimal(item!.quantityOnHand).plus(quantity);
@@ -476,15 +460,15 @@ export class InventoryService {
       ? newTotal.dividedBy(newQuantity)
       : new Decimal(0);
 
-    const updatedItem = await (client as any).inventoryItem.update({
-      where: { id: item!.id },
-      data: {
-        quantityOnHand: newQuantity.toNumber(),
-        averageCost: newAvgCost.toNumber(),
-      },
-    });
+      const updatedItem = await tx.inventoryItem.update({
+        where: { id: item!.id },
+        data: {
+          quantityOnHand: newQuantity.toNumber(),
+          averageCost: newAvgCost.toNumber(),
+        },
+      });
 
-    return updatedItem;
+      return { item: updatedItem, batchId: batch.id };
   }
 
   // ==================== QUERY OPERATIONS ====================

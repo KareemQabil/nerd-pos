@@ -59,6 +59,7 @@ import {
 
 import { SessionsService } from '../sessions/sessions.service';
 import { forwardRef } from '@nestjs/common';
+import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
 export class SalesService {
@@ -75,6 +76,7 @@ export class SalesService {
     private readonly taxStep: TaxStep,
     private readonly discountStep: DiscountStep,
     private readonly grandTotalStep: GrandTotalStep,
+    private readonly inventoryService: InventoryService,
     @Inject(forwardRef(() => SessionsService))
     private readonly sessionsService: SessionsService,
   ) {
@@ -110,6 +112,9 @@ export class SalesService {
       }
       sessionId = session.id;
     }
+
+    const warehouse = await this.inventoryService.getDefaultWarehouse();
+    const warehouseId = warehouse.id;
 
     // 1. Build calculation context (Outside TX - pure computation)
     const context = this.buildCalculationContext(dto);
@@ -185,9 +190,27 @@ export class SalesService {
       grandTotal: safeToNumber(calculated.grandTotal, 0),
     };
 
-    // 6. Database Write - ATOMIC TRANSACTION
+    // 6. Database Write - ATOMIC TRANSACTION + Inventory Deduction
     const order = await this.prisma.$transaction(async (tx) => {
-      return this.repo.createWithItems(orderData, itemsWithSubtotals, tx);
+      const created = await this.repo.createWithItems(
+        orderData,
+        itemsWithSubtotals,
+        tx,
+      );
+
+      for (const item of dto.items) {
+        await this.inventoryService.deductStockWithTx(
+          item.productId,
+          warehouseId,
+          item.quantity ?? 1,
+          'ORDER',
+          created.id,
+          createdBy,
+          tx,
+        );
+      }
+
+      return created;
     });
 
     // 7. Event Emission - AFTER TRANSACTION COMMITS

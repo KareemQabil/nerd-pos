@@ -28,6 +28,7 @@ import {
   GrandTotalStep,
 } from './calculation-steps';
 import { SessionsService } from '../sessions/sessions.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 // Mock Repository - methods from sales.repository.ts
 function createMockRepository() {
@@ -92,6 +93,13 @@ function createMockSessionsService() {
   };
 }
 
+function createMockInventoryService() {
+  return {
+    getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'warehouse-1' }),
+    deductStockWithTx: jest.fn().mockResolvedValue([]),
+  };
+}
+
 describe('SalesService', () => {
   let service: SalesService;
   let repo: ReturnType<typeof createMockRepository>;
@@ -117,6 +125,7 @@ describe('SalesService', () => {
         { provide: DiscountStep, useValue: createMockStep() },
         { provide: GrandTotalStep, useValue: createMockStep() },
         { provide: SessionsService, useValue: createMockSessionsService() },
+        { provide: InventoryService, useValue: createMockInventoryService() },
       ],
     }).compile();
 

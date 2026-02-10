@@ -35,39 +35,10 @@ export class InventoryEventHandlers {
    */
   @OnEvent('OrderCreated', { suppressErrors: false })
   async handleOrderCreated(payload: OrderCreatedPayload): Promise<void> {
-    this.logger.log(`Handling OrderCreated event for order ${payload.orderId}`);
-
-    try {
-      if (!payload.items || payload.items.length === 0) {
-        this.logger.warn(
-          `OrderCreated event missing items for order ${payload.orderId}`,
-        );
-        return;
-      }
-
-      const warehouse = await this.inventoryService.getDefaultWarehouse();
-      const warehouseId = warehouse.id;
-
-      for (const item of payload.items) {
-        // Deduct stock for each item (FIFO)
-        await this.inventoryService.deductStock(
-          item.productId,
-          warehouseId,
-          item.quantity,
-          'ORDER',
-          payload.orderId,
-          'system',
-        );
-      }
-      this.logger.log(`Stock reserved for order ${payload.orderId}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to reserve stock for order ${payload.orderId}`,
-        error as Error,
-      );
-      // In production, this would trigger a compensation event
-      throw error;
-    }
+    this.logger.warn(
+      `OrderCreated inventory deduction now handled in transaction. Skipping event handler for order ${payload.orderId}`,
+    );
+    return;
   }
 
   /**

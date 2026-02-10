@@ -18,9 +18,10 @@ import {
 } from './calculation-steps';
 
 import { SessionsModule } from '../sessions/sessions.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
-  imports: [forwardRef(() => SessionsModule)],
+  imports: [forwardRef(() => SessionsModule), InventoryModule],
   controllers: [SalesController],
   providers: [
     SalesService,
