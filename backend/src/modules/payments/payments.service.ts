@@ -138,7 +138,7 @@ export class PaymentsService {
       }
     }
 
-    const metadata: Record<string, unknown> = {};
+    const metadata: Prisma.JsonObject = {};
     if (dto.cardLast4) metadata.cardLast4 = dto.cardLast4;
     if (dto.cardType) metadata.cardType = dto.cardType;
     if (dto.transactionId) metadata.transactionId = dto.transactionId;
@@ -344,7 +344,7 @@ export class PaymentsService {
       }
     }
 
-    const metadata: Record<string, unknown> = {};
+    const metadata: Prisma.JsonObject = {};
     if (dto.cardLast4) metadata.cardLast4 = dto.cardLast4;
     if (dto.cardType) metadata.cardType = dto.cardType;
     if (dto.transactionId) metadata.transactionId = dto.transactionId;
@@ -523,9 +523,9 @@ export class PaymentsService {
     await this.eventBus.publish(
       'RefundProcessed',
       new RefundProcessedEvent(
-        refund.id,
-        refund.paymentId,
-        this.toNumber(refund.amount),
+        updatedRefund.id,
+        updatedRefund.paymentId,
+        this.toNumber(updatedRefund.amount),
       ),
     );
 

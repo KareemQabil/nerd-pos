@@ -48,7 +48,7 @@ export const SkipOwnershipCheck =
 export const ResourceType =
   (type: ResourceType, param = 'id') =>
   (target: any, key?: string, descriptor?: PropertyDescriptor) => {
-    if (descriptor) {
+    if (descriptor && key) {
       SetMetadata(RESOURCE_TYPE_KEY, { type, param })(
         target,
         key,
