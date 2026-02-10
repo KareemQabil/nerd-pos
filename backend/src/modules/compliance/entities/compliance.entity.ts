@@ -14,7 +14,7 @@ export interface InvoiceCompliance {
   previousHash?: string | null; // Hash chain
   signature?: string | null; // Digital signature
   publicKey?: string | null; // Certificate public key
-  xmlContent?: string; // Full UBL 2.1 XML
+  xmlContent?: string | null; // Full UBL 2.1 XML
   qrCodeData?: string; // Base64 TLV
   submittedAt?: Date | null;
   clearanceStatus?: string | null; // CLEARED, REJECTED, REPORTED
