@@ -958,6 +958,7 @@ model ComplianceInvoice {
   invoiceHash      String    @map("invoice_hash") @db.VarChar(255)
   previousHash     String?   @map("previous_hash") @db.VarChar(255)
   qrCode           String    @map("qr_code") @db.Text
+  xmlContent       String?   @map("xml_content") @db.Text
   signedXml        String?   @map("signed_xml") @db.Text
   submissionStatus String    @default("PENDING") @map("submission_status") @db.VarChar(20)
   submittedAt      DateTime? @map("submitted_at")

@@ -30,6 +30,7 @@ function createMockRepository() {
     findPending: jest.fn(),
     countInvoices: jest.fn(),
     findAllOrdered: jest.fn(),
+    getSettings: jest.fn(),
   };
 }
 
@@ -92,6 +93,7 @@ describe('ComplianceService', () => {
       repo.findLastInvoice.mockResolvedValue(lastInvoice);
       repo.countInvoices.mockResolvedValue(0);
       repo.findAllOrdered.mockResolvedValue([]);
+      repo.getSettings.mockResolvedValue(null);
       repo.create.mockResolvedValue(mockInvoice);
 
       const result = await service.generateInvoice('order-1', orderData);
@@ -119,6 +121,7 @@ describe('ComplianceService', () => {
       repo.findLastInvoice.mockResolvedValue(null); // First invoice
       repo.countInvoices.mockResolvedValue(0);
       repo.findAllOrdered.mockResolvedValue([]);
+      repo.getSettings.mockResolvedValue(null);
       repo.create.mockResolvedValue(mockInvoice);
 
       const result = await service.generateInvoice('order-1', orderData);

@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { BaseRepository } from '../../core/repository/base.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { ZATCAInvoice } from './entities/compliance.entity';
+import { ComplianceSettings, ZATCAInvoice } from './entities/compliance.entity';
 
 @Injectable()
 export class ComplianceRepository extends BaseRepository<
@@ -43,5 +43,9 @@ export class ComplianceRepository extends BaseRepository<
     return this.prisma.complianceInvoice.findMany({
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  async getSettings(): Promise<ComplianceSettings | null> {
+    return this.prisma.complianceSettings.findFirst();
   }
 }

@@ -13,8 +13,13 @@ import {
   InvoiceSubmittedEvent,
   HashChainBrokenEvent,
 } from './events/compliance.events';
-import { ZATCAInvoice, HashChainStatus } from './entities/compliance.entity';
+import {
+  ComplianceSettings,
+  ZATCAInvoice,
+  HashChainStatus,
+} from './entities/compliance.entity';
 import * as crypto from 'crypto';
+import Decimal from 'decimal.js';
 
 @Injectable()
 export class ComplianceService {
@@ -49,9 +54,20 @@ export class ComplianceService {
     const lastInvoice = await this.repo.findLastInvoice();
     const previousHash = this.resolveInvoiceHash(lastInvoice) || '0'.repeat(64);
 
+    const settings = await this.repo.getSettings();
+
     const invoiceXML = this.buildInvoiceXML(orderData);
     const currentHash = this.calculateHash(previousHash, invoiceXML);
-    const qrCode = this.generateQRCode(orderData, currentHash);
+    const signature = this.signInvoiceXml(invoiceXML, settings);
+    const signedXml = signature
+      ? this.appendSignature(invoiceXML, signature)
+      : null;
+    const qrCode = this.generateQRCode(
+      orderData,
+      currentHash,
+      signature,
+      settings,
+    );
     const invoiceNumber = await this.generateInvoiceNumber();
 
     const invoice = await this.repo.create({
@@ -60,6 +76,8 @@ export class ComplianceService {
       previousHash,
       invoiceHash: currentHash,
       qrCode,
+      xmlContent: invoiceXML,
+      signedXml,
       submissionStatus: 'PENDING',
     });
 
@@ -70,6 +88,8 @@ export class ComplianceService {
     return this.normalizeInvoice(invoice, {
       currentHash,
       invoiceXML,
+      signedXml,
+      signature,
     });
   }
 
@@ -85,16 +105,92 @@ export class ComplianceService {
       .digest('hex');
   }
 
-  private generateQRCode(orderData: any, hash: string): string {
-    // Base64 encoded TLV per ZATCA spec
-    return Buffer.from(
-      JSON.stringify({ hash: hash.slice(0, 16), total: orderData.grandTotal }),
-    ).toString('base64');
+  private generateQRCode(
+    orderData: any,
+    hash: string,
+    signature: string | null,
+    settings?: ComplianceSettings | null,
+  ): string {
+    // Base64 encoded TLV per ZATCA Phase 1/2
+    const sellerName =
+      orderData?.sellerName ||
+      orderData?.storeName ||
+      orderData?.storeNameEn ||
+      orderData?.storeNameAr ||
+      'Unknown';
+    const vatNumber =
+      orderData?.vatNumber ||
+      settings?.vatNumber ||
+      orderData?.taxNumber ||
+      '';
+    const timestamp =
+      orderData?.issuedAt ||
+      orderData?.createdAt ||
+      new Date().toISOString();
+
+    const total = new Decimal(orderData?.grandTotal || orderData?.total || 0)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)
+      .toFixed(2);
+    const vatTotal = new Decimal(
+      orderData?.taxAmount || orderData?.vatAmount || 0,
+    )
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)
+      .toFixed(2);
+
+    const tags: Array<{ tag: number; value: string }> = [
+      { tag: 1, value: String(sellerName) },
+      { tag: 2, value: String(vatNumber) },
+      { tag: 3, value: String(timestamp) },
+      { tag: 4, value: String(total) },
+      { tag: 5, value: String(vatTotal) },
+    ];
+
+    if (hash) {
+      tags.push({ tag: 6, value: String(hash) });
+    }
+    if (signature) {
+      tags.push({ tag: 7, value: String(signature) });
+    }
+
+    return this.encodeTlv(tags).toString('base64');
   }
 
   private async generateInvoiceNumber(): Promise<string> {
     const count = await this.repo.countInvoices();
     return `INV-${new Date().getFullYear()}-${(count + 1).toString().padStart(6, '0')}`;
+  }
+
+  private encodeTlv(tags: Array<{ tag: number; value: string }>): Buffer {
+    const chunks: Buffer[] = [];
+    for (const { tag, value } of tags) {
+      const valueBytes = Buffer.from(value, 'utf8');
+      const length = valueBytes.length;
+      if (length > 255) {
+        throw new BadRequestException(
+          `TLV value too long for tag ${tag} (length ${length})`,
+        );
+      }
+      chunks.push(Buffer.from([tag]));
+      chunks.push(Buffer.from([length]));
+      chunks.push(valueBytes);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  private signInvoiceXml(
+    xml: string,
+    settings?: ComplianceSettings | null,
+  ): string | null {
+    const privateKey = settings?.zatcaPrivateKey;
+    if (!privateKey) return null;
+    const signer = crypto.createSign('RSA-SHA256');
+    signer.update(xml);
+    signer.end();
+    return signer.sign(privateKey, 'base64');
+  }
+
+  private appendSignature(xml: string, signature: string): string {
+    return `${xml}<Signature>${signature}</Signature>`;
   }
 
   async submitInvoice(invoiceId: string): Promise<ZATCAInvoice> {
@@ -187,7 +283,12 @@ export class ComplianceService {
 
   private normalizeInvoice(
     invoice: ZATCAInvoice,
-    extras?: { currentHash?: string; invoiceXML?: string },
+    extras?: {
+      currentHash?: string;
+      invoiceXML?: string;
+      signedXml?: string | null;
+      signature?: string | null;
+    },
   ): ZATCAInvoice {
     if (!invoice) {
       return invoice;
@@ -202,6 +303,10 @@ export class ComplianceService {
       (invoice as any).invoiceXML ||
       (invoice as any).xmlContent ||
       extras?.invoiceXML;
+    const signedXml =
+      (invoice as any).signedXml ||
+      (invoice as any).signedXML ||
+      extras?.signedXml;
 
     return {
       ...invoice,
@@ -210,6 +315,8 @@ export class ComplianceService {
       invoiceHash: (invoice as any).invoiceHash || currentHash,
       invoiceXML,
       xmlContent: (invoice as any).xmlContent || invoiceXML,
+      signedXML: (invoice as any).signedXML || signedXml,
+      signature: extras?.signature || (invoice as any).signature,
       qrCode: (invoice as any).qrCode || (invoice as any).qrCodeData,
       qrCodeData: (invoice as any).qrCodeData || (invoice as any).qrCode,
       submissionStatus:
