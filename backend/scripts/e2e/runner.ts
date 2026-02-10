@@ -39,6 +39,7 @@ import { runCustomersTests } from './scenarios/06-customers';
 import { runComplianceTests } from './scenarios/07-compliance';
 import { runErrorRecoveryTests } from './scenarios/08-error-recovery';
 import { runAdvancedTests } from './scenarios/09-advanced';
+import { runGrandSimulationTests } from './scenarios/10-grand-simulation';
 
 // ==================== CONFIGURATION ====================
 interface RunnerConfig {
@@ -66,6 +67,7 @@ const SCENARIOS: ScenarioModule[] = [
     { id: '07', name: 'Compliance', run: runComplianceTests },
     { id: '08', name: 'Error Recovery', run: runErrorRecoveryTests },
     { id: '09', name: 'Advanced', run: runAdvancedTests },
+    { id: '10', name: 'Grand Simulation', run: runGrandSimulationTests },
 ];
 
 // ==================== CLI PARSING ====================

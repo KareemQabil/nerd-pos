@@ -24,7 +24,10 @@ function getTypedPrisma(prisma: PrismaService): PrismaClient {
 }
 
 @Injectable()
-export class KitchenRepository extends BaseRepository<KitchenTicket> {
+export class KitchenRepository extends BaseRepository<
+  KitchenTicket,
+  'kitchenTicket'
+> {
   private readonly prismaClient: PrismaClient;
 
   constructor(prisma: PrismaService) {
@@ -32,7 +35,7 @@ export class KitchenRepository extends BaseRepository<KitchenTicket> {
     this.prismaClient = getTypedPrisma(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'kitchenTicket' {
     return 'kitchenTicket';
   }
 

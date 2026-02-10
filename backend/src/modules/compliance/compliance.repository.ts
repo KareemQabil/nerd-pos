@@ -5,39 +5,42 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { ZATCAInvoice } from './entities/compliance.entity';
 
 @Injectable()
-export class ComplianceRepository extends BaseRepository<ZATCAInvoice> {
+export class ComplianceRepository extends BaseRepository<
+  ZATCAInvoice,
+  'complianceInvoice'
+> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
-  protected get model() {
+  protected get model(): 'complianceInvoice' {
     return 'complianceInvoice';
   }
 
   async findByOrder(orderId: string): Promise<ZATCAInvoice | null> {
-    return (this.prisma as any).complianceInvoice.findUnique({
+    return this.prisma.complianceInvoice.findUnique({
       where: { orderId },
     });
   }
 
   async findLastInvoice(): Promise<ZATCAInvoice | null> {
-    return (this.prisma as any).complianceInvoice.findFirst({
+    return this.prisma.complianceInvoice.findFirst({
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async findPending(): Promise<ZATCAInvoice[]> {
-    return (this.prisma as any).complianceInvoice.findMany({
+    return this.prisma.complianceInvoice.findMany({
       where: { submissionStatus: 'PENDING' },
       orderBy: { createdAt: 'asc' },
     });
   }
 
   async countInvoices(): Promise<number> {
-    return (this.prisma as any).complianceInvoice.count();
+    return this.prisma.complianceInvoice.count();
   }
 
   async findAllOrdered(): Promise<ZATCAInvoice[]> {
-    return (this.prisma as any).complianceInvoice.findMany({
+    return this.prisma.complianceInvoice.findMany({
       orderBy: { createdAt: 'asc' },
     });
   }

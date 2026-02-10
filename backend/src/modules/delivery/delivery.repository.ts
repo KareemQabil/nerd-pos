@@ -5,16 +5,16 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { Delivery, DeliveryZone, Driver } from './entities/delivery.entity';
 
 @Injectable()
-export class DeliveryRepository extends BaseRepository<Delivery> {
+export class DeliveryRepository extends BaseRepository<Delivery, 'delivery'> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
-  protected get model() {
+  protected get model(): 'delivery' {
     return 'delivery';
   }
 
   async findByOrder(orderId: string): Promise<Delivery | null> {
-    return (this.prisma as any).delivery.findUnique({ where: { orderId } });
+    return this.prisma.delivery.findUnique({ where: { orderId } });
   }
 
   async findActive(driverId?: string): Promise<Delivery[]> {
@@ -22,7 +22,7 @@ export class DeliveryRepository extends BaseRepository<Delivery> {
       status: { in: ['PENDING', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT'] },
     };
     if (driverId) where.driverId = driverId;
-    return (this.prisma as any).delivery.findMany({
+    return this.prisma.delivery.findMany({
       where,
       orderBy: { createdAt: 'asc' },
     });
@@ -30,45 +30,45 @@ export class DeliveryRepository extends BaseRepository<Delivery> {
 
   // Zones
   async findAllZones(): Promise<DeliveryZone[]> {
-    return (this.prisma as any).deliveryZone.findMany({
+    return this.prisma.deliveryZone.findMany({
       where: { isActive: true },
     });
   }
 
   async findZoneByDistrict(district: string): Promise<DeliveryZone | null> {
-    return (this.prisma as any).deliveryZone.findFirst({
+    return this.prisma.deliveryZone.findFirst({
       where: { districts: { has: district }, isActive: true },
     });
   }
 
   async createZone(data: any): Promise<DeliveryZone> {
-    return (this.prisma as any).deliveryZone.create({
+    return this.prisma.deliveryZone.create({
       data: { ...data, isActive: true },
     });
   }
 
   // Drivers
   async findAllDrivers(): Promise<Driver[]> {
-    return (this.prisma as any).driver.findMany({ where: { isActive: true } });
+    return this.prisma.driver.findMany({ where: { isActive: true } });
   }
 
   async findAvailableDrivers(): Promise<Driver[]> {
-    return (this.prisma as any).driver.findMany({
+    return this.prisma.driver.findMany({
       where: { status: 'AVAILABLE', isActive: true },
     });
   }
 
   async findDriverById(id: string): Promise<Driver | null> {
-    return (this.prisma as any).driver.findUnique({ where: { id } });
+    return this.prisma.driver.findUnique({ where: { id } });
   }
 
   async createDriver(data: any): Promise<Driver> {
-    return (this.prisma as any).driver.create({
+    return this.prisma.driver.create({
       data: { ...data, status: 'OFFLINE', totalDeliveries: 0, isActive: true },
     });
   }
 
   async updateDriver(id: string, data: any): Promise<Driver> {
-    return (this.prisma as any).driver.update({ where: { id }, data });
+    return this.prisma.driver.update({ where: { id }, data });
   }
 }

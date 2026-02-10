@@ -37,7 +37,10 @@ type TxClient = Omit<
 >;
 
 @Injectable()
-export class InventoryRepository extends BaseRepository<InventoryItem> {
+export class InventoryRepository extends BaseRepository<
+  InventoryItem,
+  'inventoryItem'
+> {
   private readonly prismaClient: PrismaClient;
 
   constructor(prisma: PrismaService) {
@@ -45,7 +48,7 @@ export class InventoryRepository extends BaseRepository<InventoryItem> {
     this.prismaClient = getTypedPrisma(prisma);
   }
 
-  protected get model() {
+  protected get model(): 'inventoryItem' {
     return 'inventoryItem';
   }
 
