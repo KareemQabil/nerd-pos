@@ -58,7 +58,6 @@ import {
 } from './calculation-steps';
 
 import { SessionsService } from '../sessions/sessions.service';
-import { forwardRef } from '@nestjs/common';
 import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
@@ -79,7 +78,6 @@ export class SalesService {
     private readonly grandTotalStep: GrandTotalStep,
     private readonly inventoryService: InventoryService,
     private readonly outboxService: OutboxService,
-    @Inject(forwardRef(() => SessionsService))
     private readonly sessionsService: SessionsService,
   ) {
     // Sort steps by order

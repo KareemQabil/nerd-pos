@@ -1,10 +1,9 @@
 // Sales Module
 // Source: FINAL/BACKEND/05-MODULE-SALES.md, 01-create-module workflow
 
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
-import { SalesRepository } from './sales.repository';
 
 // Import 7-step calculation pipeline
 import {
@@ -17,16 +16,16 @@ import {
   GrandTotalStep,
 } from './calculation-steps';
 
-import { SessionsModule } from '../sessions/sessions.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { OutboxModule } from '../../core/outbox/outbox.module';
+import { SessionsModule } from '../sessions/sessions.module';
+import { SalesDataModule } from './sales.data.module';
 
 @Module({
-  imports: [forwardRef(() => SessionsModule), InventoryModule, OutboxModule],
+  imports: [SessionsModule, InventoryModule, OutboxModule, SalesDataModule],
   controllers: [SalesController],
   providers: [
     SalesService,
-    SalesRepository,
     // 7-Step Calculation Pipeline
     ItemSubtotalStep,
     ServiceChargeStep,
@@ -36,6 +35,6 @@ import { OutboxModule } from '../../core/outbox/outbox.module';
     DiscountStep,
     GrandTotalStep,
   ],
-  exports: [SalesService, SalesRepository],
+  exports: [SalesService, SalesDataModule],
 })
 export class SalesModule {}
