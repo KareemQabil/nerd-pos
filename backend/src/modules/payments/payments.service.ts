@@ -173,7 +173,7 @@ export class PaymentsService {
           throw new BadRequestException('Payment exceeds outstanding amount');
         }
 
-        const count = await tx.payment.count({
+        const prePaymentCount = await tx.payment.count({
           where: { orderId: dto.orderId },
         });
 
@@ -205,7 +205,7 @@ export class PaymentsService {
             isSplit: false,
           });
 
-          return { payment: created, prePaymentCount: count };
+          return { payment: created, prePaymentCount };
         },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -259,7 +259,7 @@ export class PaymentsService {
           );
         }
 
-        const count = await tx.payment.count({
+        const prePaymentCount = await tx.payment.count({
           where: { orderId: dto.orderId },
         });
 
@@ -282,20 +282,20 @@ export class PaymentsService {
           results.push(payment);
         }
 
-        await this.outboxService.enqueue(tx, 'PaymentCompleted', {
-          orderId: dto.orderId,
-          sessionId: dto.sessionId,
-          totalAmount: splitTotal.toNumber(),
-          paymentCount: results.length,
-          incrementOrders: prePaymentCount === 0,
-          payments: results.map((payment) => ({
-            paymentId: payment.id,
-            method: payment.paymentMethod,
-            amount: this.toNumber(payment.amount),
-          })),
-        });
+          await this.outboxService.enqueue(tx, 'PaymentCompleted', {
+            orderId: dto.orderId,
+            sessionId: dto.sessionId,
+            totalAmount: splitTotal.toNumber(),
+            paymentCount: results.length,
+            incrementOrders: prePaymentCount === 0,
+            payments: results.map((payment) => ({
+              paymentId: payment.id,
+              method: payment.paymentMethod,
+              amount: this.toNumber(payment.amount),
+            })),
+          });
 
-          return { payments: results, prePaymentCount: count };
+          return { payments: results, prePaymentCount };
         },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );

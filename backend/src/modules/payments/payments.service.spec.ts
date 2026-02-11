@@ -76,6 +76,9 @@ function createMockPrismaService() {
     salesOrder: {
       findUnique: jest.fn(),
     },
+    paymentMethod: {
+      findFirst: jest.fn(),
+    },
     payment: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -84,6 +87,9 @@ function createMockPrismaService() {
       aggregate: jest.fn(),
     },
     refund: {
+      aggregate: jest.fn(),
+      create: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
     },
     $queryRaw: jest.fn(),
@@ -110,6 +116,11 @@ describe('PaymentsService', () => {
 
     prisma.payment.count.mockResolvedValue(0);
     prisma.payment.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    prisma.paymentMethod.findFirst.mockResolvedValue({
+      requiresReference: false,
+      requiresTerminal: false,
+    });
+    prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
     prisma.salesOrder.findUnique.mockResolvedValue({
       id: 'order-1',
       grandTotal: 150,
@@ -289,8 +300,8 @@ describe('PaymentsService', () => {
         status: 'PENDING',
       };
 
-      repo.findById.mockResolvedValue(mockPayment);
-      repo.createRefund.mockResolvedValue(mockRefund);
+      prisma.payment.findUnique.mockResolvedValue(mockPayment);
+      prisma.refund.create.mockResolvedValue(mockRefund);
 
       const result = await service.processRefund({
         paymentId: 'payment-1',
@@ -322,14 +333,10 @@ describe('PaymentsService', () => {
 
       const approvedRefund = { ...mockRefund, status: 'APPROVED' };
 
-      // Initial findById for processRefund
-      repo.findById.mockResolvedValue(mockPayment);
-      repo.createRefund.mockResolvedValue(mockRefund);
-
-      // Mocks for cascaded approveRefund call
-      repo.findRefundById.mockResolvedValue(mockRefund);
-      prisma.refund.update.mockResolvedValue(approvedRefund);
       prisma.payment.findUnique.mockResolvedValue(mockPayment);
+      prisma.refund.create.mockResolvedValue(mockRefund);
+      prisma.refund.findUnique.mockResolvedValue(mockRefund);
+      prisma.refund.update.mockResolvedValue(approvedRefund);
       prisma.payment.update.mockResolvedValue({});
 
       const result = await service.processRefund({
@@ -349,7 +356,8 @@ describe('PaymentsService', () => {
         refundedAmount: 50.0,
       };
 
-      repo.findById.mockResolvedValue(mockPayment);
+      prisma.payment.findUnique.mockResolvedValue(mockPayment);
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 50 } });
 
       await expect(
         service.processRefund({
@@ -362,7 +370,7 @@ describe('PaymentsService', () => {
     });
 
     it('should throw NotFoundException for non-existent payment', async () => {
-      repo.findById.mockResolvedValue(null);
+      prisma.payment.findUnique.mockResolvedValue(null);
 
       await expect(
         service.processRefund({
@@ -390,10 +398,8 @@ describe('PaymentsService', () => {
         refundedAmount: 0,
       };
 
-      // Mock repo.findRefundById for initial check
-      repo.findRefundById.mockResolvedValue(mockRefund);
-
-      // Mock prisma operations inside $transaction
+      prisma.refund.findUnique.mockResolvedValue(mockRefund);
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
       prisma.refund.update.mockResolvedValue({
         ...mockRefund,
         status: 'APPROVED',
@@ -416,7 +422,7 @@ describe('PaymentsService', () => {
         status: 'APPROVED', // Already approved
       };
 
-      repo.findRefundById.mockResolvedValue(mockRefund);
+      prisma.refund.findUnique.mockResolvedValue(mockRefund);
 
       await expect(
         service.approveRefund('refund-1', 'manager-1'),
@@ -484,8 +490,8 @@ describe('PaymentsService', () => {
   describe('getAllPaymentMethods', () => {
     it('should return active payment methods', async () => {
       const methods = [
-        { id: 'method-1', nameEn: 'Cash', nameAr: 'نقدي', type: 'CASH' },
-        { id: 'method-2', nameEn: 'Card', nameAr: 'بطاقة', type: 'CARD' },
+        { id: 'method-1', nameEn: 'Cash', nameAr: 'Ù†Ù‚Ø¯ÙŠ', type: 'CASH' },
+        { id: 'method-2', nameEn: 'Card', nameAr: 'Ø¨Ø·Ø§Ù‚Ø©', type: 'CARD' },
       ];
       repo.findAllMethods.mockResolvedValue(methods);
 
@@ -498,13 +504,15 @@ describe('PaymentsService', () => {
   describe('createPaymentMethod', () => {
     it('should create payment method', async () => {
       const dto = {
+        code: 'WALLET',
         name: 'Apple Pay',
-        nameAr: 'آبل باي',
+        nameAr: 'Apple Pay',
         type: 'WALLET' as const,
       };
 
       repo.createMethod.mockResolvedValue({
         id: 'method-3',
+        code: dto.code,
         nameEn: dto.name,
         nameAr: dto.nameAr,
         type: dto.type,
