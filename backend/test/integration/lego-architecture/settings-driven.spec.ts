@@ -13,11 +13,8 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from '../../../src/core/prisma/prisma.module';
-import { EventBusModule } from '../../../src/core/event-bus/event-bus.module';
-import { SettingsModule } from '../../../src/modules/settings/settings.module';
 import { SettingsService } from '../../../src/modules/settings/settings.service';
+import { SettingsRepository } from '../../../src/modules/settings/settings.repository';
 
 describe('Settings-Driven Behavior Integration (Category E)', () => {
   let module: TestingModule;
@@ -25,11 +22,15 @@ describe('Settings-Driven Behavior Integration (Category E)', () => {
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({ isGlobal: true }),
-        PrismaModule,
-        EventBusModule,
-        SettingsModule,
+      providers: [
+        SettingsService,
+        {
+          provide: SettingsRepository,
+          useValue: {
+            findModuleSetting: jest.fn().mockResolvedValue(null),
+          },
+        },
+        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
       ],
     }).compile();
 

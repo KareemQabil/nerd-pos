@@ -5,6 +5,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import {
@@ -13,14 +14,19 @@ import {
 } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import {
+  createTestOrder,
   createTestProduct,
   createTestSession,
-  cleanupTestData,
 } from '../../helpers/test-helpers';
 
 describe('EB-05: ZATCA Invoice Failure', () => {
   let eventBus: EventBusService;
   let prisma: PrismaService;
+  const sessions = new Map<string, any>();
+  const categories = new Map<string, any>();
+  const products = new Map<string, any>();
+  const orders = new Map<string, any>();
+  const payments = new Map<string, any>();
 
   // Mock handler that fails to generate ZATCA invoice
   class FailingZATCAHandler implements IEventHandler<any> {
@@ -37,10 +43,69 @@ describe('EB-05: ZATCA Invoice Failure', () => {
   }
 
   beforeAll(async () => {
+    const prismaMock: any = {
+      registerSession: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `sess-${sessions.size + 1}`;
+          const session = { id, ...data };
+          sessions.set(id, session);
+          return session;
+        }),
+      },
+      category: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `cat-${categories.size + 1}`;
+          const category = { id, ...data };
+          categories.set(id, category);
+          return category;
+        }),
+      },
+      product: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `prod-${products.size + 1}`;
+          const product = { id, ...data };
+          products.set(id, product);
+          return product;
+        }),
+      },
+      salesOrder: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `order-${orders.size + 1}`;
+          const order = { id, ...data };
+          orders.set(id, order);
+          return order;
+        }),
+        findUnique: jest.fn(async ({ where }: { where: any }) => {
+          return orders.get(where.id) ?? null;
+        }),
+      },
+      payment: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `pay-${payments.size + 1}`;
+          const payment = { id, ...data };
+          payments.set(id, payment);
+          return payment;
+        }),
+        findMany: jest.fn(async ({ where }: { where: any }) => {
+          const result: any[] = [];
+          for (const payment of payments.values()) {
+            if (!where?.orderId || payment.orderId === where.orderId) {
+              result.push(payment);
+            }
+          }
+          return result;
+        }),
+      },
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         EventBusService,
-        PrismaService,
+        { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: EventEmitter2,
+          useValue: { emitAsync: jest.fn() },
+        },
         { provide: 'IEventBus', useExisting: EventBusService },
       ],
     }).compile();
@@ -55,8 +120,13 @@ describe('EB-05: ZATCA Invoice Failure', () => {
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
-    (eventBus as any).handlers.clear();
+    sessions.clear();
+    categories.clear();
+    products.clear();
+    orders.clear();
+    payments.clear();
+    jest.clearAllMocks();
+    (eventBus as any).handlers?.clear?.();
   });
 
   it('should detect when ZATCA invoice generation fails', async () => {
@@ -64,25 +134,20 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     eventBus.subscribe('PaymentReceived', new FailingZATCAHandler());
 
     // Create paid order (should trigger invoice generation)
-    const order = await prisma.salesOrder.create({
-      data: {
-        orderNumber: `ORD-${Date.now()}`,
-        orderType: 'DINE_IN',
-        status: OrderStatus.PAID,
-        sessionId: 'test-session',
-        businessDate: new Date(),
-        businessDate: new Date(),
-        grandTotal: 115, // 100 + 15% VAT
-        tax: 15,
-      },
+    const order = await createTestOrder(prisma, {
+      orderType: 'DINE_IN',
+      status: OrderStatus.PAID,
+      grandTotal: 115, // 100 + 15% VAT
     });
 
     // Publish payment event (triggers invoice generation)
-    await eventBus.publish('PaymentReceived', {
-      orderId: order.id,
-      amount: 115,
-      taxAmount: 15,
-    });
+    await expect(
+      eventBus.publish('PaymentReceived', {
+        orderId: order.id,
+        amount: 115,
+        taxAmount: 15,
+      }),
+    ).rejects.toThrow('Critical event failure');
 
     // Check for failures
     const hasFailures = (eventBus as any).hasFailures?.() ?? false;
@@ -96,11 +161,13 @@ describe('EB-05: ZATCA Invoice Failure', () => {
   it('should alert on compliance failure', async () => {
     eventBus.subscribe('PaymentReceived', new FailingZATCAHandler());
 
-    await eventBus.publish('PaymentReceived', {
-      orderId: 'test-order',
-      amount: 100,
-      vatNumber: '300000000000003',
-    });
+    await expect(
+      eventBus.publish('PaymentReceived', {
+        orderId: 'test-order',
+        amount: 100,
+        vatNumber: '300000000000003',
+      }),
+    ).rejects.toThrow('Critical event failure');
 
     const failures = (eventBus as any).getFailures?.() ?? [];
 
@@ -108,7 +175,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
 
     // Should be marked as critical compliance failure
     const isCritical = failures.some(
-      (f) =>
+      (f: any) =>
         f.error.message.includes('ZATCA') ||
         f.error.message.includes('compliance'),
     );
@@ -119,24 +186,18 @@ describe('EB-05: ZATCA Invoice Failure', () => {
   it('should preserve order when invoice generation fails', async () => {
     eventBus.subscribe('PaymentReceived', new FailingZATCAHandler());
 
-    const order = await prisma.salesOrder.create({
-      data: {
-        orderNumber: `ORD-${Date.now()}`,
-        orderType: 'TAKEAWAY',
-        status: OrderStatus.PAID,
-        sessionId: 'test-session',
-        businessDate: new Date(),
-        businessDate: new Date(),
-        grandTotal: 115,
-        tax: 15,
-        paidAt: new Date(),
-      },
+    const order = await createTestOrder(prisma, {
+      orderType: 'TAKEAWAY',
+      status: OrderStatus.PAID,
+      grandTotal: 115,
     });
 
-    await eventBus.publish('PaymentReceived', {
-      orderId: order.id,
-      amount: 115,
-    });
+    await expect(
+      eventBus.publish('PaymentReceived', {
+        orderId: order.id,
+        amount: 115,
+      }),
+    ).rejects.toThrow('Critical event failure');
 
     // Order should still exist
     const foundOrder = await prisma.salesOrder.findUnique({
@@ -150,18 +211,10 @@ describe('EB-05: ZATCA Invoice Failure', () => {
   it('should track invoice generation status', async () => {
     eventBus.subscribe('PaymentReceived', new SuccessZATCAHandler());
 
-    const order = await prisma.salesOrder.create({
-      data: {
-        orderNumber: `ORD-${Date.now()}`,
-        orderType: 'DINE_IN',
-        status: OrderStatus.PAID,
-        sessionId: 'test-session',
-        businessDate: new Date(),
-        businessDate: new Date(),
-        grandTotal: 115,
-        tax: 15,
-        zatcaInvoiceGenerated: false, // Initially false
-      },
+    const order = await createTestOrder(prisma, {
+      orderType: 'DINE_IN',
+      status: OrderStatus.PAID,
+      grandTotal: 115,
     });
 
     await eventBus.publish('PaymentReceived', {
@@ -189,7 +242,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     eventBus.subscribe('PaymentReceived', new RetryZATCAHandler());
 
     // First attempt fails
-    await eventBus.publish('PaymentReceived', { orderId: 'test-1' });
+    await eventBus.publish('PaymentReceived', { orderId: 'test-1' }).catch(() => undefined);
     expect(attempts).toBe(1);
 
     const failures1 = (eventBus as any).getFailures?.() ?? [];
@@ -198,12 +251,12 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     // Reset and retry
     (eventBus as any).failures = [];
 
-    await eventBus.publish('PaymentReceived', { orderId: 'test-2' });
+    await eventBus.publish('PaymentReceived', { orderId: 'test-2' }).catch(() => undefined);
     expect(attempts).toBe(2);
 
     // Third attempt
     (eventBus as any).failures = [];
-    await eventBus.publish('PaymentReceived', { orderId: 'test-3' });
+    await eventBus.publish('PaymentReceived', { orderId: 'test-3' }).catch(() => undefined);
     expect(attempts).toBe(3);
   });
 
@@ -226,6 +279,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
   });
 
   it('should handle ZATCA API timeout', async () => {
+    jest.useFakeTimers();
     class TimeoutZATCAHandler implements IEventHandler<any> {
       async handle(event: any): Promise<void> {
         // Simulate timeout
@@ -237,13 +291,23 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     eventBus.subscribe('PaymentReceived', new TimeoutZATCAHandler());
 
     // Publish with timeout handling
-    const result = await Promise.race([
-      eventBus.publish('PaymentReceived', { orderId: 'test' }),
-      new Promise((resolve) => setTimeout(() => 'timeout', 1000)),
+    const publishPromise = eventBus
+      .publish('PaymentReceived', { orderId: 'test' })
+      .catch(() => undefined);
+    const resultPromise = Promise.race([
+      publishPromise.then(() => 'done'),
+      new Promise((resolve) => setTimeout(() => resolve('timeout'), 1000)),
     ]);
+
+    jest.advanceTimersByTime(1000);
+    const result = await resultPromise;
 
     // Should handle timeout gracefully
     expect(result).toBe('timeout');
+
+    jest.advanceTimersByTime(35000);
+    await publishPromise;
+    jest.useRealTimers();
   });
 
   it('should queue failed invoices for retry', async () => {
@@ -258,7 +322,7 @@ describe('EB-05: ZATCA Invoice Failure', () => {
     // Process all orders
     for (const order of orders) {
       (eventBus as any).failures = [];
-      await eventBus.publish('PaymentReceived', order);
+      await eventBus.publish('PaymentReceived', order).catch(() => undefined);
     }
 
     // All should fail and be queued for retry
@@ -268,18 +332,10 @@ describe('EB-05: ZATCA Invoice Failure', () => {
   it('should not block payment when invoice generation fails', async () => {
     eventBus.subscribe('PaymentReceived', new FailingZATCAHandler());
 
-    const order = await prisma.salesOrder.create({
-      data: {
-        orderNumber: `ORD-${Date.now()}`,
-        orderType: 'TAKEAWAY',
-        status: OrderStatus.PAID,
-        sessionId: 'test-session',
-        businessDate: new Date(),
-        businessDate: new Date(),
-        grandTotal: 115,
-        tax: 15,
-        paidAt: new Date(),
-      },
+    const order = await createTestOrder(prisma, {
+      orderType: 'TAKEAWAY',
+      status: OrderStatus.PAID,
+      grandTotal: 115,
     });
 
     // Create payment record
@@ -289,13 +345,17 @@ describe('EB-05: ZATCA Invoice Failure', () => {
         amount: 115,
         paymentMethod: 'CASH',
         referenceNumber: 'PAY-1',
+        sessionId: order.sessionId,
+        processedBy: 'user-1',
       },
     });
 
-    await eventBus.publish('PaymentReceived', {
-      orderId: order.id,
-      amount: 115,
-    });
+    await expect(
+      eventBus.publish('PaymentReceived', {
+        orderId: order.id,
+        amount: 115,
+      }),
+    ).rejects.toThrow('Critical event failure');
 
     // Payment should be recorded even if invoice failed
     const payments = await prisma.payment.findMany({

@@ -14,6 +14,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SalesService } from '../../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../../src/modules/sales/sales.repository';
+import { PrismaService } from '../../../../src/core/prisma/prisma.service';
+import { InventoryService } from '../../../../src/modules/inventory/inventory.service';
+import { OutboxService } from '../../../../src/core/outbox/outbox.service';
+import { SessionsService } from '../../../../src/modules/sessions/sessions.service';
 
 // Import calculation step classes (must mock all 7)
 import {
@@ -73,15 +77,41 @@ describe('Workflow 1: Quick Sale', () => {
   let service: SalesService;
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
+  let prisma: {
+    $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
+    $queryRaw: jest.Mock;
+  };
+  let inventoryService: { getDefaultWarehouse: jest.Mock; deductStockWithTx: jest.Mock };
+  let sessionsService: { getCurrentSession: jest.Mock };
+  let outboxService: { enqueue: jest.Mock; flushPending: jest.Mock };
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
+    prisma = {
+      $transaction: jest.fn(),
+      $executeRaw: jest.fn(),
+      $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+    };
+    prisma.$transaction = jest.fn(async (fn: any) => fn(prisma));
+    inventoryService = {
+      getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'wh-1' }),
+      deductStockWithTx: jest.fn().mockResolvedValue(undefined),
+    };
+    sessionsService = {
+      getCurrentSession: jest.fn().mockResolvedValue({ id: 'session-1' }),
+    };
+    outboxService = {
+      enqueue: jest.fn().mockResolvedValue(undefined),
+      flushPending: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SalesService,
         { provide: SalesRepository, useValue: repo },
+        { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
         { provide: ItemSubtotalStep, useValue: createMockStep() },
         { provide: ServiceChargeStep, useValue: createMockStep() },
@@ -90,6 +120,9 @@ describe('Workflow 1: Quick Sale', () => {
         { provide: TaxStep, useValue: createMockStep() },
         { provide: DiscountStep, useValue: createMockStep() },
         { provide: GrandTotalStep, useValue: createMockStep() },
+        { provide: InventoryService, useValue: inventoryService },
+        { provide: OutboxService, useValue: outboxService },
+        { provide: SessionsService, useValue: sessionsService },
       ],
     }).compile();
 
@@ -155,7 +188,8 @@ describe('Workflow 1: Quick Sale', () => {
 
       await service.createOrder(validDto, 'cashier-1');
 
-      expect(eventBus.publish).toHaveBeenCalledWith(
+      expect(outboxService.enqueue).toHaveBeenCalledWith(
+        expect.anything(),
         'OrderCreated',
         expect.anything(),
       );
@@ -168,7 +202,7 @@ describe('Workflow 1: Quick Sale', () => {
       const draftOrder = { id: 'order-1', status: 'DRAFT', items: [] };
       const confirmedOrder = { ...draftOrder, status: 'CONFIRMED' };
 
-      repo.findById.mockResolvedValue(draftOrder);
+      repo.findWithItems.mockResolvedValue(draftOrder);
       repo.update.mockResolvedValue(confirmedOrder);
 
       const result = await service.confirmOrder('order-1');
@@ -178,7 +212,7 @@ describe('Workflow 1: Quick Sale', () => {
 
     it('should publish OrderConfirmed event', async () => {
       const draftOrder = { id: 'order-1', status: 'DRAFT', items: [] };
-      repo.findById.mockResolvedValue(draftOrder);
+      repo.findWithItems.mockResolvedValue(draftOrder);
       repo.update.mockResolvedValue({ ...draftOrder, status: 'CONFIRMED' });
 
       await service.confirmOrder('order-1');
@@ -194,7 +228,7 @@ describe('Workflow 1: Quick Sale', () => {
   describe('1.3: Order Cancellation', () => {
     it('should cancel order with reason', async () => {
       const order = { id: 'order-1', status: 'DRAFT' };
-      repo.findById.mockResolvedValue(order);
+      repo.findWithItems.mockResolvedValue(order);
       repo.update.mockResolvedValue({ ...order, status: 'CANCELLED' });
 
       const result = await service.cancelOrder(

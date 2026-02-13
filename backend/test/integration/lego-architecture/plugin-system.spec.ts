@@ -15,6 +15,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PrismaModule } from '../../../src/core/prisma/prisma.module';
 import { EventBusModule } from '../../../src/core/event-bus/event-bus.module';
 import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
@@ -39,6 +40,7 @@ describe('Plugin System Integration (Category A)', () => {
       module = await Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({ isGlobal: true }),
+          EventEmitterModule.forRoot(),
           PrismaModule,
           EventBusModule,
         ],
@@ -71,6 +73,7 @@ describe('Plugin System Integration (Category A)', () => {
       module = await Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({ isGlobal: true }),
+          EventEmitterModule.forRoot(),
           PrismaModule,
           EventBusModule,
           ProductsModule,
@@ -112,6 +115,7 @@ describe('Plugin System Integration (Category A)', () => {
       const module = await Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({ isGlobal: true }),
+          EventEmitterModule.forRoot(),
           PrismaModule,
           EventBusModule,
           ProductsModule,
@@ -129,6 +133,7 @@ describe('Plugin System Integration (Category A)', () => {
       const module = await Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({ isGlobal: true }),
+          EventEmitterModule.forRoot(),
           PrismaModule,
           EventBusModule,
           ProductsModule,
@@ -153,6 +158,7 @@ describe('Plugin System Integration (Category A)', () => {
       module = await Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({ isGlobal: true }),
+          EventEmitterModule.forRoot(),
           PrismaModule,
           EventBusModule,
         ],
@@ -180,6 +186,7 @@ describe('Plugin System Integration (Category A)', () => {
       const module = await Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({ isGlobal: true }),
+          EventEmitterModule.forRoot(),
           PrismaModule,
           EventBusModule,
           ProductsModule,

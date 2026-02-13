@@ -9,13 +9,13 @@ import { PaymentsService } from '../../../src/modules/payments/payments.service'
 import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PaymentsRepository } from '../../../src/modules/payments/payments.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
+import { OutboxService } from '../../../src/core/outbox/outbox.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
 import {
   createTestProduct,
   createTestSession,
   createTestOrder,
-  cleanupTestData,
 } from '../../helpers/test-helpers';
 import { OrderStatus } from '../../../src/core/constants/enums';
 
@@ -23,14 +23,89 @@ describe('MT-02: Pay Same Order Twice', () => {
   let paymentsService: PaymentsService;
   let salesRepo: SalesRepository;
   let prisma: PrismaService;
+  const sessions = new Map<string, any>();
+  const categories = new Map<string, any>();
+  const products = new Map<string, any>();
+  const orders = new Map<string, any>();
+  const payments = new Map<string, any>();
+  const outboxMock = { enqueue: jest.fn(), flushPending: jest.fn() };
 
   beforeAll(async () => {
+    const prismaMock: any = {
+      registerSession: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `sess-${sessions.size + 1}`;
+          const session = { id, ...data };
+          sessions.set(id, session);
+          return session;
+        }),
+      },
+      category: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `cat-${categories.size + 1}`;
+          const category = { id, ...data };
+          categories.set(id, category);
+          return category;
+        }),
+      },
+      product: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `prod-${products.size + 1}`;
+          const product = { id, ...data };
+          products.set(id, product);
+          return product;
+        }),
+      },
+      salesOrder: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `order-${orders.size + 1}`;
+          const order = { id, ...data };
+          orders.set(id, order);
+          return order;
+        }),
+        findUnique: jest.fn(async ({ where }: { where: any }) => {
+          return orders.get(where.id) ?? null;
+        }),
+        update: jest.fn(async ({ where, data }: { where: any; data: any }) => {
+          const existing = orders.get(where.id);
+          if (!existing) return null;
+          const updated = { ...existing, ...data };
+          orders.set(where.id, updated);
+          return updated;
+        }),
+      },
+      payment: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const alreadyPaid = Array.from(payments.values()).some(
+            (payment) => payment.orderId === data.orderId,
+          );
+          if (alreadyPaid) {
+            throw new Error('Duplicate payment');
+          }
+          const id = `pay-${payments.size + 1}`;
+          const payment = { id, ...data };
+          payments.set(id, payment);
+          return payment;
+        }),
+        findMany: jest.fn(async ({ where }: { where: any }) => {
+          const result: any[] = [];
+          for (const payment of payments.values()) {
+            if (!where?.orderId || payment.orderId === where.orderId) {
+              result.push(payment);
+            }
+          }
+          return result;
+        }),
+      },
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         PaymentsService,
         PaymentsRepository,
         SalesRepository,
-        PrismaService,
+        { provide: OutboxService, useValue: outboxMock },
+        { provide: PrismaService, useValue: prismaMock },
         {
           provide: 'IEventBus',
           useValue: { publish: jest.fn(), subscribe: jest.fn() },
@@ -49,7 +124,12 @@ describe('MT-02: Pay Same Order Twice', () => {
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    sessions.clear();
+    categories.clear();
+    products.clear();
+    orders.clear();
+    payments.clear();
+    jest.clearAllMocks();
   });
 
   it('should prevent duplicate payments on same order', async () => {
@@ -67,7 +147,9 @@ describe('MT-02: Pay Same Order Twice', () => {
           orderId: order.id,
           amount,
           paymentMethod: 'CASH',
-          reference: `PAY-${Date.now()}`,
+          referenceNumber: `PAY-${Date.now()}`,
+          sessionId: order.sessionId,
+          processedBy: 'user-1',
         },
       });
     };
@@ -110,13 +192,15 @@ describe('MT-02: Pay Same Order Twice', () => {
         amount: 100,
         paymentMethod: 'CASH',
         referenceNumber: 'PAY-1',
+        sessionId: order.sessionId,
+        processedBy: 'user-1',
       },
     });
 
     // Update order to PAID
     await prisma.salesOrder.update({
       where: { id: order.id },
-      data: { status: OrderStatus.PAID, paidAt: new Date() },
+      data: { status: OrderStatus.PAID },
     });
 
     // Second payment should fail

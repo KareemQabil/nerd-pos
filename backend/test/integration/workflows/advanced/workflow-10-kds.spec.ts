@@ -11,6 +11,7 @@ import { NotFoundException } from '@nestjs/common';
 import { KitchenService } from '../../../../src/modules/kitchen/kitchen.service';
 import { KitchenRepository } from '../../../../src/modules/kitchen/kitchen.repository';
 import { KitchenGateway } from '../../../../src/modules/kitchen/kitchen.gateway';
+import { PrismaService } from '../../../../src/core/prisma/prisma.service';
 
 function createMockRepository() {
   return {
@@ -57,6 +58,7 @@ describe('Workflow 10: Kitchen Display System', () => {
       providers: [
         KitchenService,
         { provide: KitchenRepository, useValue: repo },
+        { provide: PrismaService, useValue: { $transaction: jest.fn() } },
         { provide: 'IEventBus', useValue: eventBus },
         { provide: KitchenGateway, useValue: gateway },
       ],

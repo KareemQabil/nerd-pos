@@ -4,43 +4,58 @@
  * Tests that cancelled orders cannot be paid
  */
 
-import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
-import { SalesService } from '../../../src/modules/sales/sales.service';
-import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import {
   createTestProduct,
   createTestSession,
   createTestOrder,
-  cleanupTestData,
 } from '../../helpers/test-helpers';
 
 describe('WF-04: Pay Cancelled Order', () => {
-  let salesService: SalesService;
   let prisma: PrismaService;
+  const sessions = new Map<string, any>();
+  const categories = new Map<string, any>();
+  const products = new Map<string, any>();
+  const orders = new Map<string, any>();
 
   beforeAll(async () => {
-    const module = await Test.createTestingModule({
-      providers: [
-        SalesService,
-        SalesRepository,
-        PrismaService,
-        {
-          provide: 'IEventBus',
-          useValue: { publish: jest.fn(), subscribe: jest.fn() },
-        },
-      ],
-    }).compile();
-
-    salesService = module.get<SalesService>(SalesService);
-    prisma = module.get<PrismaService>(PrismaService);
-
-    (salesService as any).sessionsService = {
-      getCurrentSession: jest.fn().mockResolvedValue({ id: 'test-session' }),
+    const prismaMock: any = {
+      registerSession: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `sess-${sessions.size + 1}`;
+          const session = { id, ...data };
+          sessions.set(id, session);
+          return session;
+        }),
+      },
+      category: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `cat-${categories.size + 1}`;
+          const category = { id, ...data };
+          categories.set(id, category);
+          return category;
+        }),
+      },
+      product: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `prod-${products.size + 1}`;
+          const product = { id, ...data };
+          products.set(id, product);
+          return product;
+        }),
+      },
+      salesOrder: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `order-${orders.size + 1}`;
+          const order = { id, ...data };
+          orders.set(id, order);
+          return order;
+        }),
+      },
     };
+
+    prisma = prismaMock as unknown as PrismaService;
   });
 
   beforeEach(async () => {
@@ -49,7 +64,11 @@ describe('WF-04: Pay Cancelled Order', () => {
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    sessions.clear();
+    categories.clear();
+    products.clear();
+    orders.clear();
+    jest.clearAllMocks();
   });
 
   it('should reject payment on CANCELLED order', async () => {

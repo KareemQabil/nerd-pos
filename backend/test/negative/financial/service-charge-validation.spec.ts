@@ -5,11 +5,10 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SalesService } from '../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
+import { OutboxService } from '../../../src/core/outbox/outbox.service';
 import {
   ItemSubtotalStep,
   ServiceChargeStep,
@@ -19,29 +18,43 @@ import {
   DiscountStep,
   GrandTotalStep,
 } from '../../../src/modules/sales/calculation-steps';
+import { InventoryService } from '../../../src/modules/inventory/inventory.service';
 import { SessionsService } from '../../../src/modules/sessions/sessions.service';
-import {
-  createTestProduct,
-  createTestSession,
-  cleanupTestData,
-} from '../../helpers/test-helpers';
 
 describe('FIN-10: Takeaway Service Charge', () => {
   let salesService: SalesService;
-  let prisma: PrismaService;
+  let prisma: { $transaction: jest.Mock; $executeRaw: jest.Mock; $queryRaw: jest.Mock };
+  let outboxService: { enqueue: jest.Mock; flushPending: jest.Mock };
   let sessionId: string;
   let productId: string;
   let productNameEn: string;
   let productNameAr: string;
 
   beforeAll(async () => {
+    const repo = {
+      createWithItems: jest.fn(async (orderData: any, items: any[]) => ({
+        id: `order-${Date.now()}`,
+        ...orderData,
+        items,
+      })),
+    };
+    prisma = {
+      $transaction: jest.fn(),
+      $executeRaw: jest.fn(),
+      $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+    };
+    prisma.$transaction = jest.fn(async (fn: any) => fn(prisma));
+    outboxService = {
+      enqueue: jest.fn().mockResolvedValue(undefined),
+      flushPending: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module = await Test.createTestingModule({
-      imports: [EventEmitterModule.forRoot()],
       providers: [
         SalesService,
-        SalesRepository,
-        PrismaService,
-        EventBusService,
+        { provide: SalesRepository, useValue: repo },
+        { provide: PrismaService, useValue: prisma },
+        { provide: OutboxService, useValue: outboxService },
         ItemSubtotalStep,
         ServiceChargeStep,
         DeliveryChargeStep,
@@ -50,31 +63,39 @@ describe('FIN-10: Takeaway Service Charge', () => {
         DiscountStep,
         GrandTotalStep,
         {
+          provide: InventoryService,
+          useValue: {
+            getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'wh-1' }),
+            deductStockWithTx: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
           provide: SessionsService,
           useValue: { getCurrentSession: jest.fn() },
         },
-        { provide: 'IEventBus', useExisting: EventBusService },
+        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
       ],
     }).compile();
 
     await module.init();
 
     salesService = module.get<SalesService>(SalesService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = module.get<PrismaService>(PrismaService) as unknown as typeof prisma;
   });
 
   beforeEach(async () => {
-    const session = await createTestSession(prisma);
-    sessionId = session.id;
-
-    const product = await createTestProduct(prisma, { price: 100 });
-    productId = product.id;
-    productNameEn = product.nameEn || 'Test Product';
-    productNameAr = product.nameAr || 'Test Product AR';
+    sessionId = `sess-${Date.now()}`;
+    productId = `prod-${Date.now()}`;
+    productNameEn = 'Test Product';
+    productNameAr = 'Test Product AR';
+    jest
+      .spyOn(salesService as any, 'generateOrderNumber')
+      .mockResolvedValue(`TEST-${Date.now()}`);
   });
 
-  afterEach(async () => {
-    await cleanupTestData(prisma);
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   it('should not apply service charge to TAKEAWAY order', async () => {

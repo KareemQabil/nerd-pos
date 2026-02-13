@@ -14,6 +14,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SalesService } from '../../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../../src/modules/sales/sales.repository';
+import { OrderStatus } from '../../../../src/core/constants/enums';
+import { PrismaService } from '../../../../src/core/prisma/prisma.service';
+import { InventoryService } from '../../../../src/modules/inventory/inventory.service';
+import { OutboxService } from '../../../../src/core/outbox/outbox.service';
+import { SessionsService } from '../../../../src/modules/sessions/sessions.service';
 
 import {
   ItemSubtotalStep,
@@ -56,6 +61,14 @@ function createMockEventBus() {
   };
 }
 
+function createMockPrisma() {
+  return {
+    $transaction: jest.fn(async (fn: (tx: Record<string, unknown>) => unknown) => fn({})),
+    $executeRaw: jest.fn(),
+    $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+  };
+}
+
 function createMockStep() {
   return {
     execute: jest.fn((ctx) => Promise.resolve(ctx)),
@@ -66,15 +79,18 @@ describe('Workflow 2: Dine-In Order with Table', () => {
   let service: SalesService;
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
+  let prisma: ReturnType<typeof createMockPrisma>;
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
+    prisma = createMockPrisma();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SalesService,
         { provide: SalesRepository, useValue: repo },
+        { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
         { provide: ItemSubtotalStep, useValue: createMockStep() },
         { provide: ServiceChargeStep, useValue: createMockStep() },
@@ -83,6 +99,26 @@ describe('Workflow 2: Dine-In Order with Table', () => {
         { provide: TaxStep, useValue: createMockStep() },
         { provide: DiscountStep, useValue: createMockStep() },
         { provide: GrandTotalStep, useValue: createMockStep() },
+        {
+          provide: InventoryService,
+          useValue: {
+            getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'wh-1' }),
+            deductStockWithTx: jest.fn(),
+          },
+        },
+        {
+          provide: OutboxService,
+          useValue: {
+            enqueue: jest.fn(),
+            flushPending: jest.fn(),
+          },
+        },
+        {
+          provide: SessionsService,
+          useValue: {
+            getCurrentSession: jest.fn().mockResolvedValue({ id: 'sess-1' }),
+          },
+        },
       ],
     }).compile();
 
@@ -134,8 +170,21 @@ describe('Workflow 2: Dine-In Order with Table', () => {
   // ==================== 2.2: ORDER STATUS FLOW ====================
   describe('2.2: Order Status Flow', () => {
     it('should confirm order (DRAFT → CONFIRMED)', async () => {
-      const draftOrder = { id: 'order-1', status: 'DRAFT', items: [] };
-      repo.findById.mockResolvedValue(draftOrder);
+      const draftOrder = {
+        id: 'order-1',
+        orderNumber: 'ORD-1',
+        status: 'DRAFT',
+        grandTotal: 100,
+        items: [
+          {
+            productId: 'p1',
+            productNameEn: 'Kabsa',
+            productNameAr: 'كبسة',
+            quantity: 1,
+          },
+        ],
+      };
+      repo.findWithItems.mockResolvedValue(draftOrder);
       repo.update.mockResolvedValue({ ...draftOrder, status: 'CONFIRMED' });
 
       const result = await service.confirmOrder('order-1');
@@ -144,34 +193,55 @@ describe('Workflow 2: Dine-In Order with Table', () => {
     });
 
     it('should update status to PREPARING', async () => {
-      const order = { id: 'order-1', status: 'CONFIRMED' };
+      const order = {
+        id: 'order-1',
+        orderNumber: 'ORD-1',
+        status: OrderStatus.CONFIRMED,
+        grandTotal: 120,
+        items: [{ productId: 'p1', quantity: 1 }],
+      };
       repo.findById.mockResolvedValue(order);
-      repo.update.mockResolvedValue({ ...order, status: 'PREPARING' });
+      repo.findWithItems.mockResolvedValue(order);
+      repo.update.mockResolvedValue({ ...order, status: OrderStatus.PREPARING });
 
       const result = await service.updateStatus('order-1', {
-        status: 'PREPARING',
+        status: OrderStatus.PREPARING,
       });
 
       expect(result.status).toBe('PREPARING');
     });
 
     it('should update status to READY', async () => {
-      const order = { id: 'order-1', status: 'PREPARING' };
+      const order = {
+        id: 'order-1',
+        orderNumber: 'ORD-1',
+        status: OrderStatus.PREPARING,
+        grandTotal: 120,
+        items: [{ productId: 'p1', quantity: 1 }],
+      };
       repo.findById.mockResolvedValue(order);
-      repo.update.mockResolvedValue({ ...order, status: 'READY' });
+      repo.findWithItems.mockResolvedValue(order);
+      repo.update.mockResolvedValue({ ...order, status: OrderStatus.READY });
 
-      const result = await service.updateStatus('order-1', { status: 'READY' });
+      const result = await service.updateStatus('order-1', { status: OrderStatus.READY });
 
       expect(result.status).toBe('READY');
     });
 
     it('should complete order (READY → COMPLETED)', async () => {
-      const order = { id: 'order-1', status: 'READY' };
+      const order = {
+        id: 'order-1',
+        orderNumber: 'ORD-1',
+        status: OrderStatus.READY,
+        grandTotal: 120,
+        items: [{ productId: 'p1', quantity: 1 }],
+      };
       repo.findById.mockResolvedValue(order);
-      repo.update.mockResolvedValue({ ...order, status: 'COMPLETED' });
+      repo.findWithItems.mockResolvedValue(order);
+      repo.update.mockResolvedValue({ ...order, status: OrderStatus.COMPLETED });
 
       const result = await service.updateStatus('order-1', {
-        status: 'COMPLETED',
+        status: OrderStatus.COMPLETED,
       });
 
       expect(result.status).toBe('COMPLETED');
@@ -183,11 +253,20 @@ describe('Workflow 2: Dine-In Order with Table', () => {
     it('should publish OrderConfirmed for kitchen', async () => {
       const order = {
         id: 'order-1',
+        orderNumber: 'ORD-1',
+        grandTotal: 95,
         status: 'DRAFT',
         type: 'DINE_IN',
-        items: [],
+        items: [
+          {
+            productId: 'p1',
+            productNameEn: 'Kabsa',
+            productNameAr: 'كبسة',
+            quantity: 1,
+          },
+        ],
       };
-      repo.findById.mockResolvedValue(order);
+      repo.findWithItems.mockResolvedValue(order);
       repo.update.mockResolvedValue({ ...order, status: 'CONFIRMED' });
 
       await service.confirmOrder('order-1');
@@ -227,7 +306,10 @@ describe('Workflow 2: Dine-In Order with Table', () => {
       repo.update.mockResolvedValue(order);
       repo.findWithItems.mockResolvedValue({
         ...order,
-        items: [{ id: 'item-1' }, { id: 'item-2', ...newItem }],
+        items: [
+          { id: 'item-1', productId: 'p1', price: 45, quantity: 1 },
+          { id: 'item-2', ...newItem },
+        ],
       });
 
       const result = await service.addItem('order-1', newItem);

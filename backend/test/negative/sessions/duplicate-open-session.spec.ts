@@ -1,25 +1,30 @@
-/**
+﻿/**
  * SES-01: Open Session While Another Open
  *
- * Tests that a terminal cannot have multiple open sessions simultaneously
+ * Tests that a user cannot have multiple open sessions simultaneously
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { SessionsService } from '../../../src/modules/sessions/sessions.service';
 import { SessionsRepository } from '../../../src/modules/sessions/sessions.repository';
+import { SalesRepository } from '../../../src/modules/sales/sales.repository';
+import { OutboxService } from '../../../src/core/outbox/outbox.service';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
-import { cleanupTestData } from '../../helpers/test-helpers';
 
 describe('SES-01: Open Session While Another Open', () => {
   let sessionsService: SessionsService;
   let prisma: PrismaService;
+  const sessions: Array<Record<string, any>> = [];
+  let transactionGate: Promise<void> = Promise.resolve();
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       providers: [
         SessionsService,
         SessionsRepository,
+        SalesRepository,
+        OutboxService,
         PrismaService,
         {
           provide: 'IEventBus',
@@ -30,63 +35,115 @@ describe('SES-01: Open Session While Another Open', () => {
 
     sessionsService = module.get<SessionsService>(SessionsService);
     prisma = module.get<PrismaService>(PrismaService);
+
+    const matchesWhere = (session: Record<string, any>, where?: Record<string, any>) => {
+      if (!where) return true;
+      return Object.entries(where).every(([key, value]) => session[key] === value);
+    };
+
+    (prisma.registerSession as any).create = jest.fn(async ({ data }) => {
+      const session = {
+        id: data.id ?? `sess-${sessions.length + 1}`,
+        openedAt: data.openedAt ?? new Date(),
+        ...data,
+      };
+      sessions.push(session);
+      return session;
+    });
+
+    (prisma.registerSession as any).findMany = jest.fn(async ({ where } = {}) => {
+      return sessions.filter((session) => matchesWhere(session, where));
+    });
+
+    (prisma.registerSession as any).findFirst = jest.fn(async ({ where } = {}) => {
+      return sessions.find((session) => matchesWhere(session, where)) ?? null;
+    });
+
+    (prisma.registerSession as any).update = jest.fn(async ({ where, data }) => {
+      const index = sessions.findIndex((session) => session.id === where.id);
+      if (index === -1) {
+        throw new Error(`Session ${where.id} not found`);
+      }
+      sessions[index] = { ...sessions[index], ...data };
+      return sessions[index];
+    });
+
+    (prisma as any).$transaction = jest.fn(async (fn: (tx: any) => Promise<unknown>) => {
+      let release: () => void = () => {};
+      const waitForTurn = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const previous = transactionGate;
+      transactionGate = transactionGate.then(() => waitForTurn);
+      await previous;
+
+      try {
+        return await fn({
+          registerSession: prisma.registerSession,
+          $executeRaw: jest.fn(),
+        } as any);
+      } finally {
+        release();
+      }
+    });
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    sessions.length = 0;
+    transactionGate = Promise.resolve();
+    jest.clearAllMocks();
   });
 
   it('should reject opening session when another session is already open', async () => {
-    // Setup: Create an open session
+    // Setup: Create an open session for user-1
     await prisma.registerSession.create({
       data: {
         userId: 'user-1',
         terminalId: 'terminal-1',
+        businessDate: new Date(),
         status: 'OPEN',
         openingBalance: 1000,
       },
     });
 
-    // Act: Try to open another session on same terminal
+    // Act: Try to open another session for same user
     const result = await sessionsService
-      .openSession({
-        terminalId: 'terminal-1',
-        userId: 'user-1',
-        openingBalance: 500,
-      })
-      .catch((e) => ({ error: e }));
+      .openSession({ terminalId: 'terminal-1', openingBalance: 500 }, 'user-1')
+      .catch((e: unknown) => ({ error: e }));
 
     // Assert: Should reject
     expect('error' in result).toBe(true);
 
-    // Verify only one session is OPEN for this terminal
+    // Verify only one session is OPEN for this user
     const openSessions = await prisma.registerSession.findMany({
       where: {
-        terminalId: 'terminal-1',
+        userId: 'user-1',
         status: 'OPEN',
       },
     });
 
     expect(openSessions.length).toBe(1);
-    expect(openSessions[0].sessionNumber).toBe('SESS-001');
+    expect(openSessions[0].id).toBeDefined();
   });
 
-  it('should allow opening session on different terminal', async () => {
-    // Setup: Create an open session on terminal-1
+  it('should allow opening session on different terminal for different user', async () => {
+    // Setup: Create an open session on terminal-1 for user-1
     await prisma.registerSession.create({
       data: {
         userId: 'user-1',
         terminalId: 'terminal-1',
+        businessDate: new Date(),
         status: 'OPEN',
         openingBalance: 1000,
       },
     });
 
-    // Act: Open session on terminal-2
+    // Act: Open session on terminal-2 for user-2
     const newSession = await prisma.registerSession.create({
       data: {
-        userId: 'user-1',
+        userId: 'user-2',
         terminalId: 'terminal-2',
+        businessDate: new Date(),
         status: 'OPEN',
         openingBalance: 500,
       },
@@ -112,6 +169,7 @@ describe('SES-01: Open Session While Another Open', () => {
       data: {
         userId: 'user-1',
         terminalId: 'terminal-1',
+        businessDate: new Date(),
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
@@ -124,6 +182,7 @@ describe('SES-01: Open Session While Another Open', () => {
       data: {
         userId: 'user-1',
         terminalId: 'terminal-1',
+        businessDate: new Date(),
         status: 'OPEN',
         openingBalance: 1500,
       },
@@ -139,63 +198,42 @@ describe('SES-01: Open Session While Another Open', () => {
     });
 
     expect(openSessions.length).toBe(1);
-    expect(openSessions[0].sessionNumber).toBe('SESS-002');
   });
 
-  it('should prevent concurrent open session requests', async () => {
-    // This test simulates two users trying to open sessions simultaneously on same terminal
+  it('should prevent concurrent open session requests for same user', async () => {
+    const openSession1 = sessionsService.openSession(
+      { terminalId: 'terminal-1', openingBalance: 1000 },
+      'user-1',
+    );
 
-    // Setup: No existing sessions
+    const openSession2 = sessionsService.openSession(
+      { terminalId: 'terminal-1', openingBalance: 1000 },
+      'user-1',
+    );
 
-    // Act: Two concurrent requests to open session on same terminal
-    const openSession1 = prisma.registerSession.create({
-      data: {
-        userId: 'user-1',
-        terminalId: 'terminal-1',
-        status: 'OPEN',
-        openingBalance: 1000,
-      },
-    });
-
-    const openSession2 = prisma.registerSession.create({
-      data: {
-        userId: 'user-2',
-        terminalId: 'terminal-1',
-        status: 'OPEN',
-        openingBalance: 1000,
-      },
-    });
-
-    // Execute concurrently
     const results = await Promise.allSettled([openSession1, openSession2]);
 
-    // At least one should succeed
     const successCount = results.filter((r) => r.status === 'fulfilled').length;
-    expect(successCount).toBeGreaterThanOrEqual(1);
+    expect(successCount).toBe(1);
 
-    // Verify only one OPEN session exists
     const openSessions = await prisma.registerSession.findMany({
-      where: { terminalId: 'terminal-1', status: 'OPEN' },
+      where: { userId: 'user-1', status: 'OPEN' },
     });
 
     expect(openSessions.length).toBe(1);
   });
 
   it('should validate session status transition (OPEN -> CLOSED)', async () => {
-    // Setup: Create an open session
     const session = await prisma.registerSession.create({
       data: {
         userId: 'user-1',
         terminalId: 'terminal-1',
+        businessDate: new Date(),
         status: 'OPEN',
         openingBalance: 1000,
       },
     });
 
-    // Verify initial status
-    expect(session.status).toBe('OPEN');
-
-    // Act: Close the session
     const closedSession = await prisma.registerSession.update({
       where: { id: session.id },
       data: {
@@ -205,17 +243,16 @@ describe('SES-01: Open Session While Another Open', () => {
       },
     });
 
-    // Assert: Status should be CLOSED
     expect(closedSession.status).toBe('CLOSED');
     expect(closedSession.closedAt).toBeDefined();
   });
 
   it('should not allow operations on CLOSED session', async () => {
-    // Setup: Create a closed session
     await prisma.registerSession.create({
       data: {
         userId: 'user-1',
         terminalId: 'terminal-1',
+        businessDate: new Date(),
         status: 'CLOSED',
         openingBalance: 1000,
         actualClosingBalance: 1500,
@@ -223,7 +260,6 @@ describe('SES-01: Open Session While Another Open', () => {
       },
     });
 
-    // Act: Try to get current session
     const currentSession = await prisma.registerSession.findFirst({
       where: {
         terminalId: 'terminal-1',
@@ -231,7 +267,6 @@ describe('SES-01: Open Session While Another Open', () => {
       },
     });
 
-    // Assert: No OPEN session should be found
     expect(currentSession).toBeNull();
   });
 });

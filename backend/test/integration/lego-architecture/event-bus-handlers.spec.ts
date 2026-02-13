@@ -13,6 +13,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
 import { EventBusModule } from '../../../src/core/event-bus/event-bus.module';
 import { IEventHandler } from '../../../src/core/event-bus/event-bus.interface';
@@ -25,7 +26,7 @@ describe('Event Bus Multi-Handler Integration (Category B)', () => {
   beforeEach(async () => {
     // Fresh EventBusService for each test (clean handler registry)
     module = await Test.createTestingModule({
-      imports: [EventBusModule],
+      imports: [EventEmitterModule.forRoot(), EventBusModule],
     }).compile();
 
     eventBus = module.get<EventBusService>('IEventBus');

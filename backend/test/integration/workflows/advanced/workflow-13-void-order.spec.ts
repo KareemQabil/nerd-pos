@@ -9,6 +9,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { SalesService } from '../../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../../src/modules/sales/sales.repository';
+import { PrismaService } from '../../../../src/core/prisma/prisma.service';
+import { OutboxService } from '../../../../src/core/outbox/outbox.service';
+import { InventoryService } from '../../../../src/modules/inventory/inventory.service';
+import { SessionsService } from '../../../../src/modules/sessions/sessions.service';
 import { ItemSubtotalStep } from '../../../../src/modules/sales/calculation-steps/item-subtotal.step';
 import { ServiceChargeStep } from '../../../../src/modules/sales/calculation-steps/service-charge.step';
 import { DeliveryChargeStep } from '../../../../src/modules/sales/calculation-steps/delivery-charge.step';
@@ -53,6 +57,19 @@ describe('Workflow 13: Void Order After Kitchen Start', () => {
       providers: [
         SalesService,
         { provide: SalesRepository, useValue: repo },
+        { provide: PrismaService, useValue: { $transaction: jest.fn() } },
+        { provide: OutboxService, useValue: { enqueue: jest.fn(), flushPending: jest.fn() } },
+        {
+          provide: InventoryService,
+          useValue: {
+            getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'wh-1' }),
+            deductStockWithTx: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: SessionsService,
+          useValue: { getCurrentSession: jest.fn().mockResolvedValue({ id: 'test-session' }) },
+        },
         { provide: 'IEventBus', useValue: eventBus },
         { provide: ItemSubtotalStep, useValue: createPassThroughStep() },
         { provide: ServiceChargeStep, useValue: createPassThroughStep() },
@@ -76,9 +93,10 @@ describe('Workflow 13: Void Order After Kitchen Start', () => {
         id: 'order-1',
         status: 'DRAFT',
         type: 'DINE_IN',
+        payments: [],
       };
 
-      repo.findById.mockResolvedValue(pendingOrder);
+      repo.findWithItems.mockResolvedValue(pendingOrder);
       repo.update.mockResolvedValue({ ...pendingOrder, status: 'CANCELLED' });
 
       const result = await service.cancelOrder('order-1', 'Customer left');
@@ -98,9 +116,10 @@ describe('Workflow 13: Void Order After Kitchen Start', () => {
         id: 'order-1',
         status: 'CONFIRMED',
         type: 'DINE_IN',
+        payments: [],
       };
 
-      repo.findById.mockResolvedValue(confirmedOrder);
+      repo.findWithItems.mockResolvedValue(confirmedOrder);
       repo.update.mockResolvedValue({ ...confirmedOrder, status: 'CANCELLED' });
 
       const result = await service.cancelOrder('order-1', 'Wrong order');
@@ -116,9 +135,10 @@ describe('Workflow 13: Void Order After Kitchen Start', () => {
         id: 'order-1',
         status: 'COMPLETED',
         type: 'DINE_IN',
+        payments: [],
       };
 
-      repo.findById.mockResolvedValue(completedOrder);
+      repo.findWithItems.mockResolvedValue(completedOrder);
 
       await expect(service.cancelOrder('order-1', 'Test')).rejects.toThrow(
         BadRequestException,
@@ -129,7 +149,7 @@ describe('Workflow 13: Void Order After Kitchen Start', () => {
   // ==================== 13.4: EVENT PUBLISHING ====================
   describe('13.4: Event Publishing', () => {
     it('should publish OrderCancelled event', async () => {
-      repo.findById.mockResolvedValue({ id: 'order-1', status: 'DRAFT' });
+      repo.findWithItems.mockResolvedValue({ id: 'order-1', status: 'DRAFT', payments: [] });
       repo.update.mockResolvedValue({ id: 'order-1', status: 'CANCELLED' });
 
       await service.cancelOrder('order-1', 'Reason');

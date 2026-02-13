@@ -34,9 +34,5 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false
-  },
-  "exclude": [
-    "test/negative/**",
-    "test/integration/**"
-  ]
+  }
 }

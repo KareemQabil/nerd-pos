@@ -28,6 +28,7 @@ function createMockRepository() {
     findPending: jest.fn(),
     countInvoices: jest.fn(),
     findAllOrdered: jest.fn(),
+    getSettings: jest.fn().mockResolvedValue(null),
   };
 }
 

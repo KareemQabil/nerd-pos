@@ -10,22 +10,98 @@ import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
+import { OutboxService } from '../../../src/core/outbox/outbox.service';
+import { InventoryService } from '../../../src/modules/inventory/inventory.service';
+import { SessionsService } from '../../../src/modules/sessions/sessions.service';
 import {
-  createTestProduct,
-  createTestSession,
-  cleanupTestData,
-} from '../../helpers/test-helpers';
+  ItemSubtotalStep,
+  ServiceChargeStep,
+  DeliveryChargeStep,
+  SubtotalBeforeTaxStep,
+  TaxStep,
+  DiscountStep,
+  GrandTotalStep,
+} from '../../../src/modules/sales/calculation-steps';
+
+function createMockStep() {
+  return {
+    order: 0,
+    execute: jest.fn(async (ctx) => ctx),
+  };
+}
 
 describe('MT-01: Same Order Number Concurrent', () => {
   let salesService: SalesService;
   let prisma: PrismaService;
+  let productId: string;
+  let orderSeq = 0;
+  const orders = new Map<string, any>();
+  const outboxMock = { enqueue: jest.fn(), flushPending: jest.fn() };
 
   beforeAll(async () => {
+    const assertUniqueOrderNumber = (orderNumber: string) => {
+      for (const order of orders.values()) {
+        if (order.orderNumber === orderNumber) {
+          throw new Error(
+            'Unique constraint failed on the fields: (`orderNumber`)',
+          );
+        }
+      }
+    };
+
+    const prismaMock: any = {
+      $executeRaw: jest.fn(),
+      $queryRaw: jest.fn(),
+      salesOrder: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          assertUniqueOrderNumber(data.orderNumber);
+          const id = data.id ?? `order-${orders.size + 1}`;
+          const order = { id, ...data };
+          orders.set(id, order);
+          return order;
+        }),
+        findMany: jest.fn(async () => Array.from(orders.values())),
+      },
+    };
+
+    prismaMock.$transaction = jest.fn(
+      async (fn: (tx: any) => Promise<any>) => fn(prismaMock),
+    );
+
+    const repoMock = {
+      createWithItems: jest.fn(async (data: any, items: any[]) => {
+        assertUniqueOrderNumber(data.orderNumber);
+        const id = data.id ?? `order-${orders.size + 1}`;
+        const order = { id, ...data, items };
+        orders.set(id, order);
+        return order;
+      }),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         SalesService,
-        SalesRepository,
-        PrismaService,
+        { provide: SalesRepository, useValue: repoMock },
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: OutboxService, useValue: outboxMock },
+        { provide: ItemSubtotalStep, useValue: createMockStep() },
+        { provide: ServiceChargeStep, useValue: createMockStep() },
+        { provide: DeliveryChargeStep, useValue: createMockStep() },
+        { provide: SubtotalBeforeTaxStep, useValue: createMockStep() },
+        { provide: TaxStep, useValue: createMockStep() },
+        { provide: DiscountStep, useValue: createMockStep() },
+        { provide: GrandTotalStep, useValue: createMockStep() },
+        {
+          provide: InventoryService,
+          useValue: {
+            getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'wh-1' }),
+            deductStockWithTx: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: SessionsService,
+          useValue: { getCurrentSession: jest.fn().mockResolvedValue({ id: 'test-session' }) },
+        },
         {
           provide: 'IEventBus',
           useValue: { publish: jest.fn(), subscribe: jest.fn() },
@@ -34,20 +110,24 @@ describe('MT-01: Same Order Number Concurrent', () => {
     }).compile();
 
     salesService = module.get<SalesService>(SalesService);
-    prisma = module.get<PrismaService>(PrismaService);
-
-    (salesService as any).sessionsService = {
-      getCurrentSession: jest.fn().mockResolvedValue({ id: 'test-session' }),
-    };
+    prisma = module.get<PrismaService>(PrismaService) as unknown as PrismaService;
   });
 
   beforeEach(async () => {
-    await createTestSession(prisma);
-    await createTestProduct(prisma);
+    orderSeq = 0;
+    productId = 'prod-1';
+    jest
+      .spyOn(salesService as any, 'generateOrderNumber')
+      .mockImplementation(async () => {
+        orderSeq += 1;
+        return `ORD-TEST-${orderSeq.toString().padStart(3, '0')}`;
+      });
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    orders.clear();
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   it('should generate unique order numbers for concurrent orders', async () => {
@@ -57,7 +137,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
       businessDate: new Date(),
       items: [
         {
-          productId: 'prod-1',
+          productId: productId,
           name: 'Test Product',
           nameAr: 'منتج تجريبي',
           price: 50,
@@ -92,7 +172,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
       businessDate: new Date(),
       items: [
         {
-          productId: 'prod-1',
+          productId: productId,
           name: 'Test Product',
           nameAr: 'منتج تجريبي',
           price: 50,
@@ -131,7 +211,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
-        businessDate: new Date(),
+        taxRate: 0.15,
         grandTotal: 0,
       },
     });
@@ -146,7 +226,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
-        businessDate: new Date(),
+        taxRate: 0.15,
         grandTotal: 0,
       },
     });
@@ -163,7 +243,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
-        businessDate: new Date(),
+        taxRate: 0.15,
         grandTotal: 0,
       },
     });
@@ -177,11 +257,11 @@ describe('MT-01: Same Order Number Concurrent', () => {
           status: 'DRAFT',
           sessionId: 'test-session',
           businessDate: new Date(),
-          businessDate: new Date(),
+          taxRate: 0.15,
           grandTotal: 0,
         },
       })
-      .catch((e) => ({ error: e }));
+      .catch((e: unknown) => ({ error: e }));
 
     // Assert: Should fail due to unique constraint
     expect('error' in result).toBe(true);
@@ -196,7 +276,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
-        businessDate: new Date(),
+        taxRate: 0.15,
         grandTotal: 0,
       },
     });
@@ -215,8 +295,8 @@ describe('MT-01: Same Order Number Concurrent', () => {
         orderType: 'TAKEAWAY',
         status: 'DRAFT',
         sessionId: 'test-session',
-        businessDate: new Date(),
         businessDate: today,
+        taxRate: 0.15,
         grandTotal: 0,
       },
     });
@@ -235,7 +315,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
-        businessDate: new Date(),
+        taxRate: 0.15,
         grandTotal: 0,
       },
     });
@@ -247,7 +327,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
-        businessDate: new Date(),
+        taxRate: 0.15,
         grandTotal: 0,
       },
     });
@@ -260,7 +340,7 @@ describe('MT-01: Same Order Number Concurrent', () => {
         status: 'DRAFT',
         sessionId: 'test-session',
         businessDate: new Date(),
-        businessDate: new Date(),
+        taxRate: 0.15,
         grandTotal: 0,
       },
     });
@@ -268,3 +348,4 @@ describe('MT-01: Same Order Number Concurrent', () => {
     expect(nextOrder.orderNumber).toBe('ORD-004');
   });
 });
+

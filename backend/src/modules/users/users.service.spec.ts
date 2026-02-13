@@ -29,6 +29,7 @@ function createMockRepository() {
     findManagerByPin: jest.fn(),
     // Auth logs
     createAuthLog: jest.fn(),
+    countFailedAuthAttempts: jest.fn().mockResolvedValue(0),
     // Roles & Permissions
     findAllRoles: jest.fn(),
     findRoleById: jest.fn(),

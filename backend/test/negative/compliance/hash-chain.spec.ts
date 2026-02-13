@@ -8,25 +8,56 @@ import { Test } from '@nestjs/testing';
 import { InternalServerErrorException } from '@nestjs/common';
 import { ComplianceService } from '../../../src/modules/compliance/compliance.service';
 import { ComplianceRepository } from '../../../src/modules/compliance/compliance.repository';
-import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import * as crypto from 'crypto';
 import { generateTestId } from '../../helpers/test-helpers';
 
 describe('COMP-01: ZATCA Hash Chain Verification', () => {
   let service: ComplianceService;
-  let prisma: PrismaService;
-  const createdInvoiceIds: string[] = [];
+  let repo: {
+    create: jest.Mock;
+    findByOrder: jest.Mock;
+    findLastInvoice: jest.Mock;
+    findAllOrdered: jest.Mock;
+    getSettings: jest.Mock;
+  };
+  const invoices: any[] = [];
 
   const zeroHash = '0'.repeat(64);
   const hash = (input: string) =>
     crypto.createHash('sha256').update(input).digest('hex');
 
   beforeAll(async () => {
+    repo = {
+      create: jest.fn(async (data: any) => {
+        const invoice = {
+          id: data.id ?? `inv-${invoices.length + 1}`,
+          createdAt: data.createdAt ?? new Date(),
+          ...data,
+        };
+        invoices.push(invoice);
+        return invoice;
+      }),
+      findByOrder: jest.fn(async (orderId: string) => {
+        return invoices.find((inv) => inv.orderId === orderId) ?? null;
+      }),
+      findLastInvoice: jest.fn(async () => {
+        const sorted = [...invoices].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+        return sorted[sorted.length - 1] ?? null;
+      }),
+      findAllOrdered: jest.fn(async () => {
+        return [...invoices].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+      }),
+      getSettings: jest.fn(async () => null),
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         ComplianceService,
-        ComplianceRepository,
-        PrismaService,
+        { provide: ComplianceRepository, useValue: repo },
         {
           provide: 'IEventBus',
           useValue: { publish: jest.fn(), subscribe: jest.fn() },
@@ -35,48 +66,34 @@ describe('COMP-01: ZATCA Hash Chain Verification', () => {
     }).compile();
 
     service = moduleRef.get(ComplianceService);
-    prisma = moduleRef.get(PrismaService);
   });
 
   afterEach(async () => {
-    if (createdInvoiceIds.length > 0) {
-      await prisma.complianceInvoice.deleteMany({
-        where: { id: { in: createdInvoiceIds } },
-      });
-      createdInvoiceIds.length = 0;
-    }
-  });
-
-  afterAll(async () => {
-    if (prisma) {
-      await prisma.$disconnect();
-    }
+    invoices.length = 0;
   });
 
   it('flags a broken chain when previousHash is tampered', async () => {
-    const firstInvoice = await prisma.complianceInvoice.create({
-      data: {
+    const firstInvoice = await repo.create({
         orderId: generateTestId('order'),
         invoiceNumber: generateTestId('INV'),
         invoiceHash: hash('invoice-1'),
         previousHash: zeroHash,
         qrCode: 'qr-1',
+        xmlContent: '<Invoice>test-1</Invoice>',
+        signedXml: '<Invoice>signed-1</Invoice>',
         submissionStatus: 'PENDING',
-      },
     });
-    createdInvoiceIds.push(firstInvoice.id);
 
-    const secondInvoice = await prisma.complianceInvoice.create({
-      data: {
+    const secondInvoice = await repo.create({
         orderId: generateTestId('order'),
         invoiceNumber: generateTestId('INV'),
         invoiceHash: hash('invoice-2'),
         previousHash: hash('tampered'),
         qrCode: 'qr-2',
+        xmlContent: '<Invoice>test-2</Invoice>',
+        signedXml: '<Invoice>signed-2</Invoice>',
         submissionStatus: 'PENDING',
-      },
     });
-    createdInvoiceIds.push(secondInvoice.id);
 
     const status = await service.verifyHashChain();
 
@@ -86,29 +103,27 @@ describe('COMP-01: ZATCA Hash Chain Verification', () => {
   });
 
   it('blocks invoice generation when hash chain is invalid', async () => {
-    const firstInvoice = await prisma.complianceInvoice.create({
-      data: {
+    await repo.create({
         orderId: generateTestId('order'),
         invoiceNumber: generateTestId('INV'),
         invoiceHash: hash('invoice-3'),
         previousHash: zeroHash,
         qrCode: 'qr-3',
+        xmlContent: '<Invoice>test-3</Invoice>',
+        signedXml: '<Invoice>signed-3</Invoice>',
         submissionStatus: 'PENDING',
-      },
     });
-    createdInvoiceIds.push(firstInvoice.id);
 
-    const secondInvoice = await prisma.complianceInvoice.create({
-      data: {
+    await repo.create({
         orderId: generateTestId('order'),
         invoiceNumber: generateTestId('INV'),
         invoiceHash: hash('invoice-4'),
         previousHash: hash('broken-chain'),
         qrCode: 'qr-4',
+        xmlContent: '<Invoice>test-4</Invoice>',
+        signedXml: '<Invoice>signed-4</Invoice>',
         submissionStatus: 'PENDING',
-      },
     });
-    createdInvoiceIds.push(secondInvoice.id);
 
     await expect(
       service.generateInvoice(generateTestId('order'), {

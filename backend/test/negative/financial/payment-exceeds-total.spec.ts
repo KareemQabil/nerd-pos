@@ -8,26 +8,101 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from '../../../src/modules/payments/payments.service';
 import { PaymentsRepository } from '../../../src/modules/payments/payments.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
+import { OutboxService } from '../../../src/core/outbox/outbox.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import {
   createTestProduct,
   createTestSession,
   createTestOrder,
-  cleanupTestData,
 } from '../../helpers/test-helpers';
 import Decimal from 'decimal.js';
 
 describe('FIN-06: Payment Exceeds Total', () => {
   let paymentsService: PaymentsService;
   let prisma: PrismaService;
+  const sessions = new Map<string, any>();
+  const categories = new Map<string, any>();
+  const products = new Map<string, any>();
+  const orders = new Map<string, any>();
+  const payments = new Map<string, any>();
+  const outboxMock = { enqueue: jest.fn(), flushPending: jest.fn() };
 
   beforeAll(async () => {
+    const prismaMock: any = {
+      $queryRaw: jest.fn(),
+      $executeRaw: jest.fn(),
+      registerSession: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `sess-${sessions.size + 1}`;
+          const session = { id, ...data };
+          sessions.set(id, session);
+          return session;
+        }),
+      },
+      category: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `cat-${categories.size + 1}`;
+          const category = { id, ...data };
+          categories.set(id, category);
+          return category;
+        }),
+      },
+      product: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `prod-${products.size + 1}`;
+          const product = { id, ...data };
+          products.set(id, product);
+          return product;
+        }),
+      },
+      salesOrder: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `order-${orders.size + 1}`;
+          const order = { id, ...data };
+          orders.set(id, order);
+          return order;
+        }),
+        findUnique: jest.fn(async ({ where }: { where: any }) => {
+          return orders.get(where.id) ?? null;
+        }),
+      },
+      payment: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `pay-${payments.size + 1}`;
+          const payment = { id, ...data };
+          payments.set(id, payment);
+          return payment;
+        }),
+        findMany: jest.fn(async ({ where }: { where: any }) => {
+          const result: any[] = [];
+          for (const payment of payments.values()) {
+            if (!where?.orderId || payment.orderId === where.orderId) {
+              result.push(payment);
+            }
+          }
+          return result;
+        }),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      paymentMethod: {
+        findFirst: jest.fn().mockResolvedValue({
+          requiresReference: false,
+          requiresTerminal: false,
+        }),
+      },
+    };
+    prismaMock.$transaction = jest.fn(
+      async (fn: (tx: any) => Promise<any>) => fn(prismaMock),
+    );
+
     const module = await Test.createTestingModule({
       providers: [
         PaymentsService,
         PaymentsRepository,
-        PrismaService,
+        { provide: OutboxService, useValue: outboxMock },
+        { provide: PrismaService, useValue: prismaMock },
         {
           provide: 'IEventBus',
           useValue: { publish: jest.fn(), subscribe: jest.fn() },
@@ -45,7 +120,12 @@ describe('FIN-06: Payment Exceeds Total', () => {
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    sessions.clear();
+    categories.clear();
+    products.clear();
+    orders.clear();
+    payments.clear();
+    jest.clearAllMocks();
   });
 
   it.skip('should reject payment greater than order total', async () => {

@@ -8,13 +8,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from '../../../src/modules/payments/payments.service';
 import { PaymentsRepository } from '../../../src/modules/payments/payments.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
+import { OutboxService } from '../../../src/core/outbox/outbox.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
 import {
   createTestProduct,
   createTestSession,
   createTestOrder,
-  cleanupTestData,
 } from '../../helpers/test-helpers';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import Decimal from 'decimal.js';
@@ -22,13 +22,109 @@ import Decimal from 'decimal.js';
 describe('MT-04: Split Payment Conflict', () => {
   let paymentsService: PaymentsService;
   let prisma: PrismaService;
+  const sessions = new Map<string, any>();
+  const categories = new Map<string, any>();
+  const products = new Map<string, any>();
+  const orders = new Map<string, any>();
+  const payments = new Map<string, any>();
+  const outboxMock = { enqueue: jest.fn(), flushPending: jest.fn() };
 
   beforeAll(async () => {
+    const prismaMock: any = {
+      $queryRaw: jest.fn(),
+      $executeRaw: jest.fn(),
+      registerSession: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `sess-${sessions.size + 1}`;
+          const session = { id, ...data };
+          sessions.set(id, session);
+          return session;
+        }),
+      },
+      category: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `cat-${categories.size + 1}`;
+          const category = { id, ...data };
+          categories.set(id, category);
+          return category;
+        }),
+      },
+      product: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `prod-${products.size + 1}`;
+          const product = { id, ...data };
+          products.set(id, product);
+          return product;
+        }),
+      },
+      salesOrder: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `order-${orders.size + 1}`;
+          const order = { id, ...data };
+          orders.set(id, order);
+          return order;
+        }),
+        findUnique: jest.fn(async ({ where }: { where: any }) => {
+          return orders.get(where.id) ?? null;
+        }),
+        update: jest.fn(async ({ where, data }: { where: any; data: any }) => {
+          const existing = orders.get(where.id);
+          if (!existing) return null;
+          const updated = { ...existing, ...data };
+          orders.set(where.id, updated);
+          return updated;
+        }),
+      },
+      payment: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `pay-${payments.size + 1}`;
+          const payment = { id, ...data };
+          payments.set(id, payment);
+          return payment;
+        }),
+        findMany: jest.fn(async ({ where }: { where: any }) => {
+          const result: any[] = [];
+          for (const payment of payments.values()) {
+            if (!where?.orderId || payment.orderId === where.orderId) {
+              result.push(payment);
+            }
+          }
+          return result;
+        }),
+        updateMany: jest.fn(async ({ where, data }: { where: any; data: any }) => {
+          let count = 0;
+          for (const [id, payment] of payments.entries()) {
+            if (
+              (!where?.orderId || payment.orderId === where.orderId) &&
+              (!where?.referenceNumber ||
+                payment.referenceNumber === where.referenceNumber)
+            ) {
+              payments.set(id, { ...payment, ...data });
+              count += 1;
+            }
+          }
+          return { count };
+        }),
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      paymentMethod: {
+        findFirst: jest.fn().mockResolvedValue({
+          requiresReference: false,
+          requiresTerminal: false,
+        }),
+      },
+    };
+    prismaMock.$transaction = jest.fn(
+      async (fn: (tx: any) => Promise<any>) => fn(prismaMock),
+    );
+
     const module = await Test.createTestingModule({
       providers: [
         PaymentsService,
         PaymentsRepository,
-        PrismaService,
+        { provide: OutboxService, useValue: outboxMock },
+        { provide: PrismaService, useValue: prismaMock },
         {
           provide: 'IEventBus',
           useValue: { publish: jest.fn(), subscribe: jest.fn() },
@@ -46,7 +142,12 @@ describe('MT-04: Split Payment Conflict', () => {
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    sessions.clear();
+    categories.clear();
+    products.clear();
+    orders.clear();
+    payments.clear();
+    jest.clearAllMocks();
   });
 
   it('should not allow split payments exceeding order total', async () => {

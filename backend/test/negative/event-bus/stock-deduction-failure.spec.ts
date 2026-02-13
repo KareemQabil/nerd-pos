@@ -5,21 +5,23 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
-import { InventoryService } from '../../../src/modules/inventory/inventory.service';
-import { InventoryRepository } from '../../../src/modules/inventory/inventory.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import {
   IEventBus,
   IEventHandler,
 } from '../../../src/core/event-bus/event-bus.interface';
-import { cleanupTestData } from '../../helpers/test-helpers';
+import { createTestProduct } from '../../helpers/test-helpers';
 import { EventSpy } from '../../helpers/event-spy';
 
 describe('EB-01: Stock Deduction Failure', () => {
   let eventBus: EventBusService;
   let prisma: PrismaService;
   let eventSpy: EventSpy;
+  let productId: string;
+  const categories = new Map<string, any>();
+  const products = new Map<string, any>();
 
   // Mock handler that always fails
   class FailingStockHandler implements IEventHandler<any> {
@@ -36,23 +38,51 @@ describe('EB-01: Stock Deduction Failure', () => {
   }
 
   beforeAll(async () => {
+    const prismaMock = {
+      category: {
+        create: jest.fn(async ({ data }) => {
+          const id = `cat-${categories.size + 1}`;
+          const category = { id, ...data };
+          categories.set(id, category);
+          return category;
+        }),
+      },
+      product: {
+        create: jest.fn(async ({ data }) => {
+          const id = `prod-${products.size + 1}`;
+          const product = { id, ...data };
+          products.set(id, product);
+          return product;
+        }),
+      },
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         EventBusService,
-        InventoryService,
-        InventoryRepository,
-        PrismaService,
+        { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: EventEmitter2,
+          useValue: { emitAsync: jest.fn() },
+        },
         { provide: 'IEventBus', useExisting: EventBusService },
       ],
     }).compile();
 
     eventBus = module.get<EventBusService>(EventBusService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = module.get(PrismaService) as unknown as PrismaService;
     eventSpy = new EventSpy(eventBus as IEventBus);
   });
 
+  beforeEach(async () => {
+    const product = await createTestProduct(prisma);
+    productId = product.id;
+  });
+
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    categories.clear();
+    products.clear();
+    jest.clearAllMocks();
     // Reset event bus
     (eventBus as any).handlers.clear();
   });
@@ -65,11 +95,13 @@ describe('EB-01: Stock Deduction Failure', () => {
     // Publish event
     const orderEvent = {
       orderId: 'order-1',
-      items: [{ productId: 'prod-1', quantity: 5 }],
+      items: [{ productId, quantity: 5 }],
       timestamp: new Date(),
     };
 
-    await eventBus.publish('OrderCreated', orderEvent);
+    await expect(eventBus.publish('OrderCreated', orderEvent)).rejects.toThrow(
+      'Critical event failure',
+    );
 
     // Check for failures
     const hasFailures = (eventBus as any).hasFailures?.() ?? false;
@@ -127,7 +159,9 @@ describe('EB-01: Stock Deduction Failure', () => {
     for (const eventName of criticalEvents) {
       eventBus.subscribe(eventName, new FailingStockHandler());
 
-      await eventBus.publish(eventName, { id: 'test' });
+      await expect(
+        eventBus.publish(eventName, { id: 'test' }),
+      ).rejects.toThrow('Critical event failure');
 
       const hasFailures = (eventBus as any).hasFailures?.() ?? false;
       expect((eventBus as any).hasFailures?.() ?? false).toBe(true);
@@ -214,10 +248,12 @@ describe('EB-01: Stock Deduction Failure', () => {
     eventBus.subscribe('OrderCreated', new InventoryHandler(false));
     eventBus.subscribe('OrderCreated', new KitchenHandler(true));
 
-    await eventBus.publish('OrderCreated', { orderId: 'test' });
+    await expect(
+      eventBus.publish('OrderCreated', { orderId: 'test' }),
+    ).rejects.toThrow('Critical event failure');
 
     const failures = (eventBus as any).getFailures?.() ?? [];
-    const failedHandlers = failures.map((f) => f.handlerName);
+    const failedHandlers = failures.map((f: any) => f.handlerName);
 
     // Should identify which specific handler failed
     expect(failedHandlers.length).toBeGreaterThan(0);

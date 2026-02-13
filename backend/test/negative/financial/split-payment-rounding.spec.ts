@@ -4,55 +4,68 @@
  * Tests the 10/3 split payment edge case (3.33, 3.33, 3.34)
  */
 
-import { Test, TestingModule } from '@nestjs/testing';
-import { PaymentsService } from '../../../src/modules/payments/payments.service';
-import { PaymentsRepository } from '../../../src/modules/payments/payments.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
-import {
-  createTestProduct,
-  createTestSession,
-  createTestOrder,
-  cleanupTestData,
-} from '../../helpers/test-helpers';
 import { OrderStatus } from '../../../src/core/constants/enums';
 import Decimal from 'decimal.js';
+import { Prisma } from '@prisma/client';
 
 describe('FIN-01: Split Payment Rounding Error', () => {
-  let paymentsService: PaymentsService;
   let prisma: PrismaService;
-
-  beforeAll(async () => {
-    const module = await Test.createTestingModule({
-      providers: [
-        PaymentsService,
-        PaymentsRepository,
-        PrismaService,
-        {
-          provide: 'IEventBus',
-          useValue: { publish: jest.fn(), subscribe: jest.fn() },
-        },
-      ],
-    }).compile();
-
-    paymentsService = module.get<PaymentsService>(PaymentsService);
-    prisma = module.get<PrismaService>(PrismaService);
-  });
+  const orders = new Map<string, any>();
+  const payments = new Map<string, any>();
 
   beforeEach(async () => {
-    await createTestSession(prisma);
-    await createTestProduct(prisma);
-  });
-
-  afterEach(async () => {
-    await cleanupTestData(prisma);
+    orders.clear();
+    payments.clear();
+    prisma = {
+      salesOrder: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `order-${orders.size + 1}`;
+          const order = {
+            id,
+            sessionId: data.sessionId ?? 'test-session',
+            status: data.status ?? OrderStatus.CONFIRMED,
+            grandTotal: new Prisma.Decimal(data.grandTotal ?? 0),
+            ...data,
+          };
+          orders.set(id, order);
+          return order;
+        }),
+      },
+      payment: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = data.id ?? `pay-${payments.size + 1}`;
+          const payment = {
+            id,
+            amount: new Prisma.Decimal(data.amount ?? 0),
+            paymentDate: data.paymentDate ?? new Date(),
+            ...data,
+          };
+          payments.set(id, payment);
+          return payment;
+        }),
+        findMany: jest.fn(async ({ where }: { where: any }) => {
+          return Array.from(payments.values()).filter((payment) => {
+            if (where?.orderId && payment.orderId !== where.orderId) return false;
+            return true;
+          });
+        }),
+      },
+    } as unknown as PrismaService;
   });
 
   it('should handle 10 split into 3 payments correctly (3.33, 3.33, 3.34)', async () => {
     // Setup: Order with total = 10
-    const order = await createTestOrder(prisma, {
-      status: OrderStatus.CONFIRMED,
-      grandTotal: 10,
+    const order = await prisma.salesOrder.create({
+      data: {
+        orderNumber: 'ORD-SPLIT-1',
+        orderType: 'DINE_IN',
+        status: OrderStatus.CONFIRMED,
+        grandTotal: 10,
+        sessionId: 'test-session',
+        businessDate: new Date(),
+        taxRate: 0.15,
+      },
     });
 
     // Act: Split 10 into 3 equal payments
@@ -118,9 +131,16 @@ describe('FIN-01: Split Payment Rounding Error', () => {
 
   it('should handle 100 split into 3 payments correctly', async () => {
     // Setup: Order with total = 100
-    const order = await createTestOrder(prisma, {
-      status: OrderStatus.CONFIRMED,
-      grandTotal: 100,
+    const order = await prisma.salesOrder.create({
+      data: {
+        orderNumber: 'ORD-SPLIT-2',
+        orderType: 'DINE_IN',
+        status: OrderStatus.CONFIRMED,
+        grandTotal: 100,
+        sessionId: 'test-session',
+        businessDate: new Date(),
+        taxRate: 0.15,
+      },
     });
 
     // Act: Split 100 into 3 equal payments
@@ -183,9 +203,16 @@ describe('FIN-01: Split Payment Rounding Error', () => {
 
   it('should handle 1 split into 7 payments correctly', async () => {
     // Setup: Order with total = 1
-    const order = await createTestOrder(prisma, {
-      status: OrderStatus.CONFIRMED,
-      grandTotal: 1,
+    const order = await prisma.salesOrder.create({
+      data: {
+        orderNumber: 'ORD-SPLIT-3',
+        orderType: 'DINE_IN',
+        status: OrderStatus.CONFIRMED,
+        grandTotal: 1,
+        sessionId: 'test-session',
+        businessDate: new Date(),
+        taxRate: 0.15,
+      },
     });
 
     // Act: Split 1 into 7 equal payments (approximately 0.14 each)
@@ -237,9 +264,16 @@ describe('FIN-01: Split Payment Rounding Error', () => {
 
   it('should not allow split payments to exceed order total', async () => {
     // Setup: Order with total = 50
-    const order = await createTestOrder(prisma, {
-      status: OrderStatus.CONFIRMED,
-      grandTotal: 50,
+    const order = await prisma.salesOrder.create({
+      data: {
+        orderNumber: 'ORD-SPLIT-4',
+        orderType: 'DINE_IN',
+        status: OrderStatus.CONFIRMED,
+        grandTotal: 50,
+        sessionId: 'test-session',
+        businessDate: new Date(),
+        taxRate: 0.15,
+      },
     });
 
     // Act: Create payments that exceed total
@@ -286,9 +320,16 @@ describe('FIN-01: Split Payment Rounding Error', () => {
 
   it('should track remaining balance after partial payments', async () => {
     // Setup: Order with total = 100
-    const order = await createTestOrder(prisma, {
-      status: OrderStatus.CONFIRMED,
-      grandTotal: 100,
+    const order = await prisma.salesOrder.create({
+      data: {
+        orderNumber: 'ORD-SPLIT-5',
+        orderType: 'DINE_IN',
+        status: OrderStatus.CONFIRMED,
+        grandTotal: 100,
+        sessionId: 'test-session',
+        businessDate: new Date(),
+        taxRate: 0.15,
+      },
     });
 
     // Act: Make partial payment of 33.33

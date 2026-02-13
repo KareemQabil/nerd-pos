@@ -14,6 +14,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PrismaModule } from '../../../src/core/prisma/prisma.module';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { ProductsModule } from '../../../src/modules/products/products.module';
@@ -31,6 +32,7 @@ describe('Repository Pattern Integration (Category D)', () => {
     module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
+        EventEmitterModule.forRoot(),
         PrismaModule,
         EventBusModule,
         ProductsModule,

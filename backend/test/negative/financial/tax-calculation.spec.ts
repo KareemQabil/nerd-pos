@@ -5,11 +5,10 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SalesService } from '../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
+import { OutboxService } from '../../../src/core/outbox/outbox.service';
 import {
   ItemSubtotalStep,
   ServiceChargeStep,
@@ -20,11 +19,7 @@ import {
   GrandTotalStep,
 } from '../../../src/modules/sales/calculation-steps';
 import { SessionsService } from '../../../src/modules/sessions/sessions.service';
-import {
-  createTestProduct,
-  createTestSession,
-  cleanupTestData,
-} from '../../helpers/test-helpers';
+import { InventoryService } from '../../../src/modules/inventory/inventory.service';
 import Decimal from 'decimal.js';
 
 describe('FIN-07: Tax Calculation Rounding', () => {
@@ -38,13 +33,26 @@ describe('FIN-07: Tax Calculation Rounding', () => {
   }>;
 
   beforeAll(async () => {
+    const orders = new Map<string, any>();
+    const repo = {
+      createWithItems: jest.fn(async (data: any, items: any[]) => {
+        const id = `order-${orders.size + 1}`;
+        const order = { id, ...data, items };
+        orders.set(id, order);
+        return order;
+      }),
+    };
+    const prismaMock: any = {
+      $transaction: jest.fn((fn: any) => fn({})),
+      $executeRaw: jest.fn(),
+      $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+    };
     const module = await Test.createTestingModule({
-      imports: [EventEmitterModule.forRoot()],
       providers: [
         SalesService,
-        SalesRepository,
-        PrismaService,
-        EventBusService,
+        { provide: SalesRepository, useValue: repo },
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: OutboxService, useValue: { enqueue: jest.fn(), flushPending: jest.fn() } },
         ItemSubtotalStep,
         ServiceChargeStep,
         DeliveryChargeStep,
@@ -56,29 +64,36 @@ describe('FIN-07: Tax Calculation Rounding', () => {
           provide: SessionsService,
           useValue: { getCurrentSession: jest.fn() },
         },
-        { provide: 'IEventBus', useExisting: EventBusService },
+        {
+          provide: InventoryService,
+          useValue: {
+            getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'wh-1' }),
+            deductStockWithTx: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
       ],
     }).compile();
 
-    await module.init();
-
     salesService = module.get<SalesService>(SalesService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = module.get<PrismaService>(PrismaService) as unknown as PrismaService;
   });
 
   beforeEach(async () => {
-    const session = await createTestSession(prisma);
-    sessionId = session.id;
-
-    const productA = await createTestProduct(prisma, { price: 10 });
-    const productB = await createTestProduct(prisma, { price: 10 });
-    const productC = await createTestProduct(prisma, { price: 10 });
-
-    products = [productA, productB, productC];
+    sessionId = 'test-session';
+    products = [
+      { id: 'prod-1', nameEn: 'Item 1', nameAr: 'Item 1' },
+      { id: 'prod-2', nameEn: 'Item 2', nameAr: 'Item 2' },
+      { id: 'prod-3', nameEn: 'Item 3', nameAr: 'Item 3' },
+    ];
+    jest
+      .spyOn(salesService as any, 'generateOrderNumber')
+      .mockResolvedValue(`ORD-TEST-${Date.now()}`);
   });
 
-  afterEach(async () => {
-    await cleanupTestData(prisma);
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
   });
 
   it('should calculate tax with exact precision (3 items x 10.00, 15% VAT)', async () => {

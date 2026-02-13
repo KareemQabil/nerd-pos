@@ -7,21 +7,87 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsService } from '../../../src/modules/products/products.service';
 import { ProductsRepository } from '../../../src/modules/products/products.repository';
-import { PrismaService } from '../../../src/core/prisma.service';
+import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { RaceConditionTester } from '../../helpers/race-condition';
-import { cleanupTestData } from '../../helpers/test-helpers';
 
 describe('MT-03: Same Product Concurrent Update', () => {
   let productsService: ProductsService;
-  let prisma: PrismaService;
+  let prisma: {
+    category: { create: (args: { data: any }) => Promise<any> };
+    product: {
+      create: (args: { data: any }) => Promise<any>;
+      update: (args: { where: { id: string }; data: any }) => Promise<any>;
+      findUnique: (args: { where: { id: string } }) => Promise<any>;
+    };
+  };
+  const categories = new Map<string, any>();
+  const products = new Map<string, any>();
+  const toDecimal = (value: number) => ({ toNumber: () => value, value });
 
   beforeAll(async () => {
+    const prismaMock = {
+      category: {
+        create: jest.fn(async ({ data }) => {
+          const id = `cat-${categories.size + 1}`;
+          const category = { id, ...data };
+          categories.set(id, category);
+          return category;
+        }),
+      },
+      product: {
+        create: jest.fn(async ({ data }) => {
+          const existingSku = [...products.values()].some(
+            (product) => product.sku === data.sku,
+          );
+          if (existingSku) {
+            throw new Error('Unique constraint failed on the fields: (`sku`)');
+          }
+          const id = `prod-${products.size + 1}`;
+          const product = {
+            id,
+            ...data,
+            price: toDecimal(data.price ?? 0),
+            cost: data.cost !== undefined ? toDecimal(data.cost) : undefined,
+            isActive: data.isActive ?? true,
+          };
+          products.set(id, product);
+          return product;
+        }),
+        update: jest.fn(async ({ where, data }) => {
+          const existing = products.get(where.id);
+          if (!existing) {
+            throw new Error('Product not found');
+          }
+          if (
+            data.sku &&
+            [...products.values()].some(
+              (product) => product.id !== where.id && product.sku === data.sku,
+            )
+          ) {
+            throw new Error('Unique constraint failed on the fields: (`sku`)');
+          }
+          const updated = { ...existing, ...data };
+          if (data.price !== undefined) {
+            updated.price = toDecimal(data.price);
+          }
+          if (data.cost !== undefined) {
+            updated.cost = toDecimal(data.cost);
+          }
+          products.set(where.id, updated);
+          return updated;
+        }),
+        findUnique: jest.fn(async ({ where }) => {
+          return products.get(where.id) ?? null;
+        }),
+      },
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ProductsService,
         ProductsRepository,
-        PrismaService,
+        { provide: PrismaService, useValue: prismaMock },
         {
           provide: 'IEventBus',
           useValue: { publish: jest.fn(), subscribe: jest.fn() },
@@ -30,11 +96,13 @@ describe('MT-03: Same Product Concurrent Update', () => {
     }).compile();
 
     productsService = module.get<ProductsService>(ProductsService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = module.get(PrismaService);
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    categories.clear();
+    products.clear();
+    jest.clearAllMocks();
   });
 
   it('should handle concurrent price updates correctly', async () => {
@@ -43,7 +111,6 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-001',
       },
     });
 
@@ -87,7 +154,6 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-002',
       },
     });
 
@@ -133,7 +199,6 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-003',
       },
     });
 
@@ -176,7 +241,6 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-004',
       },
     });
 
@@ -208,14 +272,14 @@ describe('MT-03: Same Product Concurrent Update', () => {
         where: { id: product1.id },
         data: { sku: 'SKU-DUPLICATE' },
       })
-      .catch((e) => ({ error: e }));
+      .catch((e: unknown) => ({ error: e }));
 
     const update2 = prisma.product
       .update({
         where: { id: product2.id },
         data: { sku: 'SKU-DUPLICATE' }, // Same SKU!
       })
-      .catch((e) => ({ error: e }));
+      .catch((e: unknown) => ({ error: e }));
 
     const [result1, result2] = await Promise.all([update1, update2]);
 
@@ -229,7 +293,6 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-005',
       },
     });
 
@@ -275,7 +338,6 @@ describe('MT-03: Same Product Concurrent Update', () => {
       data: {
         nameAr: 'فئة',
         nameEn: 'Category',
-        code: 'CAT-006',
       },
     });
 

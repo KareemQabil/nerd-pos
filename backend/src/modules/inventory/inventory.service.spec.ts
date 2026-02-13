@@ -71,6 +71,7 @@ function createMockFIFOStrategy() {
 // Mock PrismaService with $transaction support
 function createMockPrismaService() {
   const mockPrisma: any = {
+    $queryRaw: jest.fn().mockResolvedValue(undefined),
     inventoryItem: {
       update: jest.fn(),
       create: jest.fn(),
@@ -189,19 +190,23 @@ describe('InventoryService', () => {
       };
 
       repo.getOrCreateInventoryItem.mockResolvedValue(mockItem);
+      repo.findByProductAndWarehouse.mockResolvedValue(mockItem);
       repo.createBatch.mockResolvedValue(mockBatch);
       repo.createMovement.mockResolvedValue({});
       repo.update.mockResolvedValue(updatedItem);
+      prisma.inventoryItem.update.mockResolvedValue(updatedItem);
 
       const result = await service.receiveStock(dto, 'user-1');
 
-      expect(repo.getOrCreateInventoryItem).toHaveBeenCalledWith(
+      expect(repo.findByProductAndWarehouse).toHaveBeenCalledWith(
         'prod-1',
         'wh-1',
+        expect.anything(),
       );
       expect(repo.createBatch).toHaveBeenCalled();
       expect(repo.createMovement).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'IN' }),
+        expect.anything(),
       );
       expect(eventBus.publish).toHaveBeenCalledWith(
         'StockReceived',

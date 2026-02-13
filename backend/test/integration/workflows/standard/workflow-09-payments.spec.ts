@@ -15,6 +15,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PaymentsService } from '../../../../src/modules/payments/payments.service';
 import { PaymentsRepository } from '../../../../src/modules/payments/payments.repository';
 import { PrismaService } from '../../../../src/core/prisma/prisma.service';
+import { OutboxService } from '../../../../src/core/outbox/outbox.service';
 import { createMockPrismaService } from '../../../helpers/prisma.mock';
 import Decimal from 'decimal.js';
 
@@ -45,11 +46,32 @@ describe('Workflow 9: Payments & Refunds', () => {
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
   let prisma: ReturnType<typeof createMockPrismaService>;
+  let outbox: { enqueue: jest.Mock; flushPending: jest.Mock };
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
     prisma = createMockPrismaService();
+    outbox = { enqueue: jest.fn(), flushPending: jest.fn() };
+
+    prisma.$transaction = jest.fn(async (callback: any) => callback(prisma));
+    prisma.payment.aggregate = jest
+      .fn()
+      .mockResolvedValue({ _sum: { amount: 0 } });
+    prisma.payment.count = jest.fn().mockResolvedValue(0);
+    prisma.refund.aggregate = jest
+      .fn()
+      .mockResolvedValue({ _sum: { amount: 0 } });
+    prisma.paymentMethod.findFirst.mockResolvedValue({
+      requiresReference: false,
+      requiresTerminal: false,
+    });
+    prisma.salesOrder.findUnique.mockResolvedValue({
+      id: 'order-1',
+      grandTotal: new Decimal(100),
+      status: 'CONFIRMED',
+      sessionId: 'session-1',
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +79,7 @@ describe('Workflow 9: Payments & Refunds', () => {
         { provide: PaymentsRepository, useValue: repo },
         { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
+        { provide: OutboxService, useValue: outbox },
       ],
     }).compile();
 
@@ -70,13 +93,14 @@ describe('Workflow 9: Payments & Refunds', () => {
   // ==================== 9.1: CASH PAYMENT ====================
   describe('9.1: Cash Payment', () => {
     it('should process cash payment with change', async () => {
-      repo.create.mockResolvedValue({
+      prisma.payment.create.mockResolvedValue({
         id: 'pay-1',
-        method: 'CASH',
+        paymentMethod: 'CASH',
         amount: 100,
-        receivedAmount: 150,
-        changeAmount: 50,
+        amountReceived: 150,
+        changeGiven: 50,
         status: 'COMPLETED',
+        paymentDate: new Date(),
       });
 
       const result = await service.createPayment({
@@ -90,7 +114,8 @@ describe('Workflow 9: Payments & Refunds', () => {
 
       expect(result.changeAmount).toBe(50);
       expect(result.status).toBe('COMPLETED');
-      expect(eventBus.publish).toHaveBeenCalledWith(
+      expect(outbox.enqueue).toHaveBeenCalledWith(
+        expect.anything(),
         'PaymentCreated',
         expect.anything(),
       );
@@ -113,13 +138,13 @@ describe('Workflow 9: Payments & Refunds', () => {
   // ==================== 9.2: CARD PAYMENT ====================
   describe('9.2: Card Payment', () => {
     it('should process card payment', async () => {
-      repo.create.mockResolvedValue({
+      prisma.payment.create.mockResolvedValue({
         id: 'pay-1',
-        method: 'CARD',
+        paymentMethod: 'CARD',
         amount: 100,
-        cardLast4: '1234',
-        cardType: 'VISA',
+        metadata: { cardLast4: '1234', cardType: 'VISA' },
         status: 'COMPLETED',
+        paymentDate: new Date(),
       });
 
       const result = await service.createPayment({
@@ -140,16 +165,16 @@ describe('Workflow 9: Payments & Refunds', () => {
   // ==================== 9.3: SPLIT PAYMENT ====================
   describe('9.3: Split Payment', () => {
     it('should process split payment', async () => {
-      repo.create
+      prisma.payment.create
         .mockResolvedValueOnce({
           id: 'pay-1',
-          method: 'CASH',
+          paymentMethod: 'CASH',
           amount: 50,
           status: 'COMPLETED',
         })
         .mockResolvedValueOnce({
           id: 'pay-2',
-          method: 'CARD',
+          paymentMethod: 'CARD',
           amount: 50,
           status: 'COMPLETED',
         });
@@ -165,7 +190,8 @@ describe('Workflow 9: Payments & Refunds', () => {
       });
 
       expect(result).toHaveLength(2);
-      expect(eventBus.publish).toHaveBeenCalledWith(
+      expect(outbox.enqueue).toHaveBeenCalledWith(
+        expect.anything(),
         'PaymentCompleted',
         expect.anything(),
       );
@@ -175,27 +201,33 @@ describe('Workflow 9: Payments & Refunds', () => {
   // ==================== 9.4: REFUND CREATION ====================
   describe('9.4: Refund Creation', () => {
     it('should auto-approve small refunds (< 100 SAR)', async () => {
-      repo.findById
-        .mockResolvedValueOnce({ id: 'pay-1', amount: 200, refundedAmount: 0 }) // Initial
-        .mockResolvedValueOnce({ id: 'pay-1', amount: 200, refundedAmount: 0 }); // After approve call
-
-      repo.createRefund.mockResolvedValue({
+      prisma.payment.findUnique.mockResolvedValue({
+        id: 'pay-1',
+        amount: 200,
+      });
+      prisma.refund.create.mockResolvedValue({
         id: 'ref-1',
         paymentId: 'pay-1',
         amount: 50,
         status: 'PENDING',
       });
-      repo.findRefundById.mockResolvedValue({
+      prisma.refund.findUnique.mockResolvedValue({
         id: 'ref-1',
         paymentId: 'pay-1',
         amount: 50,
         status: 'PENDING',
       });
-      repo.updateRefund.mockResolvedValue({
+      prisma.refund.update.mockResolvedValue({
         id: 'ref-1',
+        paymentId: 'pay-1',
+        amount: 50,
         status: 'APPROVED',
       });
-      repo.update.mockResolvedValue({});
+      prisma.payment.update.mockResolvedValue({
+        id: 'pay-1',
+        refundedAmount: 50,
+        status: 'COMPLETED',
+      });
 
       const result = await service.processRefund({
         paymentId: 'pay-1',
@@ -208,12 +240,11 @@ describe('Workflow 9: Payments & Refunds', () => {
     });
 
     it('should require approval for large refunds (>= 100 SAR)', async () => {
-      repo.findById.mockResolvedValue({
+      prisma.payment.findUnique.mockResolvedValue({
         id: 'pay-1',
         amount: 500,
-        refundedAmount: 0,
       });
-      repo.createRefund.mockResolvedValue({
+      prisma.refund.create.mockResolvedValue({
         id: 'ref-1',
         amount: 200,
         status: 'PENDING',
@@ -230,11 +261,11 @@ describe('Workflow 9: Payments & Refunds', () => {
     });
 
     it('should throw if refund exceeds payment', async () => {
-      repo.findById.mockResolvedValue({
+      prisma.payment.findUnique.mockResolvedValue({
         id: 'pay-1',
         amount: 100,
-        refundedAmount: 50,
       });
+      prisma.refund.aggregate.mockResolvedValue({ _sum: { amount: 50 } });
 
       await expect(
         service.processRefund({
@@ -250,22 +281,27 @@ describe('Workflow 9: Payments & Refunds', () => {
   // ==================== 9.5: REFUND APPROVAL ====================
   describe('9.5: Refund Approval', () => {
     it('should approve pending refund', async () => {
-      repo.findRefundById.mockResolvedValue({
+      prisma.refund.findUnique.mockResolvedValue({
         id: 'ref-1',
         paymentId: 'pay-1',
         amount: 200,
         status: 'PENDING',
       });
-      repo.updateRefund.mockResolvedValue({
+      prisma.refund.update.mockResolvedValue({
         id: 'ref-1',
+        paymentId: 'pay-1',
+        amount: 200,
         status: 'APPROVED',
       });
-      repo.findById.mockResolvedValue({
+      prisma.payment.findUnique.mockResolvedValue({
         id: 'pay-1',
         amount: 500,
-        refundedAmount: 0,
       });
-      repo.update.mockResolvedValue({});
+      prisma.payment.update.mockResolvedValue({
+        id: 'pay-1',
+        refundedAmount: 200,
+        status: 'COMPLETED',
+      });
 
       const result = await service.approveRefund('ref-1', 'manager-1');
 

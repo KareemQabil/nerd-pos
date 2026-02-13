@@ -22,6 +22,7 @@ function createMockRepository() {
     findByFloor: jest.fn(),
     findAvailable: jest.fn(),
     findOccupied: jest.fn(),
+    transferActiveOrderTable: jest.fn().mockResolvedValue(1),
     createReservation: jest.fn(),
     findReservationConflicts: jest.fn(),
     updateReservation: jest.fn(),

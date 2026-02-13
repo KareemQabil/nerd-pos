@@ -5,15 +5,10 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { SalesService } from '../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../src/modules/sales/sales.repository';
-import { InventoryService } from '../../../src/modules/inventory/inventory.service';
-import { InventoryRepository } from '../../../src/modules/inventory/inventory.repository';
-import { InventoryEventHandlers } from '../../../src/modules/inventory/inventory.handlers';
-import { FIFOStrategy } from '../../../src/modules/inventory/strategies/fifo.strategy';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
-import { EventBusService } from '../../../src/core/event-bus/event-bus.service';
+import { OutboxService } from '../../../src/core/outbox/outbox.service';
 import {
   ItemSubtotalStep,
   ServiceChargeStep,
@@ -24,87 +19,103 @@ import {
   GrandTotalStep,
 } from '../../../src/modules/sales/calculation-steps';
 import { SessionsService } from '../../../src/modules/sessions/sessions.service';
-import {
-  createTestProduct,
-  createTestSession,
-  cleanupTestData,
-} from '../../helpers/test-helpers';
+import { InventoryService } from '../../../src/modules/inventory/inventory.service';
+
+function createMockStep() {
+  return {
+    order: 0,
+    execute: jest.fn(async (ctx) => ctx),
+  };
+}
 
 describe('INV-02: Selling Zero-Stock Item', () => {
   let salesService: SalesService;
-  let inventoryService: InventoryService;
   let prisma: PrismaService;
   let sessionId: string;
   let warehouseId: string;
   let productId: string;
-  let defaultWarehouseSpy: jest.SpyInstance;
+  const movements: any[] = [];
+  const stockByProduct = new Map<string, number>();
 
   beforeAll(async () => {
+    const repo = {
+      createWithItems: jest.fn(async (data: any, items: any[]) => {
+        return { id: `order-${Date.now()}`, ...data, items };
+      }),
+    };
+
+    const prismaMock: any = {
+      $transaction: jest.fn((fn: any) => fn({})),
+      $executeRaw: jest.fn().mockResolvedValue(undefined),
+      $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+      inventoryMovement: {
+        findMany: jest.fn(async ({ where }: { where: any }) => {
+          return movements.filter(
+            (m) => m.productId === where.productId && m.warehouseId === where.warehouseId,
+          );
+        }),
+      },
+    };
+
+    const inventoryServiceMock = {
+      getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'wh-1' }),
+      deductStockWithTx: jest.fn().mockImplementation(
+        async (
+          productIdArg: string,
+          warehouseIdArg: string,
+          quantity: number,
+        ) => {
+          const available = stockByProduct.get(productIdArg) ?? 0;
+          if (available < quantity) {
+            throw new Error('Insufficient stock');
+          }
+          stockByProduct.set(productIdArg, available - quantity);
+          movements.push({
+            productId: productIdArg,
+            warehouseId: warehouseIdArg,
+            quantity: -quantity,
+          });
+          return [];
+        },
+      ),
+    };
+
     const module = await Test.createTestingModule({
-      imports: [EventEmitterModule.forRoot()],
       providers: [
         SalesService,
-        SalesRepository,
-        InventoryService,
-        InventoryRepository,
-        InventoryEventHandlers,
-        PrismaService,
-        FIFOStrategy,
-        EventBusService,
-        ItemSubtotalStep,
-        ServiceChargeStep,
-        DeliveryChargeStep,
-        SubtotalBeforeTaxStep,
-        TaxStep,
-        DiscountStep,
-        GrandTotalStep,
+        { provide: SalesRepository, useValue: repo },
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: OutboxService, useValue: { enqueue: jest.fn(), flushPending: jest.fn() } },
+        { provide: InventoryService, useValue: inventoryServiceMock },
+        { provide: ItemSubtotalStep, useValue: createMockStep() },
+        { provide: ServiceChargeStep, useValue: createMockStep() },
+        { provide: DeliveryChargeStep, useValue: createMockStep() },
+        { provide: SubtotalBeforeTaxStep, useValue: createMockStep() },
+        { provide: TaxStep, useValue: createMockStep() },
+        { provide: DiscountStep, useValue: createMockStep() },
+        { provide: GrandTotalStep, useValue: createMockStep() },
         {
           provide: SessionsService,
           useValue: { getCurrentSession: jest.fn() },
         },
-        { provide: 'IEventBus', useExisting: EventBusService },
+        { provide: 'IEventBus', useValue: { publish: jest.fn(), subscribe: jest.fn() } },
       ],
     }).compile();
 
-    await module.init();
-
     salesService = module.get<SalesService>(SalesService);
-    inventoryService = module.get<InventoryService>(InventoryService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = module.get<PrismaService>(PrismaService) as unknown as PrismaService;
   });
 
   beforeEach(async () => {
-    const session = await createTestSession(prisma);
-    sessionId = session.id;
-
-    let defaultWarehouse = await prisma.warehouse.findFirst({
-      where: { isDefault: true, isActive: true },
-    });
-    if (!defaultWarehouse) {
-      defaultWarehouse = await prisma.warehouse.create({
-        data: {
-          code: `WH-DEFAULT-${Date.now()}`,
-          nameEn: 'Default Warehouse',
-          nameAr: 'Default Warehouse AR',
-          isActive: true,
-          isDefault: true,
-        },
-      });
-    }
-    warehouseId = defaultWarehouse.id;
-    defaultWarehouseSpy = jest
-      .spyOn(inventoryService, 'getDefaultWarehouse')
-      .mockResolvedValue({ id: warehouseId } as any);
-
-    const product = await createTestProduct(prisma);
-    productId = product.id;
+    sessionId = 'session-1';
+    warehouseId = 'wh-1';
+    productId = 'prod-1';
+    movements.length = 0;
+    stockByProduct.clear();
   });
 
-  afterEach(async () => {
-    if (defaultWarehouseSpy) {
-      defaultWarehouseSpy.mockRestore();
-    }
-    await cleanupTestData(prisma);
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should reject sale of item with zero stock', async () => {
@@ -128,25 +139,7 @@ describe('INV-02: Selling Zero-Stock Item', () => {
   });
 
   it('should reject sale when quantity exceeds available stock', async () => {
-    const inventoryItem = await prisma.inventoryItem.create({
-      data: {
-        productId,
-        warehouseId,
-        quantityOnHand: 5,
-        reorderPoint: 5,
-        averageCost: 25,
-      },
-    });
-
-    await prisma.inventoryBatch.create({
-      data: {
-        inventoryItemId: inventoryItem.id,
-        receivedDate: new Date(),
-        quantityReceived: 5,
-        quantityRemaining: 5,
-        costPerUnit: 25,
-      },
-    });
+    stockByProduct.set(productId, 5);
 
     const order = {
       type: 'TAKEAWAY' as const,
@@ -168,25 +161,7 @@ describe('INV-02: Selling Zero-Stock Item', () => {
   });
 
   it('should allow sale when stock equals requested quantity', async () => {
-    const inventoryItem = await prisma.inventoryItem.create({
-      data: {
-        productId,
-        warehouseId,
-        quantityOnHand: 5,
-        reorderPoint: 5,
-        averageCost: 25,
-      },
-    });
-
-    await prisma.inventoryBatch.create({
-      data: {
-        inventoryItemId: inventoryItem.id,
-        receivedDate: new Date(),
-        quantityReceived: 5,
-        quantityRemaining: 5,
-        costPerUnit: 25,
-      },
-    });
+    stockByProduct.set(productId, 5);
 
     const order = {
       type: 'TAKEAWAY' as const,

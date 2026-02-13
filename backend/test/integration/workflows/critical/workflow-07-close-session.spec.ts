@@ -15,52 +15,89 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SessionsService } from '../../../../src/modules/sessions/sessions.service';
 import { SessionsRepository } from '../../../../src/modules/sessions/sessions.repository';
+import { SalesRepository } from '../../../../src/modules/sales/sales.repository';
+import { PrismaService } from '../../../../src/core/prisma/prisma.service';
+import { OutboxService } from '../../../../src/core/outbox/outbox.service';
 import { IEventBus } from '../../../../src/core/event-bus/event-bus.interface';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import Decimal from 'decimal.js';
+import { Prisma } from '@prisma/client';
+import { SessionStatus } from '../../../../src/core/constants/enums';
 
 describe('Workflow 7: Close Session', () => {
   let service: SessionsService;
   let mockRepo: jest.Mocked<SessionsRepository>;
+  let mockSalesRepo: jest.Mocked<SalesRepository>;
+  let mockPrisma: jest.Mocked<PrismaService>;
+  let mockOutbox: jest.Mocked<OutboxService>;
   let mockEventBus: jest.Mocked<IEventBus>;
+  let mockTx: {
+    $queryRaw: jest.Mock;
+    registerSession: {
+      update: jest.Mock;
+    };
+    denominationCount: {
+      create: jest.Mock;
+    };
+  };
 
   const mockOpenSession = {
     id: 'session-123',
     sessionNumber: 'SES2026010001',
     userId: 'user-123',
-    status: 'OPEN',
-    openingBalance: 500,
-    totalSales: 2000,
-    totalCash: 1500,
-    totalCashSales: 1500,
-    totalCard: 500,
-    totalCardSales: 500,
-    totalOtherSales: 0,
-    totalRefunds: 50,
-    totalDrops: 0,
-    totalPettyCash: 0,
+    status: SessionStatus.OPEN,
+    openingBalance: new Prisma.Decimal(500),
+    expectedCash: new Prisma.Decimal(0),
+    totalSales: new Prisma.Decimal(2000),
+    totalCash: new Prisma.Decimal(1500),
+    totalCashSales: new Prisma.Decimal(1500),
+    totalCard: new Prisma.Decimal(500),
+    totalCardSales: new Prisma.Decimal(500),
+    totalOtherSales: new Prisma.Decimal(0),
+    totalRefunds: new Prisma.Decimal(50),
+    totalDrops: new Prisma.Decimal(0),
+    totalPettyCash: new Prisma.Decimal(0),
     orderCount: 20,
     ordersCount: 20,
     openedAt: new Date(),
     terminalId: 'terminal-1',
     businessDate: new Date(),
-    expectedCash: 0,
   };
 
   beforeEach(async () => {
     mockRepo = {
       findById: jest.fn().mockResolvedValue({ ...mockOpenSession }),
-      update: jest
-        .fn()
-        .mockImplementation((id, data) =>
-          Promise.resolve({ ...mockOpenSession, ...data }),
-        ),
       createDenomination: jest.fn().mockResolvedValue({}),
       findOpenSession: jest.fn(),
       create: jest.fn(),
       countByPrefix: jest.fn(),
       findWithDetails: jest.fn(),
       findByUser: jest.fn(),
+    } as any;
+
+    mockSalesRepo = {
+      findBySessionAndStatus: jest.fn().mockResolvedValue([]),
+    } as any;
+
+    mockTx = {
+      $queryRaw: jest.fn().mockResolvedValue(undefined),
+      registerSession: {
+        update: jest.fn().mockImplementation(({ data }) =>
+          Promise.resolve({ ...mockOpenSession, ...data }),
+        ),
+      },
+      denominationCount: {
+        create: jest.fn().mockResolvedValue({}),
+      },
+    };
+
+    mockPrisma = {
+      $transaction: jest.fn((fn: any) => fn(mockTx)),
+    } as any;
+
+    mockOutbox = {
+      enqueue: jest.fn().mockResolvedValue(undefined),
+      flushPending: jest.fn().mockResolvedValue(undefined),
     } as any;
 
     mockEventBus = {
@@ -72,6 +109,9 @@ describe('Workflow 7: Close Session', () => {
       providers: [
         SessionsService,
         { provide: SessionsRepository, useValue: mockRepo },
+        { provide: SalesRepository, useValue: mockSalesRepo },
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: OutboxService, useValue: mockOutbox },
         { provide: 'IEventBus', useValue: mockEventBus },
       ],
     }).compile();
@@ -94,7 +134,7 @@ describe('Workflow 7: Close Session', () => {
         denominations,
       });
 
-      expect(session.expectedBalance).toBe(1950);
+      expect(session.discrepancy).toBe(0);
     });
   });
 
@@ -114,7 +154,7 @@ describe('Workflow 7: Close Session', () => {
       });
 
       // Variance: 1930 - 1950 = -20 (shortage)
-      expect(session.variance).toBe(-20);
+      expect(session.discrepancy).toBe(-20);
     });
 
     it('should handle positive variance (overage)', async () => {
@@ -129,7 +169,7 @@ describe('Workflow 7: Close Session', () => {
       });
 
       // Variance: 2000 - 1950 = 50 (overage)
-      expect(session.variance).toBe(50);
+      expect(session.discrepancy).toBe(50);
     });
   });
 
@@ -169,8 +209,9 @@ describe('Workflow 7: Close Session', () => {
         denominations,
       });
 
-      // SessionClosed should be published
-      expect(mockEventBus.publish).toHaveBeenCalledWith(
+      // SessionClosed should be enqueued via outbox
+      expect(mockOutbox.enqueue).toHaveBeenCalledWith(
+        mockTx,
         'SessionClosed',
         expect.anything(),
       );
@@ -196,11 +237,13 @@ describe('Workflow 7: Close Session', () => {
         denominations,
       });
 
-      expect(session.status).toBe('CLOSED');
-      expect(mockRepo.update).toHaveBeenCalledWith(
-        'session-123',
+      expect(session.status).toBe(SessionStatus.CLOSED);
+      expect(mockTx.registerSession.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          status: 'CLOSED',
+          where: { id: 'session-123' },
+          data: expect.objectContaining({
+            status: SessionStatus.CLOSED,
+          }),
         }),
       );
     });
@@ -208,7 +251,7 @@ describe('Workflow 7: Close Session', () => {
     it('should throw error if session already closed', async () => {
       mockRepo.findById.mockResolvedValue({
         ...mockOpenSession,
-        status: 'CLOSED',
+        status: SessionStatus.CLOSED,
       });
 
       await expect(
@@ -244,7 +287,8 @@ describe('Workflow 7: Close Session', () => {
         denominations,
       });
 
-      expect(mockEventBus.publish).toHaveBeenCalledWith(
+      expect(mockOutbox.enqueue).toHaveBeenCalledWith(
+        mockTx,
         'SessionClosed',
         expect.objectContaining({
           sessionId: 'session-123',

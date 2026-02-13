@@ -17,6 +17,7 @@ import { NotFoundException } from '@nestjs/common';
 import { InventoryService } from '../../../../src/modules/inventory/inventory.service';
 import { InventoryRepository } from '../../../../src/modules/inventory/inventory.repository';
 import { FIFOStrategy } from '../../../../src/modules/inventory/strategies/fifo.strategy';
+import { PrismaService } from '../../../../src/core/prisma/prisma.service';
 import Decimal from 'decimal.js';
 
 // Mock Repository - methods from inventory.repository.ts
@@ -65,16 +66,26 @@ describe('Workflow 5: Inventory Management', () => {
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
   let fifoStrategy: ReturnType<typeof createMockFIFOStrategy>;
+  let prisma: { $transaction: jest.Mock; $queryRaw: jest.Mock; inventoryItem: { create: jest.Mock; update: jest.Mock } };
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
     fifoStrategy = createMockFIFOStrategy();
+    prisma = {
+      $queryRaw: jest.fn().mockResolvedValue(undefined),
+      $transaction: jest.fn((fn: any) => fn(prisma)),
+      inventoryItem: {
+        create: jest.fn().mockResolvedValue({ id: 'inv-1', quantityOnHand: 0 }),
+        update: jest.fn().mockResolvedValue({ id: 'inv-1', quantityOnHand: 100 }),
+      },
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InventoryService,
         { provide: InventoryRepository, useValue: repo },
+        { provide: PrismaService, useValue: prisma },
         { provide: FIFOStrategy, useValue: fifoStrategy },
         { provide: 'IEventBus', useValue: eventBus },
       ],
@@ -106,7 +117,7 @@ describe('Workflow 5: Inventory Management', () => {
 
     it('should get default warehouse', async () => {
       repo.findDefaultWarehouse.mockResolvedValue({
-        id: 'wh-1',
+        id: '00000000-0000-4000-8000-000000000001',
         isDefault: true,
       });
 
@@ -117,6 +128,7 @@ describe('Workflow 5: Inventory Management', () => {
 
     it('should throw if no default warehouse', async () => {
       repo.findDefaultWarehouse.mockResolvedValue(null);
+      repo.findAllWarehouses.mockResolvedValue([]);
 
       await expect(service.getDefaultWarehouse()).rejects.toThrow(
         NotFoundException,
@@ -137,16 +149,23 @@ describe('Workflow 5: Inventory Management', () => {
 
       const mockItem = { id: 'inv-1', productId: 'prod-1', quantityOnHand: 0 };
 
-      repo.getOrCreateInventoryItem.mockResolvedValue(mockItem);
+      repo.findByProductAndWarehouse.mockResolvedValue(mockItem);
       repo.createBatch.mockResolvedValue({ id: 'batch-1' });
       repo.createMovement.mockResolvedValue({});
       repo.update.mockResolvedValue({ ...mockItem, quantityOnHand: 100 });
+      prisma.inventoryItem.update.mockResolvedValue({ ...mockItem, quantityOnHand: 100 });
 
       await service.receiveStock(dto, 'user-1');
 
+      expect(repo.findByProductAndWarehouse).toHaveBeenCalledWith(
+        'prod-1',
+        'wh-1',
+        expect.anything(),
+      );
       expect(repo.createBatch).toHaveBeenCalled();
       expect(repo.createMovement).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'IN' }),
+        expect.anything(),
       );
       expect(eventBus.publish).toHaveBeenCalledWith(
         'StockReceived',

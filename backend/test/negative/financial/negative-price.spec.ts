@@ -9,8 +9,8 @@ import { ProductsService } from '../../../src/modules/products/products.service'
 import { ProductsRepository } from '../../../src/modules/products/products.repository';
 import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
+import { Prisma } from '@prisma/client';
 import {
-  cleanupTestData,
   createTestCategory,
   createTestProduct,
   generateTestId,
@@ -19,13 +19,82 @@ import {
 describe('FIN-04: Negative Price', () => {
   let productsService: ProductsService;
   let prisma: PrismaService;
+  const categories = new Map<string, any>();
+  const products = new Map<string, any>();
 
   beforeAll(async () => {
+    const prismaMock: any = {
+      category: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `cat-${categories.size + 1}`;
+          const category = { id, ...data };
+          categories.set(id, category);
+          return category;
+        }),
+      },
+      product: {
+        create: jest.fn(async ({ data }: { data: any }) => {
+          const id = `prod-${products.size + 1}`;
+          const product = {
+            id,
+            ...data,
+            price: new Prisma.Decimal(data.price),
+            updatedAt: data.updatedAt ?? new Date(),
+          };
+          products.set(id, product);
+          return product;
+        }),
+        findMany: jest.fn(async ({ where }: { where: any }) => {
+          const result: any[] = [];
+          for (const product of products.values()) {
+            if (!where?.sku || product.sku === where.sku) {
+              result.push(product);
+            }
+          }
+          return result;
+        }),
+        findUnique: jest.fn(async ({ where }: { where: any }) => {
+          return products.get(where.id) ?? null;
+        }),
+        update: jest.fn(async ({ where, data }: { where: any; data: any }) => {
+          const existing = products.get(where.id);
+          if (!existing) return null;
+          const updated = {
+            ...existing,
+            ...data,
+            price:
+              data.price !== undefined
+                ? new Prisma.Decimal(data.price)
+                : existing.price,
+          };
+          products.set(where.id, updated);
+          return updated;
+        }),
+      },
+    };
+
+    const repoMock = {
+      create: jest.fn(async (data: any) =>
+        prismaMock.product.create({ data }),
+      ),
+      update: jest.fn(async (id: string, data: any) =>
+        prismaMock.product.update({ where: { id }, data }),
+      ),
+      findWithRelations: jest.fn(async (id: string) =>
+        prismaMock.product.findUnique({ where: { id } }),
+      ),
+      createCategory: jest.fn(async (data: any) =>
+        prismaMock.category.create({ data }),
+      ),
+      assignModifierGroupToProduct: jest.fn(),
+      findAllCategories: jest.fn(async () => Array.from(categories.values())),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         ProductsService,
-        ProductsRepository,
-        PrismaService,
+        { provide: ProductsRepository, useValue: repoMock },
+        { provide: PrismaService, useValue: prismaMock },
         {
           provide: 'IEventBus',
           useValue: { publish: jest.fn(), subscribe: jest.fn() },
@@ -38,7 +107,9 @@ describe('FIN-04: Negative Price', () => {
   });
 
   afterEach(async () => {
-    await cleanupTestData(prisma);
+    categories.clear();
+    products.clear();
+    jest.clearAllMocks();
   });
 
   it('should reject creating product with negative price', async () => {
