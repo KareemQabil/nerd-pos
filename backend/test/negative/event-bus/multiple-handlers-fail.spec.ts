@@ -195,7 +195,7 @@ describe('EB-06: Multiple Handlers Fail', () => {
     expect(successHandlers).toBe(2);
   });
 
-  it('should alert on critical handler failures', async () =往常> {
+  it('should alert on critical handler failures', async () => {
     const criticalEvents = ['OrderCreated', 'PaymentReceived', 'StockDeducted'];
 
     for (const eventName of criticalEvents) {

@@ -14,6 +14,7 @@ import { NotFoundException } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { SalesRepository } from './sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { OutboxService } from '../../core/outbox/outbox.service';
 import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 
@@ -66,6 +67,13 @@ function createMockEventBus() {
   };
 }
 
+function createMockOutboxService() {
+  return {
+    enqueue: jest.fn(),
+    flushPending: jest.fn(),
+  };
+}
+
 // Mock Calculation Step
 function createMockStep() {
   return {
@@ -76,7 +84,10 @@ function createMockStep() {
 
 // Mock PrismaService
 function createMockPrismaService() {
-  const mockPrisma: Record<string, unknown> = {};
+  const mockPrisma: Record<string, unknown> = {
+    $executeRaw: jest.fn(),
+    $queryRaw: jest.fn(),
+  };
   mockPrisma.$transaction = jest.fn(
     (callback: (tx: unknown) => Promise<unknown>) => callback(mockPrisma),
   );
@@ -104,11 +115,13 @@ describe('SalesService', () => {
   let service: SalesService;
   let repo: ReturnType<typeof createMockRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
+  let outboxService: ReturnType<typeof createMockOutboxService>;
   let prisma: ReturnType<typeof createMockPrismaService>;
 
   beforeEach(async () => {
     repo = createMockRepository();
     eventBus = createMockEventBus();
+    outboxService = createMockOutboxService();
     prisma = createMockPrismaService();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -117,6 +130,7 @@ describe('SalesService', () => {
         { provide: SalesRepository, useValue: repo },
         { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
+        { provide: OutboxService, useValue: outboxService },
         { provide: ItemSubtotalStep, useValue: createMockStep() },
         { provide: ServiceChargeStep, useValue: createMockStep() },
         { provide: DeliveryChargeStep, useValue: createMockStep() },
@@ -172,10 +186,12 @@ describe('SalesService', () => {
 
       expect(result.type).toBe('DINE_IN');
       expect(repo.createWithItems).toHaveBeenCalled();
-      expect(eventBus.publish).toHaveBeenCalledWith(
+      expect(outboxService.enqueue).toHaveBeenCalledWith(
+        expect.anything(),
         'OrderCreated',
         expect.anything(),
       );
+      expect(outboxService.flushPending).toHaveBeenCalled();
     });
 
     it('should generate unique order number via createOrder', async () => {
@@ -237,7 +253,7 @@ describe('SalesService', () => {
       const order = { id: 'order-1', status: OrderStatus.DRAFT };
       const cancelledOrder = { ...order, status: OrderStatus.CANCELLED };
 
-      repo.findById.mockResolvedValue(order);
+      repo.findWithItems.mockResolvedValue(order);
       repo.update.mockResolvedValue(cancelledOrder);
 
       const result = await service.cancelOrder('order-1', 'Customer request');

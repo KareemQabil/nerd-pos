@@ -15,6 +15,7 @@ import { SessionsService } from './sessions.service';
 import { SessionsRepository } from './sessions.repository';
 import { SalesRepository } from '../sales/sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { OutboxService } from '../../core/outbox/outbox.service';
 import { SessionStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 
@@ -48,6 +49,13 @@ function createMockEventBus() {
   };
 }
 
+function createMockOutboxService() {
+  return {
+    enqueue: jest.fn(),
+    flushPending: jest.fn(),
+  };
+}
+
 // Mock PrismaService with $transaction support
 function createMockPrismaService() {
   const mockPrisma: any = {
@@ -55,8 +63,12 @@ function createMockPrismaService() {
       create: jest.fn(),
     },
     registerSession: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
     },
+    $executeRaw: jest.fn(),
+    $queryRaw: jest.fn(),
   };
   mockPrisma.$transaction = jest.fn((callback: (tx: any) => Promise<any>) =>
     callback(mockPrisma),
@@ -76,13 +88,16 @@ describe('SessionsService', () => {
   let repo: ReturnType<typeof createMockRepository>;
   let salesRepo: ReturnType<typeof createMockSalesRepository>;
   let eventBus: ReturnType<typeof createMockEventBus>;
+  let outboxService: ReturnType<typeof createMockOutboxService>;
   let prisma: ReturnType<typeof createMockPrismaService>;
 
   beforeEach(async () => {
     repo = createMockRepository();
     salesRepo = createMockSalesRepository();
     eventBus = createMockEventBus();
+    outboxService = createMockOutboxService();
     prisma = createMockPrismaService();
+    prisma.registerSession.findFirst.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -91,6 +106,7 @@ describe('SessionsService', () => {
         { provide: SalesRepository, useValue: salesRepo },
         { provide: PrismaService, useValue: prisma },
         { provide: 'IEventBus', useValue: eventBus },
+        { provide: OutboxService, useValue: outboxService },
       ],
     }).compile();
 
@@ -124,9 +140,8 @@ describe('SessionsService', () => {
         orderCount: 0,
       };
 
-      repo.findOpenSession.mockResolvedValue(null);
-      repo.countByPrefix.mockResolvedValue(0);
-      repo.create.mockResolvedValue(mockSession);
+      prisma.registerSession.findFirst.mockResolvedValue(null);
+      prisma.registerSession.create.mockResolvedValue(mockSession);
 
       // Service signature changed: openSession(dto, userId)
       const result = await service.openSession(dto, userId);
@@ -146,7 +161,7 @@ describe('SessionsService', () => {
         status: SessionStatus.OPEN,
       };
 
-      repo.findOpenSession.mockResolvedValue(existingSession);
+      prisma.registerSession.findFirst.mockResolvedValue(existingSession);
 
       await expect(
         service.openSession({
@@ -198,10 +213,12 @@ describe('SessionsService', () => {
 
       expect(result.status).toBe(SessionStatus.CLOSED);
       expect(prisma.denominationCount.create).toHaveBeenCalledTimes(3);
-      expect(eventBus.publish).toHaveBeenCalledWith(
+      expect(outboxService.enqueue).toHaveBeenCalledWith(
+        expect.anything(),
         'SessionClosed',
         expect.anything(),
       );
+      expect(outboxService.flushPending).toHaveBeenCalled();
     });
 
     it('should throw error for already closed session', async () => {
@@ -260,8 +277,13 @@ describe('SessionsService', () => {
 
       await service.closeSession(dto);
 
-      // Should publish both SessionClosed and SessionVarianceAlert
-      expect(eventBus.publish).toHaveBeenCalledTimes(2);
+      // Should enqueue SessionClosed and publish SessionVarianceAlert
+      expect(outboxService.enqueue).toHaveBeenCalledWith(
+        expect.anything(),
+        'SessionClosed',
+        expect.anything(),
+      );
+      expect(eventBus.publish).toHaveBeenCalledTimes(1);
       expect(eventBus.publish).toHaveBeenCalledWith(
         'SessionVarianceAlert',
         expect.anything(),
