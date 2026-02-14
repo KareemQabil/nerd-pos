@@ -3,18 +3,14 @@
  *
  * Standardizes ALL success responses to follow a consistent envelope format:
  * {
- *   "success": true,
- *   "statusCode": 200,
- *   "data": { ... },
- *   "timestamp": "2026-01-25T10:00:00.000Z",
- *   "path": "/api/v1/..."
+ *   "result": { ... },
+ *   "error": null
  * }
  *
  * This provides:
  * - Consistent API contract for frontend consumers
  * - Easy response validation
- * - Built-in metadata (timestamp, path, request ID)
- * - Matches the error response format (RFC 9457)
+ * - Matches the error response format
  */
 
 import {
@@ -25,45 +21,32 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { Request } from 'express';
-
-export interface SuccessResponse<T = any> {
-  success: true;
-  statusCode: number;
-  data: T;
-  timestamp: string;
-  path: string;
-  requestId?: string;
-}
+import { ApiResponse } from '../types';
 
 @Injectable()
 export class TransformInterceptor<T> implements NestInterceptor<
   T,
-  SuccessResponse<T>
+  ApiResponse<T>
 > {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
-  ): Observable<SuccessResponse<T>> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const statusCode = context.switchToHttp().getResponse().statusCode;
-
+  ): Observable<ApiResponse<T>> {
     return next.handle().pipe(
-      map((data) => {
+      map((result) => {
         // Don't double-wrap if already in standard format
-        if (data && typeof data === 'object' && 'success' in data) {
-          return data;
+        if (
+          result &&
+          typeof result === 'object' &&
+          'result' in result &&
+          'error' in result
+        ) {
+          return result as ApiResponse<T>;
         }
 
-        // Wrap in standard success envelope
         return {
-          success: true,
-          statusCode,
-          data,
-          timestamp: new Date().toISOString(),
-          path: request.url,
-          requestId:
-            (request as any).id || (request.headers['x-request-id'] as string),
+          result: result ?? null,
+          error: null,
         };
       }),
     );

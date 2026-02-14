@@ -12,7 +12,10 @@
  * - Verified repository methods from compliance.repository.ts (28 lines)
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
 import { ComplianceService } from './compliance.service';
 import { ComplianceRepository } from './compliance.repository';
 import { ComplianceSettings } from './entities/compliance.entity';
@@ -192,7 +195,7 @@ describe('ComplianceService', () => {
       repo.findByOrder.mockResolvedValue(existingInvoice);
 
       await expect(service.generateInvoice('order-1', {})).rejects.toThrow(
-        BadRequestException,
+        BadRequestAppException,
       );
     });
 
@@ -418,11 +421,11 @@ describe('ComplianceService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent invoice', async () => {
+    it('should throw NotFoundAppException for non-existent invoice', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.submitInvoice('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

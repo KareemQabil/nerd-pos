@@ -6,7 +6,10 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  NotFoundAppException,
+  UnauthorizedAppException,
+} from '../../common/exceptions';
 import { UsersService } from './users.service';
 import { JwtService } from '@nestjs/jwt';
 import { UsersRepository } from './users.repository';
@@ -107,20 +110,20 @@ describe('UsersService', () => {
       );
     });
 
-    it('should throw UnauthorizedException for invalid username', async () => {
+    it('should throw UnauthorizedAppException for invalid username', async () => {
       repo.findByUsername.mockResolvedValue(null);
 
       await expect(service.login('invalid', 'password')).rejects.toThrow(
-        UnauthorizedException,
+        UnauthorizedAppException,
       );
     });
 
-    it('should throw UnauthorizedException for wrong password', async () => {
+    it('should throw UnauthorizedAppException for wrong password', async () => {
       repo.findByUsername.mockResolvedValue(mockUser);
       jest.spyOn(service as any, 'verifyPassword').mockResolvedValue(false);
 
       await expect(service.login('admin', 'wrongpassword')).rejects.toThrow(
-        UnauthorizedException,
+        UnauthorizedAppException,
       );
     });
   });
@@ -199,11 +202,11 @@ describe('UsersService', () => {
       expect(result.username).toBe('admin');
     });
 
-    it('should throw NotFoundException if user not found', async () => {
+    it('should throw NotFoundAppException if user not found', async () => {
       repo.findWithRole.mockResolvedValue(null);
 
       await expect(service.findById('invalid')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

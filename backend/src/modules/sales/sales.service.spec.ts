@@ -10,7 +10,7 @@
  * - Verified DTOs from dto/index.ts
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { SalesService } from './sales.service';
 import { SalesRepository } from './sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -349,11 +349,11 @@ describe('SalesService', () => {
       expect(result.id).toBe('order-1');
     });
 
-    it('should throw NotFoundException if not found', async () => {
+    it('should throw NotFoundAppException if not found', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findOrderById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

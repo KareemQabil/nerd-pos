@@ -2,13 +2,7 @@
 // Source: FINAL/BACKEND/14-MODULE-USERS-ROLES.md
 // Handles: Authentication, authorization, user management, roles, permissions
 
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
@@ -33,6 +27,13 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+  UnauthorizedAppException,
+  TooManyRequestsAppException,
+} from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @Injectable()
 export class UsersService {
@@ -57,7 +58,7 @@ export class UsersService {
         false,
         'Invalid credentials',
       );
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedAppException(ErrorMessages.InvalidCredentials);
     }
 
     await this.ensureNotLockedOut(user.id);
@@ -66,7 +67,7 @@ export class UsersService {
 
     if (!isValid) {
       await this.logAuthAttempt(user.id, 'PASSWORD', false, 'Invalid password');
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedAppException(ErrorMessages.InvalidCredentials);
     }
 
     await this.logAuthAttempt(user.id, 'PASSWORD', true);
@@ -218,8 +219,12 @@ export class UsersService {
     );
 
     if (failures >= this.maxFailedPasswordAttempts) {
-      throw new UnauthorizedException(
-        'Account temporarily locked due to failed login attempts. Try again later.',
+      throw new TooManyRequestsAppException(
+        ErrorMessages.TooManyRequests,
+        {
+          message:
+            'Account temporarily locked due to failed login attempts. Try again later.',
+        },
       );
     }
   }
@@ -230,7 +235,9 @@ export class UsersService {
     // Check if username exists
     const existing = await this.repo.findByUsername(dto.username);
     if (existing) {
-      throw new BadRequestException(`Username ${dto.username} already exists`);
+      throw new BadRequestAppException(ErrorMessages.UsernameExists, {
+        username: dto.username,
+      });
     }
 
     const hashedPassword = await this.hashPassword(dto.password);
@@ -259,7 +266,7 @@ export class UsersService {
   async findById(id: string): Promise<UserProfile> {
     const user = await this.repo.findWithRole(id);
     if (!user) {
-      throw new NotFoundException(`User ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.UserNotFound, { userId: id });
     }
 
     return {
@@ -313,12 +320,14 @@ export class UsersService {
   ): Promise<void> {
     const user = await this.repo.findById(userId);
     if (!user) {
-      throw new NotFoundException(`User ${userId} not found`);
+      throw new NotFoundAppException(ErrorMessages.UserNotFound, {
+        userId,
+      });
     }
 
     const isValid = await this.verifyPassword(currentPassword, user.password);
     if (!isValid) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestAppException(ErrorMessages.InvalidCurrentPassword);
     }
 
     const newHash = await this.hashPassword(newPassword);

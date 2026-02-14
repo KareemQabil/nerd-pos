@@ -23,6 +23,7 @@ import {
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { SessionsService } from './sessions.service';
+import { ApiResultResponse, ApiErrorResponse } from '../../common/decorators';
 import { OpenSessionDto, CloseSessionDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -36,6 +37,8 @@ import { ApiBody } from '@nestjs/swagger';
 @ApiBearerAuth('JWT')
 @ApiUnauthorizedResponse({ description: 'Not authenticated' })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @ResourceType('session')
 @Controller('sessions')
 export class SessionsController {
@@ -50,6 +53,10 @@ export class SessionsController {
     description: 'Opens a new cashier session with opening balance',
   })
   @ApiBody({ schema: { example: examples.session.openSessionRequest.value } })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Session opened successfully',
+  })
   @ApiResponse({
     status: 201,
     description: 'Session opened successfully',
@@ -86,6 +93,10 @@ export class SessionsController {
     description:
       'Closes session with closing balance and calculates variance. Manager only.',
   })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Session closed successfully',
+  })
   @ApiResponse({
     status: 200,
     description: 'Session closed successfully',
@@ -120,6 +131,10 @@ export class SessionsController {
     description: 'Returns active session for user',
   })
   @ApiParam({ name: 'userId', description: 'User UUID' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Current session retrieved',
+  })
   @ApiResponse({
     status: 200,
     description: 'Current session retrieved',
@@ -149,6 +164,7 @@ export class SessionsController {
     description: 'Returns session details',
   })
   @ApiParam({ name: 'id', description: 'Session UUID' })
+  @ApiResultResponse({ status: 200, description: 'Session found' })
   @ApiResponse({ status: 200, description: 'Session found' })
   @ApiNotFoundResponse({ description: 'Session not found' })
   async getSession(@Param('id') id: string) {
@@ -162,6 +178,7 @@ export class SessionsController {
     description: 'Returns session with orders and payments. Manager+ required.',
   })
   @ApiParam({ name: 'id', description: 'Session UUID' })
+  @ApiResultResponse({ status: 200, description: 'Session with details' })
   @ApiResponse({
     status: 200,
     description: 'Session with details',
@@ -192,6 +209,7 @@ export class SessionsController {
     description: 'Returns session history for user. Manager+ required.',
   })
   @ApiParam({ name: 'userId', description: 'User UUID' })
+  @ApiResultResponse({ status: 200, description: 'User sessions retrieved' })
   @ApiResponse({ status: 200, description: 'User sessions retrieved' })
   async getSessionsByUser(@Param('userId') userId: string) {
     return this.service.findByUser(userId);

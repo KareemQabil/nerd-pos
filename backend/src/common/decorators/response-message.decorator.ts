@@ -3,7 +3,7 @@
  * Production Cleanup 2026-01-23
  *
  * Use @ResponseMessage() to set custom success messages on endpoints.
- * Works with DecimalTransformInterceptor to customize response messages.
+ * Reserved for legacy response message handling.
  *
  * @example
  * @ResponseMessage('Product created successfully')
@@ -20,4 +20,4 @@ import { RESPONSE_MESSAGE_KEY } from '../interceptors/decimal-transform.intercep
  * Set a custom success message for an endpoint
  */
 export const ResponseMessage = (message: string) =>
-  SetMetadata(RESPONSE_MESSAGE_KEY, message);
+    SetMetadata(RESPONSE_MESSAGE_KEY, message);

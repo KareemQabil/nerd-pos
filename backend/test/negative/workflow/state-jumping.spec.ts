@@ -21,6 +21,8 @@ import {
 } from '../../../src/modules/sales/calculation-steps';
 import { InventoryService } from '../../../src/modules/inventory/inventory.service';
 import { SessionsService } from '../../../src/modules/sessions/sessions.service';
+import { BadRequestAppException } from '../../../src/common/exceptions';
+import { ErrorMessages } from '../../../src/common/constants';
 
 function createMockStep() {
   return {
@@ -124,9 +126,11 @@ describe('WF-01: Add Item to Paid Order', () => {
     };
 
     // Act & Assert
-    await expect(
-      salesService.addItem(order.id, itemDto as any),
-    ).rejects.toThrow('Can only add items to DRAFT orders');
+    const result = salesService.addItem(order.id, itemDto as any);
+    await expect(result).rejects.toThrow(BadRequestAppException);
+    await expect(result).rejects.toMatchObject({
+      response: { messageKey: ErrorMessages.OrderNotDraft.key },
+    });
   });
 
   it('should reject item addition to COMPLETED order', async () => {
@@ -143,9 +147,11 @@ describe('WF-01: Add Item to Paid Order', () => {
     };
 
     // Act & Assert
-    await expect(
-      salesService.addItem(order.id, itemDto as any),
-    ).rejects.toThrow('Can only add items to DRAFT orders');
+    const result = salesService.addItem(order.id, itemDto as any);
+    await expect(result).rejects.toThrow(BadRequestAppException);
+    await expect(result).rejects.toMatchObject({
+      response: { messageKey: ErrorMessages.OrderNotDraft.key },
+    });
   });
 
   it('should reject item addition to CANCELLED order', async () => {
@@ -162,9 +168,11 @@ describe('WF-01: Add Item to Paid Order', () => {
     };
 
     // Act & Assert
-    await expect(
-      salesService.addItem(order.id, itemDto as any),
-    ).rejects.toThrow('Can only add items to DRAFT orders');
+    const result = salesService.addItem(order.id, itemDto as any);
+    await expect(result).rejects.toThrow(BadRequestAppException);
+    await expect(result).rejects.toMatchObject({
+      response: { messageKey: ErrorMessages.OrderNotDraft.key },
+    });
   });
 
   it('should allow item addition to DRAFT order', async () => {

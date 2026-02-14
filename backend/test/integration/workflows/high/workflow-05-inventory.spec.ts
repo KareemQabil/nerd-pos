@@ -13,7 +13,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../../../src/common/exceptions';
 import { InventoryService } from '../../../../src/modules/inventory/inventory.service';
 import { InventoryRepository } from '../../../../src/modules/inventory/inventory.repository';
 import { FIFOStrategy } from '../../../../src/modules/inventory/strategies/fifo.strategy';
@@ -131,7 +131,7 @@ describe('Workflow 5: Inventory Management', () => {
       repo.findAllWarehouses.mockResolvedValue([]);
 
       await expect(service.getDefaultWarehouse()).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

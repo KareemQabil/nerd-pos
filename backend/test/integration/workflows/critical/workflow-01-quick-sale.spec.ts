@@ -11,7 +11,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../../../src/common/exceptions';
 import { SalesService } from '../../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../../src/core/prisma/prisma.service';
@@ -255,11 +255,11 @@ describe('Workflow 1: Quick Sale', () => {
       expect(result.id).toBe('order-1');
     });
 
-    it('should throw NotFoundException for missing order', async () => {
+    it('should throw NotFoundAppException for missing order', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findOrderById('nonexistent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
 

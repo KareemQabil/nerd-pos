@@ -5,7 +5,7 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
-import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -86,9 +86,7 @@ import { LookupModule } from './modules/lookup/lookup.module';
     AppService,
     {
       provide: APP_INTERCEPTOR,
-      useFactory: (reflector: Reflector) =>
-        new DecimalTransformInterceptor(reflector),
-      inject: [Reflector],
+      useClass: DecimalTransformInterceptor,
     },
     // Global JWT Guard - all routes protected by default
     {

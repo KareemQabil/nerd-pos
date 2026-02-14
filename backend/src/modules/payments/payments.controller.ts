@@ -24,6 +24,7 @@ import {
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
+import { ApiResultResponse, ApiErrorResponse } from '../../common/decorators';
 import {
   CreatePaymentDto,
   SplitPaymentDto,
@@ -43,6 +44,8 @@ import { ApiBody } from '@nestjs/swagger';
 @ApiBearerAuth('JWT')
 @ApiUnauthorizedResponse({ description: 'Not authenticated' })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @ResourceType('payment')
 @Controller('payments')
 export class PaymentsController {
@@ -57,6 +60,10 @@ export class PaymentsController {
     description: 'Processes a payment for an order',
   })
   @ApiBody({ schema: { example: examples.payment.createPaymentRequest.value } })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Payment processed successfully',
+  })
   @ApiResponse({
     status: 201,
     description: 'Payment processed successfully',
@@ -89,6 +96,7 @@ export class PaymentsController {
     description: 'Processes multiple payment methods for one order',
   })
   @ApiBody({ schema: { example: examples.payment.createPaymentRequest.value } })
+  @ApiResultResponse({ status: 201, description: 'Split payment processed' })
   @ApiResponse({
     status: 201,
     description: 'Split payment processed',
@@ -119,6 +127,10 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Get payment methods',
     description: 'Returns all available payment methods',
+  })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Payment methods retrieved',
   })
   @ApiResponse({
     status: 200,
@@ -151,6 +163,7 @@ export class PaymentsController {
     description: 'Returns payment details',
   })
   @ApiParam({ name: 'id', description: 'Payment UUID' })
+  @ApiResultResponse({ status: 200, description: 'Payment found' })
   @ApiResponse({
     status: 200,
     description: 'Payment found',
@@ -181,6 +194,7 @@ export class PaymentsController {
     description: 'Returns all payments for an order',
   })
   @ApiParam({ name: 'orderId', description: 'Order UUID' })
+  @ApiResultResponse({ status: 200, description: 'Payments retrieved' })
   @ApiResponse({
     status: 200,
     description: 'Payments retrieved',
@@ -212,6 +226,7 @@ export class PaymentsController {
     description: 'Returns all payments for a session. Manager+ required.',
   })
   @ApiParam({ name: 'sessionId', description: 'Session UUID' })
+  @ApiResultResponse({ status: 200, description: 'Payments retrieved' })
   @ApiResponse({ status: 200, description: 'Payments retrieved' })
   async getPaymentsBySession(@Param('sessionId') sessionId: string) {
     return this.service.findBySession(sessionId);
@@ -225,6 +240,7 @@ export class PaymentsController {
     summary: 'Create refund request',
     description: 'Creates a refund request for approval',
   })
+  @ApiResultResponse({ status: 201, description: 'Refund request created' })
   @ApiResponse({
     status: 201,
     description: 'Refund request created',
@@ -256,6 +272,7 @@ export class PaymentsController {
     summary: 'Get pending refunds',
     description: 'Returns refunds awaiting approval. Manager only.',
   })
+  @ApiResultResponse({ status: 200, description: 'Pending refunds retrieved' })
   @ApiResponse({ status: 200, description: 'Pending refunds retrieved' })
   async getPendingRefunds() {
     return this.service.getPendingRefunds();
@@ -268,6 +285,7 @@ export class PaymentsController {
     description: 'Approves a pending refund. Manager only.',
   })
   @ApiParam({ name: 'id', description: 'Refund UUID' })
+  @ApiResultResponse({ status: 200, description: 'Refund approved' })
   @ApiResponse({ status: 200, description: 'Refund approved' })
   @ApiNotFoundResponse({ description: 'Refund not found' })
   async approveRefund(
@@ -284,6 +302,7 @@ export class PaymentsController {
     description: 'Rejects a pending refund with reason. Manager only.',
   })
   @ApiParam({ name: 'id', description: 'Refund UUID' })
+  @ApiResultResponse({ status: 200, description: 'Refund rejected' })
   @ApiResponse({ status: 200, description: 'Refund rejected' })
   @ApiNotFoundResponse({ description: 'Refund not found' })
   async rejectRefund(
@@ -301,6 +320,7 @@ export class PaymentsController {
     summary: 'Create payment method',
     description: 'Creates new payment method. Admin only.',
   })
+  @ApiResultResponse({ status: 201, description: 'Payment method created' })
   @ApiResponse({ status: 201, description: 'Payment method created' })
   @ApiBadRequestResponse({ description: 'Validation error' })
   async createPaymentMethod(@Body() dto: CreatePaymentMethodDto) {
@@ -314,6 +334,7 @@ export class PaymentsController {
     description: 'Updates payment method. Admin only.',
   })
   @ApiParam({ name: 'id', description: 'Payment Method UUID' })
+  @ApiResultResponse({ status: 200, description: 'Payment method updated' })
   @ApiResponse({ status: 200, description: 'Payment method updated' })
   @ApiNotFoundResponse({ description: 'Payment method not found' })
   async updatePaymentMethod(

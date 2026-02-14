@@ -14,6 +14,7 @@ import {
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { ComplianceService } from './compliance.service';
+import { ApiResultResponse, ApiErrorResponse } from '../../common/decorators';
 import { GenerateInvoiceDto, SubmitInvoiceDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -24,6 +25,8 @@ import { PERMISSIONS } from '../../core/constants/permissions';
 @ApiBearerAuth('JWT')
 @ApiUnauthorizedResponse({ description: 'Not authenticated' })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('compliance')
 export class ComplianceController {
   constructor(private readonly service: ComplianceService) {}
@@ -34,6 +37,7 @@ export class ComplianceController {
     summary: 'Generate tax invoice',
     description: 'Generates ETA/ZATCA compliant invoice for order',
   })
+  @ApiResultResponse({ status: 201, description: 'Invoice generated' })
   @ApiResponse({
     status: 201,
     description: 'Invoice generated',
@@ -65,6 +69,7 @@ export class ComplianceController {
     summary: 'Submit invoice to tax authority',
     description: 'Submits invoice to ETA/ZATCA for approval',
   })
+  @ApiResultResponse({ status: 200, description: 'Invoice submitted' })
   @ApiResponse({
     status: 200,
     description: 'Invoice submitted',
@@ -97,6 +102,7 @@ export class ComplianceController {
     description: 'Returns compliance invoice for order. Manager+ required.',
   })
   @ApiParam({ name: 'orderId', description: 'Order UUID' })
+  @ApiResultResponse({ status: 200, description: 'Invoice found' })
   @ApiResponse({
     status: 200,
     description: 'Invoice found',
@@ -124,6 +130,10 @@ export class ComplianceController {
   @ApiOperation({
     summary: 'Get pending invoices',
     description: 'Returns invoices pending submission. Manager+ required.',
+  })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Pending invoices retrieved',
   })
   @ApiResponse({
     status: 200,
@@ -153,6 +163,10 @@ export class ComplianceController {
   @ApiOperation({
     summary: 'Verify hash chain',
     description: 'Verifies integrity of invoice hash chain. Manager+ required.',
+  })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Hash chain verification result',
   })
   @ApiResponse({
     status: 200,

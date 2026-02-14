@@ -19,7 +19,10 @@ import { SalesRepository } from '../../../../src/modules/sales/sales.repository'
 import { PrismaService } from '../../../../src/core/prisma/prisma.service';
 import { OutboxService } from '../../../../src/core/outbox/outbox.service';
 import { IEventBus } from '../../../../src/core/event-bus/event-bus.interface';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../../../src/common/exceptions';
 import Decimal from 'decimal.js';
 import { Prisma } from '@prisma/client';
 import { SessionStatus } from '../../../../src/core/constants/enums';
@@ -259,7 +262,7 @@ describe('Workflow 7: Close Session', () => {
           sessionId: 'session-123',
           denominations: [],
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
 
     it('should throw error if session not found', async () => {
@@ -270,7 +273,7 @@ describe('Workflow 7: Close Session', () => {
           sessionId: 'nonexistent',
           denominations: [],
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
   });
 

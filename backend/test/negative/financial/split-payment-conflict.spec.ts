@@ -17,6 +17,8 @@ import {
   createTestOrder,
 } from '../../helpers/test-helpers';
 import { OrderStatus } from '../../../src/core/constants/enums';
+import { BadRequestAppException } from '../../../src/common/exceptions';
+import { ErrorMessages } from '../../../src/common/constants';
 import Decimal from 'decimal.js';
 
 describe('MT-04: Split Payment Conflict', () => {
@@ -522,15 +524,17 @@ describe('MT-04: Split Payment Conflict', () => {
     });
 
     // Try to create payment with negative amount
-    await expect(
-      paymentsService.createPayment({
-        orderId: order.id,
-        sessionId: order.sessionId,
-        method: 'CASH',
-        amount: -10,
-        createdBy: 'test-user',
-      }),
-    ).rejects.toThrow('Payment amount must be greater than 0');
+    const result = paymentsService.createPayment({
+      orderId: order.id,
+      sessionId: order.sessionId,
+      method: 'CASH',
+      amount: -10,
+      createdBy: 'test-user',
+    });
+    await expect(result).rejects.toThrow(BadRequestAppException);
+    await expect(result).rejects.toMatchObject({
+      response: { messageKey: ErrorMessages.InvalidPaymentAmount.key },
+    });
   });
 
   it('should not allow zero payment amounts', async () => {
@@ -540,14 +544,16 @@ describe('MT-04: Split Payment Conflict', () => {
     });
 
     // Try to create payment with zero amount
-    await expect(
-      paymentsService.createPayment({
-        orderId: order.id,
-        sessionId: order.sessionId,
-        method: 'CASH',
-        amount: 0,
-        createdBy: 'test-user',
-      }),
-    ).rejects.toThrow('Payment amount must be greater than 0');
+    const result = paymentsService.createPayment({
+      orderId: order.id,
+      sessionId: order.sessionId,
+      method: 'CASH',
+      amount: 0,
+      createdBy: 'test-user',
+    });
+    await expect(result).rejects.toThrow(BadRequestAppException);
+    await expect(result).rejects.toMatchObject({
+      response: { messageKey: ErrorMessages.InvalidPaymentAmount.key },
+    });
   });
 });

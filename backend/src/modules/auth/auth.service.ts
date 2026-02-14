@@ -5,10 +5,12 @@
  * Uses UsersService for user lookup and JwtService for token signing.
  */
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { JwtPayload } from './decorators/current-user.decorator';
+import { UnauthorizedAppException } from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 export interface AuthResponse {
   access_token: string;
@@ -77,7 +79,7 @@ export class AuthService {
     try {
       return this.jwtService.verify<JwtPayload>(token);
     } catch {
-      throw new UnauthorizedException('Invalid token');
+      throw new UnauthorizedAppException(ErrorMessages.InvalidTokenPayload);
     }
   }
 }

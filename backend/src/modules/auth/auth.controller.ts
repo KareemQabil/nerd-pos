@@ -23,6 +23,7 @@ import {
   ApiResponse,
   ApiBody,
 } from '@nestjs/swagger';
+import { ApiResultResponse, ApiErrorResponse } from '../../common/decorators';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
@@ -45,6 +46,12 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Login and set auth cookie' })
   @ApiBody({ schema: { example: examples.auth.loginRequest.value } })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Login successful, cookie set',
+  })
+  @ApiErrorResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiErrorResponse({ status: 429, description: 'Too many login attempts' })
   @ApiResponse({
     status: 201,
     description: 'Login successful, cookie set',
@@ -105,6 +112,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 logout attempts per minute
   @Post('logout')
   @ApiOperation({ summary: 'Logout and clear auth cookie' })
+  @ApiResultResponse({ status: 200, description: 'Logout successful' })
   @ApiResponse({
     status: 200,
     description: 'Logout successful',
@@ -123,6 +131,8 @@ export class AuthController {
    */
   @Get('profile')
   @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResultResponse({ status: 200, description: 'User profile retrieved' })
+  @ApiErrorResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({
     status: 200,
     description: 'User profile retrieved',

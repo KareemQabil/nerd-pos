@@ -4,16 +4,16 @@
 // Sprint 4: Added $transaction wrapper for ACID compliance
 // BLOCK 3 FIX: Replaced magic strings with OrderStatus enum
 
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { SalesRepository } from './sales.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 import {
   ICalculationStep,
   CalculationContext,
@@ -100,7 +100,7 @@ export class SalesService {
   ): Promise<OrderWithItems> {
     // FORENSIC AUDIT FIX: Validate non-empty items
     if (!dto.items || dto.items.length === 0) {
-      throw new BadRequestException('Order must have at least one item');
+      throw new BadRequestAppException(ErrorMessages.OrderItemsRequired);
     }
 
     // Resolve Session ID
@@ -108,7 +108,7 @@ export class SalesService {
     if (!sessionId) {
       const session = await this.sessionsService.getCurrentSession(createdBy);
       if (!session) {
-        throw new BadRequestException('No active session found for user');
+        throw new BadRequestAppException(ErrorMessages.SessionNotFound);
       }
       sessionId = session.id;
     }
@@ -255,7 +255,7 @@ export class SalesService {
     }));
 
     if (order.status !== OrderStatus.DRAFT) {
-      throw new BadRequestException('Only DRAFT orders can be confirmed');
+      throw new BadRequestAppException(ErrorMessages.OrderNotDraft);
     }
 
     const updated = await this.repo.update(orderId, {
@@ -297,10 +297,15 @@ export class SalesService {
     // FORENSIC AUDIT FIX: Validate state machine transition
     if (!isValidTransition(previousStatus, newStatus)) {
       const allowedNext = getAllowedTransitions(previousStatus);
-      throw new BadRequestException(
-        `Invalid order status transition: ${previousStatus} → ${newStatus}. ` +
-          `Allowed transitions from ${previousStatus}: ${allowedNext.length > 0 ? allowedNext.join(', ') : 'none (terminal state)'}`,
-      );
+      throw new BadRequestAppException(ErrorMessages.InvalidStatusTransition, {
+
+        previousStatus,
+
+        newStatus,
+
+        allowedNext,
+
+      });
     }
 
     const updated = await this.repo.update(orderId, {
@@ -345,15 +350,15 @@ export class SalesService {
         order.status as OrderStatus,
       )
     ) {
-      throw new BadRequestException(
-        'Cannot cancel a completed/paid order. Use Refund instead.',
-      );
+      throw new BadRequestAppException(ErrorMessages.OrderFinalized, {
+        reason: 'Cannot cancel a completed/paid order. Use Refund instead.',
+      });
     }
 
     if (order.status === OrderStatus.CANCELLED) {
-      throw new BadRequestException(
-        'Cannot cancel completed or already cancelled order',
-      );
+      throw new BadRequestAppException(ErrorMessages.OrderFinalized, {
+        reason: 'Cannot cancel completed or already cancelled order',
+      });
     }
 
     const payments = (order as { payments?: { amount?: Prisma.Decimal | number }[] })
@@ -366,7 +371,9 @@ export class SalesService {
       const orderTotal = new Decimal(order.grandTotal ?? 0);
 
       if (totalPaid.greaterThanOrEqualTo(orderTotal)) {
-        throw new BadRequestException('Cannot cancel a paid order');
+        throw new BadRequestAppException(ErrorMessages.OrderFinalized, {
+          reason: 'Cannot cancel a paid order',
+        });
       }
     }
 
@@ -392,7 +399,7 @@ export class SalesService {
     const order = await this.findOrderById(orderId);
 
     if (order.status !== OrderStatus.DRAFT) {
-      throw new BadRequestException('Can only add items to DRAFT orders');
+      throw new BadRequestAppException(ErrorMessages.OrderNotDraft);
     }
 
     // AUDIT FIX: Use Decimal.js for precision-safe financial math
@@ -442,7 +449,7 @@ export class SalesService {
     const order = await this.findOrderById(orderId);
 
     if (order.status !== OrderStatus.DRAFT) {
-      throw new BadRequestException('Can only modify items in DRAFT orders');
+      throw new BadRequestAppException(ErrorMessages.OrderNotDraft);
     }
 
     await this.repo.updateItem(itemId, dto);
@@ -455,7 +462,7 @@ export class SalesService {
     const order = await this.findOrderById(orderId);
 
     if (order.status !== OrderStatus.DRAFT) {
-      throw new BadRequestException('Can only remove items from DRAFT orders');
+      throw new BadRequestAppException(ErrorMessages.OrderNotDraft);
     }
 
     await this.repo.removeItem(itemId);
@@ -469,7 +476,7 @@ export class SalesService {
   async findOrderById(id: string): Promise<Order> {
     const order = await this.repo.findById(id);
     if (!order) {
-      throw new NotFoundException(`Order ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.OrderNotFound, { id });
     }
     return order;
   }
@@ -477,7 +484,7 @@ export class SalesService {
   async findOrderByIdWithItems(id: string): Promise<OrderWithItems> {
     const order = await this.repo.findWithItems(id);
     if (!order) {
-      throw new NotFoundException(`Order ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.OrderNotFound, { id });
     }
     return order;
   }
@@ -485,7 +492,9 @@ export class SalesService {
   async findOrderByNumber(orderNumber: string): Promise<OrderWithItems> {
     const order = await this.repo.findByOrderNumber(orderNumber);
     if (!order) {
-      throw new NotFoundException(`Order ${orderNumber} not found`);
+      throw new NotFoundAppException(ErrorMessages.OrderNotFound, {
+        orderNumber,
+      });
     }
     return order;
   }

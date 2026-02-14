@@ -11,6 +11,8 @@ import { PrismaService } from '../../../src/core/prisma/prisma.service';
 import { OutboxService } from '../../../src/core/outbox/outbox.service';
 import { IEventBus } from '../../../src/core/event-bus/event-bus.interface';
 import { OrderStatus } from '../../../src/core/constants/enums';
+import { BadRequestAppException } from '../../../src/common/exceptions';
+import { ErrorMessages } from '../../../src/common/constants';
 import {
   createTestProduct,
   createTestSession,
@@ -358,15 +360,17 @@ describe('FIN-06: Payment Exceeds Total', () => {
     });
 
     // Try negative payment (refund attempt)
-    await expect(
-      paymentsService.createPayment({
-        orderId: order.id,
-        sessionId: order.sessionId,
-        method: 'CASH',
-        amount: -50,
-        createdBy: 'test-user',
-      }),
-    ).rejects.toThrow('Payment amount must be greater than 0');
+    const result = paymentsService.createPayment({
+      orderId: order.id,
+      sessionId: order.sessionId,
+      method: 'CASH',
+      amount: -50,
+      createdBy: 'test-user',
+    });
+    await expect(result).rejects.toThrow(BadRequestAppException);
+    await expect(result).rejects.toMatchObject({
+      response: { messageKey: ErrorMessages.InvalidPaymentAmount.key },
+    });
   });
 
   it.skip('should track payment validation failures', async () => {

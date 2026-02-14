@@ -1,13 +1,13 @@
 // Compliance Service
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  InternalServerErrorException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { ComplianceRepository } from './compliance.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
+import {
+  BadRequestAppException,
+  InternalServerErrorAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 import {
   InvoiceGeneratedEvent,
   InvoiceSubmittedEvent,
@@ -34,7 +34,7 @@ export class ComplianceService {
   ): Promise<ZATCAInvoice> {
     const existing = await this.repo.findByOrder(orderId);
     if (existing)
-      throw new BadRequestException('Invoice already exists for this order');
+      throw new BadRequestAppException(ErrorMessages.InvoiceExists);
 
     const chainStatus = await this.verifyHashChain();
     if (!chainStatus.chainValid) {
@@ -46,8 +46,8 @@ export class ComplianceService {
           chainStatus.actualHash || '',
         ),
       );
-      throw new InternalServerErrorException(
-        'ZATCA hash chain validation failed',
+      throw new InternalServerErrorAppException(
+        ErrorMessages.HashChainValidationFailed,
       );
     }
 
@@ -318,9 +318,11 @@ export class ComplianceService {
       const valueBytes = Buffer.from(value, 'utf8');
       const length = valueBytes.length;
       if (length > 255) {
-        throw new BadRequestException(
-          `TLV value too long for tag ${tag} (length ${length})`,
-        );
+        throw new BadRequestAppException(ErrorMessages.BadRequest, {
+          message: `TLV value too long for tag ${tag} (length ${length})`,
+          tag,
+          length,
+        });
       }
       chunks.push(Buffer.from([tag]));
       chunks.push(Buffer.from([length]));
@@ -360,7 +362,10 @@ export class ComplianceService {
 
   async submitInvoice(invoiceId: string): Promise<ZATCAInvoice> {
     const invoice = await this.repo.findById(invoiceId);
-    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (!invoice)
+      throw new NotFoundAppException(ErrorMessages.InvoiceNotFound, {
+        invoiceId,
+      });
 
     // Simulate submission (real implementation would call ZATCA API)
     const updated = await this.repo.update(invoiceId, {

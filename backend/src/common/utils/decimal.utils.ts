@@ -7,8 +7,7 @@ import Decimal from 'decimal.js';
 // Configure Decimal.js for financial calculations
 Decimal.set({
   precision: 20,
-  // Banker's rounding for financial compliance
-  rounding: Decimal.ROUND_HALF_EVEN,
+  rounding: Decimal.ROUND_HALF_UP,
 });
 
 export const DecimalUtils = {
@@ -54,14 +53,14 @@ export const DecimalUtils = {
    * Round to 2 decimal places (for money)
    */
   roundMoney(value: Decimal): Decimal {
-    return value.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    return value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
   },
 
   /**
    * Round to 3 decimal places (for Gulf currencies with fils)
    */
   roundGulf(value: Decimal): Decimal {
-    return value.toDecimalPlaces(3, Decimal.ROUND_HALF_EVEN);
+    return value.toDecimalPlaces(3, Decimal.ROUND_HALF_UP);
   },
 
   /**

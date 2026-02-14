@@ -7,25 +7,19 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { ErrorMessages } from '../constants';
+import { ApiResponse } from '../types';
+import {
+  isApiError,
+  isErrorMessageDefinition,
+  resolveErrorMessage,
+  type ErrorMessageInput,
+} from '../utils/error-message.utils';
 
 /**
- * RFC 9457 Problem Details Format
- * https://www.rfc-editor.org/rfc/rfc9457.html
+ * Unified API error envelope
  * Production Cleanup 2026-01-23
  */
-export interface ProblemDetails {
-  success: boolean;
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  instance: string;
-  timestamp: string;
-  requestId?: string;
-  errors?: ValidationError[];
-  stack?: string; // Only in development
-}
-
 export interface ValidationError {
   field: string;
   message: string;
@@ -34,7 +28,7 @@ export interface ValidationError {
 
 /**
  * Global HTTP Exception Filter
- * Standardizes error responses across the API using RFC 9457 format
+ * Standardizes error responses across the API using the { result, error } envelope
  */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -46,42 +40,75 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let title = 'Internal Server Error';
     let detail = 'An unexpected error occurred';
-    let errors: ValidationError[] | undefined;
+    let errorPayload: ErrorMessageInput;
+    let errorDetails: unknown;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
       if (typeof exceptionResponse === 'object') {
-        const responseObj = exceptionResponse as any;
+        const responseObj = exceptionResponse as Record<string, unknown>;
 
         // Handle validation errors (class-validator)
         if (Array.isArray(responseObj.message)) {
-          title = 'Validation Error';
-          detail = 'One or more validation errors occurred';
-          errors = responseObj.message.map((msg: any) => {
-            if (typeof msg === 'string') {
-              return { field: 'unknown', message: msg };
-            }
-            return {
-              field: msg.property || 'unknown',
-              message: Object.values(msg.constraints || {}).join(', ') || msg,
-              value: msg.value,
-            };
-          });
+          const errors: ValidationError[] = responseObj.message.map(
+            (msg: any) => {
+              if (typeof msg === 'string') {
+                return { field: 'unknown', message: msg };
+              }
+              return {
+                field: msg.property || 'unknown',
+                message: Object.values(msg.constraints || {}).join(', ') || msg,
+                value: msg.value,
+              };
+            },
+          );
+          errorPayload = ErrorMessages.ValidationError;
+          errorDetails = errors;
         } else {
-          title = responseObj.error || this.getStatusText(status);
-          detail = responseObj.message || exception.message;
+          if (isApiError(responseObj)) {
+            detail = responseObj.messageEn;
+            errorPayload = responseObj;
+          } else if (isErrorMessageDefinition(responseObj)) {
+            detail = responseObj.messageEn;
+            errorPayload = responseObj;
+          } else if (
+            isErrorMessageDefinition(responseObj.message) ||
+            isApiError(responseObj.message)
+          ) {
+            const messagePayload = responseObj.message;
+            if (isApiError(messagePayload)) {
+              detail = messagePayload.messageEn;
+            } else if (isErrorMessageDefinition(messagePayload)) {
+              detail = messagePayload.messageEn;
+            } else {
+              detail = exception.message;
+            }
+            errorPayload = messagePayload;
+          } else {
+            detail =
+              typeof responseObj.message === 'string'
+                ? responseObj.message
+                : exception.message;
+            errorPayload = responseObj;
+          }
+
+          if (responseObj.message || responseObj.error) {
+            errorDetails = {
+              message: responseObj.message,
+              error: responseObj.error,
+            };
+          }
         }
       } else {
-        title = this.getStatusText(status);
-        detail = exceptionResponse;
+        detail = exceptionResponse as string;
+        errorDetails = exceptionResponse;
       }
     } else if (exception instanceof Error) {
       detail = exception.message;
-      title = exception.name;
+      errorDetails = { message: exception.message };
     }
 
     // Log error
@@ -90,45 +117,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
       exception instanceof Error ? exception.stack : undefined,
     );
 
-    // Build RFC 9457 Problem Details response
-    const problemDetails: ProblemDetails = {
-      success: false,
-      type: `https://httpstatuses.com/${status}`,
-      title,
-      status,
-      detail,
-      instance: request.url,
-      timestamp: new Date().toISOString(),
-      requestId:
-        (request as any).id || (request.headers['x-request-id'] as string),
+    const apiError = resolveErrorMessage(errorPayload, status, errorDetails);
+
+    const payload: ApiResponse<null> = {
+      result: null,
+      error: apiError,
     };
 
-    // Add validation errors if present
-    if (errors && errors.length > 0) {
-      problemDetails.errors = errors;
-    }
-
-    // Add stack trace in development
-    if (process.env.NODE_ENV === 'development' && exception instanceof Error) {
-      problemDetails.stack = exception.stack;
-    }
-
-    response.status(status).json(problemDetails);
-  }
-
-  private getStatusText(status: number): string {
-    const statusTexts: Record<number, string> = {
-      400: 'Bad Request',
-      401: 'Unauthorized',
-      403: 'Forbidden',
-      404: 'Not Found',
-      409: 'Conflict',
-      422: 'Unprocessable Entity',
-      429: 'Too Many Requests',
-      500: 'Internal Server Error',
-      502: 'Bad Gateway',
-      503: 'Service Unavailable',
-    };
-    return statusTexts[status] || 'Error';
+    response.status(status).json(payload);
   }
 }

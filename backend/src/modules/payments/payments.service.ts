@@ -2,12 +2,7 @@
 // Source: FINAL/BACKEND/06-MODULE-PAYMENTS.md
 // Handles: Single/Split payments, Cash change, Refunds with approval
 
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PaymentsRepository } from './payments.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -25,6 +20,11 @@ import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
 import { v4 as uuidv4 } from 'uuid';
 import { OutboxService } from '../../core/outbox/outbox.service';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @Injectable()
 export class PaymentsService {
@@ -66,7 +66,7 @@ export class PaymentsService {
     });
 
     if (!order) {
-      throw new NotFoundException(`Order ${orderId} not found`);
+      throw new NotFoundAppException(ErrorMessages.OrderNotFound, { orderId });
     }
 
     await (tx as any)
@@ -97,13 +97,15 @@ export class PaymentsService {
     });
 
     if (!paymentMethod) {
-      throw new BadRequestException(`Payment method ${code} is not available`);
+      throw new BadRequestAppException(ErrorMessages.BadRequest, {
+        message: `Payment method ${code} is not available`,
+      });
     }
 
     if (paymentMethod.requiresReference && !transactionId) {
-      throw new BadRequestException(
-        `Payment method ${code} requires a transaction reference`,
-      );
+      throw new BadRequestAppException(ErrorMessages.BadRequest, {
+        message: `Payment method ${code} requires a transaction reference`,
+      });
     }
   }
 
@@ -113,15 +115,19 @@ export class PaymentsService {
     const amount = new Decimal(dto.amount);
 
     if (!Number.isFinite(dto.amount)) {
-      throw new BadRequestException('Payment amount must be a valid number');
+      throw new BadRequestAppException(ErrorMessages.BadRequest, {
+        message: 'Payment amount must be a valid number',
+      });
     }
 
     // FORENSIC AUDIT FIX: Validate positive amount
     if (amount.lte(0)) {
-      throw new BadRequestException('Payment amount must be greater than 0');
+      throw new BadRequestAppException(ErrorMessages.InvalidPaymentAmount);
     }
     if (amount.gt(this.maxPaymentAmount)) {
-      throw new BadRequestException('Payment amount exceeds maximum limit');
+      throw new BadRequestAppException(ErrorMessages.BadRequest, {
+        message: 'Payment amount exceeds maximum limit',
+      });
     }
 
     let changeAmount = new Decimal(0);
@@ -132,7 +138,7 @@ export class PaymentsService {
       changeAmount = received.minus(amount);
 
       if (changeAmount.lessThan(0)) {
-        throw new BadRequestException('Insufficient cash received');
+        throw new BadRequestAppException(ErrorMessages.InsufficientCash);
       }
     }
 
@@ -155,22 +161,26 @@ export class PaymentsService {
         );
 
         if (order.status === OrderStatus.CANCELLED) {
-          throw new BadRequestException('Cannot pay a cancelled order');
+          throw new BadRequestAppException(ErrorMessages.OrderFinalized);
         }
 
         if (dto.sessionId && order.sessionId !== dto.sessionId) {
-          throw new BadRequestException(
-            'Payment session does not match order session',
-          );
+          throw new BadRequestAppException(ErrorMessages.BadRequest, {
+            message: 'Payment session does not match order session',
+          });
         }
 
         const orderTotal = new Decimal(order.grandTotal || 0);
         const outstanding = orderTotal.minus(totalPaid);
         if (outstanding.lte(0)) {
-          throw new BadRequestException('Order is already fully paid');
+          throw new BadRequestAppException(ErrorMessages.BadRequest, {
+            message: 'Order is already fully paid',
+          });
         }
         if (amount.greaterThan(outstanding.plus(0.01))) {
-          throw new BadRequestException('Payment exceeds outstanding amount');
+          throw new BadRequestAppException(ErrorMessages.BadRequest, {
+            message: 'Payment exceeds outstanding amount',
+          });
         }
 
         const prePaymentCount = await tx.payment.count({
@@ -237,26 +247,30 @@ export class PaymentsService {
         );
 
         if (order.status === OrderStatus.CANCELLED) {
-          throw new BadRequestException('Cannot pay a cancelled order');
+          throw new BadRequestAppException(ErrorMessages.OrderFinalized);
         }
 
         if (dto.sessionId && order.sessionId !== dto.sessionId) {
-          throw new BadRequestException(
-            'Payment session does not match order session',
-          );
+          throw new BadRequestAppException(ErrorMessages.BadRequest, {
+            message: 'Payment session does not match order session',
+          });
         }
 
         const orderTotal = new Decimal(order.grandTotal || 0);
         const outstanding = orderTotal.minus(totalPaid);
         if (outstanding.lte(0)) {
-          throw new BadRequestException('Order is already fully paid');
+          throw new BadRequestAppException(ErrorMessages.BadRequest, {
+            message: 'Order is already fully paid',
+          });
         }
 
         const diff = outstanding.minus(splitTotal).abs();
         if (diff.greaterThan(0.01)) {
-          throw new BadRequestException(
-            `Split payment total (${splitTotal.toFixed(2)}) does not match outstanding amount (${outstanding.toFixed(2)})`,
-          );
+          throw new BadRequestAppException(ErrorMessages.BadRequest, {
+            message: `Split payment total (${splitTotal.toFixed(
+              2,
+            )}) does not match outstanding amount (${outstanding.toFixed(2)})`,
+          });
         }
 
         const prePaymentCount = await tx.payment.count({
@@ -318,15 +332,19 @@ export class PaymentsService {
     isSplit: boolean = false,
   ): Promise<Payment> {
     if (!Number.isFinite(dto.amount)) {
-      throw new BadRequestException('Payment amount must be a valid number');
+      throw new BadRequestAppException(ErrorMessages.BadRequest, {
+        message: 'Payment amount must be a valid number',
+      });
     }
 
     const amount = new Decimal(dto.amount);
     if (amount.lte(0)) {
-      throw new BadRequestException('Payment amount must be greater than 0');
+      throw new BadRequestAppException(ErrorMessages.InvalidPaymentAmount);
     }
     if (amount.gt(this.maxPaymentAmount)) {
-      throw new BadRequestException('Payment amount exceeds maximum limit');
+      throw new BadRequestAppException(ErrorMessages.BadRequest, {
+        message: 'Payment amount exceeds maximum limit',
+      });
     }
     let changeAmount = new Decimal(0);
 
@@ -336,7 +354,7 @@ export class PaymentsService {
       changeAmount = received.minus(amount);
 
       if (changeAmount.lessThan(0)) {
-        throw new BadRequestException('Insufficient cash received');
+        throw new BadRequestAppException(ErrorMessages.InsufficientCash);
       }
     }
 
@@ -394,12 +412,16 @@ export class PaymentsService {
           where: { id: dto.paymentId },
         });
         if (!payment) {
-          throw new NotFoundException(`Payment ${dto.paymentId} not found`);
+          throw new NotFoundAppException(ErrorMessages.PaymentNotFound, {
+            paymentId: dto.paymentId,
+          });
         }
 
         const amount = new Decimal(dto.amount);
         if (amount.lte(0)) {
-          throw new BadRequestException('Refund amount must be greater than 0');
+          throw new BadRequestAppException(ErrorMessages.BadRequest, {
+            message: 'Refund amount must be greater than 0',
+          });
         }
 
         const totals = await (tx as any).refund.aggregate({
@@ -414,11 +436,9 @@ export class PaymentsService {
         const paymentAmount = new Decimal(payment.amount);
 
         if (alreadyRefunded.plus(amount).greaterThan(paymentAmount)) {
-          throw new BadRequestException(
-            `Refund amount exceeds payment amount. Max refundable: ${paymentAmount.minus(
-              alreadyRefunded,
-            )}`,
-          );
+          throw new BadRequestAppException(ErrorMessages.RefundExceedsPayment, {
+            maxRefundable: paymentAmount.minus(alreadyRefunded).toNumber(),
+          });
         }
 
         const created = await (tx as any).refund.create({
@@ -462,10 +482,12 @@ export class PaymentsService {
           where: { id: refundId },
         });
         if (!refund) {
-          throw new NotFoundException(`Refund ${refundId} not found`);
+          throw new NotFoundAppException(ErrorMessages.RefundNotFound, {
+            refundId,
+          });
         }
         if (refund.status !== 'PENDING') {
-          throw new BadRequestException('Only pending refunds can be approved');
+          throw new BadRequestAppException(ErrorMessages.InvalidRefundStatus);
         }
 
         await (tx as any)
@@ -474,9 +496,9 @@ export class PaymentsService {
           where: { id: refund.paymentId },
         });
         if (!payment) {
-          throw new NotFoundException(
-            `Payment ${refund.paymentId} not found`,
-          );
+          throw new NotFoundAppException(ErrorMessages.PaymentNotFound, {
+            paymentId: refund.paymentId,
+          });
         }
 
         const approvedTotals = await (tx as any).refund.aggregate({
@@ -491,9 +513,7 @@ export class PaymentsService {
 
         const paymentAmount = this.toNumber(payment.amount);
         if (newRefundedAmount > paymentAmount) {
-          throw new BadRequestException(
-            'Refund approval exceeds original payment amount',
-          );
+          throw new BadRequestAppException(ErrorMessages.RefundExceedsPayment);
         }
 
         const approved = await (tx as any).refund.update({
@@ -538,7 +558,7 @@ export class PaymentsService {
   ): Promise<Refund> {
     const refund = await this.repo.findRefundById(refundId);
     if (!refund) {
-      throw new NotFoundException(`Refund ${refundId} not found`);
+      throw new NotFoundAppException(ErrorMessages.RefundNotFound, { refundId });
     }
 
     return this.repo.updateRefund(refundId, {
@@ -556,7 +576,9 @@ export class PaymentsService {
   async findPaymentById(id: string): Promise<Payment> {
     const payment = await this.repo.findById(id);
     if (!payment) {
-      throw new NotFoundException(`Payment ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.PaymentNotFound, {
+        paymentId: id,
+      });
     }
     return this.normalizePayment(payment);
   }

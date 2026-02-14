@@ -25,6 +25,7 @@ import {
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
+import { ApiResultResponse, ApiErrorResponse } from '../../common/decorators';
 import {
   CreateWarehouseDto,
   ReceiveStockDto,
@@ -45,6 +46,8 @@ import { ApiBody } from '@nestjs/swagger';
 @ApiBearerAuth('JWT')
 @ApiUnauthorizedResponse({ description: 'Not authenticated' })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({ status: 401, description: 'Not authenticated' })
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @Controller('inventory')
 export class InventoryController {
   constructor(private readonly service: InventoryService) {}
@@ -56,6 +59,10 @@ export class InventoryController {
   @ApiOperation({
     summary: 'Create warehouse',
     description: 'Creates a new warehouse location. Admin only.',
+  })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Warehouse created successfully',
   })
   @ApiResponse({
     status: 201,
@@ -88,6 +95,7 @@ export class InventoryController {
     summary: 'Get all warehouses',
     description: 'Returns list of all warehouses',
   })
+  @ApiResultResponse({ status: 200, description: 'Warehouses retrieved' })
   @ApiResponse({
     status: 200,
     description: 'Warehouses retrieved',
@@ -116,6 +124,10 @@ export class InventoryController {
   @ApiOperation({
     summary: 'Get default warehouse',
     description: 'Returns the default warehouse',
+  })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Default warehouse retrieved',
   })
   @ApiResponse({
     status: 200,
@@ -148,6 +160,10 @@ export class InventoryController {
   })
   @ApiBody({
     schema: { example: examples.inventory.receiveStockRequest.value },
+  })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Stock received successfully',
   })
   @ApiResponse({
     status: 201,
@@ -185,6 +201,10 @@ export class InventoryController {
     summary: 'Adjust stock',
     description: 'Adjusts stock with reason. Manager only.',
   })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Stock adjusted successfully',
+  })
   @ApiResponse({
     status: 201,
     description: 'Stock adjusted successfully',
@@ -219,6 +239,10 @@ export class InventoryController {
   @ApiOperation({
     summary: 'Transfer stock',
     description: 'Transfers stock between warehouses',
+  })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Stock transferred successfully',
   })
   @ApiResponse({
     status: 201,
@@ -256,6 +280,7 @@ export class InventoryController {
   })
   @ApiParam({ name: 'productId', description: 'Product UUID' })
   @ApiParam({ name: 'warehouseId', description: 'Warehouse UUID' })
+  @ApiResultResponse({ status: 200, description: 'Stock level retrieved' })
   @ApiResponse({
     status: 200,
     description: 'Stock level retrieved',
@@ -289,6 +314,10 @@ export class InventoryController {
   })
   @ApiParam({ name: 'productId', description: 'Product UUID' })
   @ApiParam({ name: 'warehouseId', description: 'Warehouse UUID' })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Available stock retrieved',
+  })
   @ApiResponse({
     status: 200,
     description: 'Available stock retrieved',
@@ -327,6 +356,10 @@ export class InventoryController {
     required: false,
     description: 'Filter by warehouse UUID',
   })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Low stock items retrieved',
+  })
   @ApiResponse({
     status: 200,
     description: 'Low stock items retrieved',
@@ -361,6 +394,10 @@ export class InventoryController {
     name: 'days',
     required: false,
     description: 'Days until expiry (default: 30)',
+  })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Expiring batches retrieved',
   })
   @ApiResponse({
     status: 200,
@@ -397,6 +434,10 @@ export class InventoryController {
     required: false,
     description: 'Filter by warehouse UUID',
   })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Movement history retrieved',
+  })
   @ApiResponse({ status: 200, description: 'Movement history retrieved' })
   async getMovementHistory(
     @Param('productId') productId: string,
@@ -413,6 +454,10 @@ export class InventoryController {
     summary: 'Create recipe',
     description:
       'Creates a new recipe for composite product. Manager+ required.',
+  })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Recipe created successfully',
   })
   @ApiResponse({
     status: 201,
@@ -446,6 +491,7 @@ export class InventoryController {
     description: 'Returns recipe and ingredients for product',
   })
   @ApiParam({ name: 'productId', description: 'Product UUID' })
+  @ApiResultResponse({ status: 200, description: 'Recipe retrieved' })
   @ApiResponse({
     status: 200,
     description: 'Recipe retrieved',
@@ -476,6 +522,10 @@ export class InventoryController {
     summary: 'Add recipe ingredient',
     description: 'Adds ingredient to existing recipe. Manager+ required.',
   })
+  @ApiResultResponse({
+    status: 201,
+    description: 'Ingredient added to recipe',
+  })
   @ApiResponse({ status: 201, description: 'Ingredient added to recipe' })
   @ApiBadRequestResponse({
     description: 'Validation error or recipe not found',
@@ -491,6 +541,7 @@ export class InventoryController {
     description: 'Calculates total cost per unit based on ingredients',
   })
   @ApiParam({ name: 'productId', description: 'Product UUID' })
+  @ApiResultResponse({ status: 200, description: 'Recipe cost calculated' })
   @ApiResponse({
     status: 200,
     description: 'Recipe cost calculated',

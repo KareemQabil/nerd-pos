@@ -4,18 +4,18 @@
 // BLOCK 1 FIX: Added $transaction for atomic session close
 // BLOCK 3 FIX: Replaced magic strings with SessionStatus enum
 
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { SessionsRepository } from './sessions.repository';
 import { SalesRepository } from '../sales/sales.repository'; // BLOCK 2 FIX
 import { PrismaService } from '../../core/prisma/prisma.service'; // BLOCK 1
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import { OutboxService } from '../../core/outbox/outbox.service';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 import { OpenSessionDto, CloseSessionDto, DenominationDto } from './dto';
 import {
   SessionOpenedEvent,
@@ -43,9 +43,7 @@ export class SessionsService {
   async openSession(dto: OpenSessionDto, userId: string): Promise<Session> {
     // Validate userId is provided
     if (!userId) {
-      throw new BadRequestException(
-        'User ID is required from authentication token',
-      );
+      throw new BadRequestAppException(ErrorMessages.UserIdRequired);
     }
 
     const { session, openingBalance } = await this.prisma.$transaction(
@@ -58,9 +56,9 @@ export class SessionsService {
           where: { userId, status: SessionStatus.OPEN },
         });
         if (existingSession) {
-          throw new BadRequestException(
-            `User already has an open session (ID: ${existingSession.id})`,
-          );
+          throw new BadRequestAppException(ErrorMessages.SessionActive, {
+            sessionId: existingSession.id,
+          });
         }
 
         const balance = new Decimal(dto.openingBalance);
@@ -101,11 +99,13 @@ export class SessionsService {
   async closeSession(dto: CloseSessionDto): Promise<Session> {
     const session = await this.repo.findById(dto.sessionId);
     if (!session) {
-      throw new NotFoundException(`Session ${dto.sessionId} not found`);
+      throw new NotFoundAppException(ErrorMessages.SessionNotFound, {
+        sessionId: dto.sessionId,
+      });
     }
 
     if (session.status === SessionStatus.CLOSED) {
-      throw new BadRequestException('Session already closed');
+      throw new BadRequestAppException(ErrorMessages.SessionClosed);
     }
 
     // FORENSIC AUDIT FIX: Check for pending DRAFT orders
@@ -115,10 +115,10 @@ export class SessionsService {
     );
 
     if (draftOrders.length > 0) {
-      throw new BadRequestException(
-        `Cannot close session: ${draftOrders.length} draft order(s) pending. ` +
-          `Order numbers: ${draftOrders.map((o) => o.orderNumber).join(', ')}`,
-      );
+      throw new BadRequestAppException(ErrorMessages.PendingDraftOrders, {
+        count: draftOrders.length,
+        orderNumbers: draftOrders.map((o) => o.orderNumber),
+      });
     }
 
     // Calculate expected balance from session data (outside transaction - read only)
@@ -234,7 +234,7 @@ export class SessionsService {
   async findById(id: string): Promise<Session> {
     const session = await this.repo.findById(id);
     if (!session) {
-      throw new NotFoundException(`Session ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.SessionNotFound, { id });
     }
     return session;
   }
@@ -242,7 +242,7 @@ export class SessionsService {
   async findByIdWithDetails(id: string): Promise<Session> {
     const session = await this.repo.findWithDetails(id);
     if (!session) {
-      throw new NotFoundException(`Session ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.SessionNotFound, { id });
     }
     return session;
   }

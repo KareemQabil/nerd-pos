@@ -11,7 +11,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestAppException } from '../../../../src/common/exceptions';
 import { PaymentsService } from '../../../../src/modules/payments/payments.service';
 import { PaymentsRepository } from '../../../../src/modules/payments/payments.repository';
 import { PrismaService } from '../../../../src/core/prisma/prisma.service';
@@ -131,7 +131,7 @@ describe('Workflow 9: Payments & Refunds', () => {
           createdBy: 'cashier-1',
           sessionId: 'session-1',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
   });
 
@@ -274,7 +274,7 @@ describe('Workflow 9: Payments & Refunds', () => {
           reason: 'Test',
           userId: 'cashier-1',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
   });
 

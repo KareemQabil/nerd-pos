@@ -9,7 +9,10 @@
  * - Verified DTOs from dto/index.ts
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
 import { PaymentsService } from './payments.service';
 import { PaymentsRepository } from './payments.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -192,7 +195,7 @@ describe('PaymentsService', () => {
       };
 
       await expect(service.createPayment(dto)).rejects.toThrow(
-        BadRequestException,
+        BadRequestAppException,
       );
     });
 
@@ -366,7 +369,7 @@ describe('PaymentsService', () => {
           reason: 'Excessive refund',
           userId: 'user-1',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
 
     it('should throw NotFoundException for non-existent payment', async () => {
@@ -379,7 +382,7 @@ describe('PaymentsService', () => {
           reason: 'Test',
           userId: 'user-1',
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
   });
 
@@ -426,7 +429,7 @@ describe('PaymentsService', () => {
 
       await expect(
         service.approveRefund('refund-1', 'manager-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
   });
 
@@ -469,7 +472,7 @@ describe('PaymentsService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findPaymentById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

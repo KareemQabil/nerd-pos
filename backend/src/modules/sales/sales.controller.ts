@@ -27,6 +27,7 @@ import {
 } from '@nestjs/swagger';
 import { SalesService } from './sales.service';
 import { PaginationDto, PaginatedResponseDto } from '../../common/dto';
+import { ApiResultResponse, ApiErrorResponse } from '../../common/decorators';
 import {
   CreateOrderDto,
   UpdateOrderStatusDto,
@@ -48,6 +49,11 @@ import { ApiBody } from '@nestjs/swagger';
   description: 'Not authenticated - JWT token missing or invalid',
 })
 @ApiForbiddenResponse({ description: 'Missing required permissions' })
+@ApiErrorResponse({
+  status: 401,
+  description: 'Not authenticated - JWT token missing or invalid',
+})
+@ApiErrorResponse({ status: 403, description: 'Missing required permissions' })
 @ResourceType('order')
 @Controller('orders')
 export class SalesController {
@@ -62,6 +68,7 @@ export class SalesController {
     description: 'Creates a new order (DINE_IN, TAKEAWAY, or DELIVERY)',
   })
   @ApiBody({ schema: { example: examples.sales.createOrderRequest.value } })
+  @ApiResultResponse({ status: 201, description: 'Order created successfully' })
   @ApiResponse({
     status: 201,
     description: 'Order created successfully',
@@ -100,6 +107,10 @@ export class SalesController {
     name: 'status',
     required: false,
     description: 'Filter by order status (DRAFT, CONFIRMED, etc.)',
+  })
+  @ApiResultResponse({
+    status: 200,
+    description: 'Orders retrieved successfully',
   })
   @ApiResponse({
     status: 200,
@@ -150,6 +161,7 @@ export class SalesController {
     description: 'Returns order with all items and details',
   })
   @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResultResponse({ status: 200, description: 'Order found' })
   @ApiResponse({
     status: 200,
     description: 'Order found',
@@ -185,6 +197,7 @@ export class SalesController {
     name: 'orderNumber',
     description: 'Order number (e.g., ORD-20260123-001)',
   })
+  @ApiResultResponse({ status: 200, description: 'Order found' })
   @ApiResponse({
     status: 200,
     description: 'Order found',
@@ -214,6 +227,7 @@ export class SalesController {
     description: 'Confirms order and sends to kitchen',
   })
   @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResultResponse({ status: 200, description: 'Order confirmed' })
   @ApiResponse({
     status: 200,
     description: 'Order confirmed',
@@ -246,6 +260,7 @@ export class SalesController {
     description: 'Updates order status',
   })
   @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResultResponse({ status: 200, description: 'Status updated' })
   @ApiResponse({ status: 200, description: 'Status updated' })
   @ApiNotFoundResponse({ description: 'Order not found' })
   async updateStatus(
@@ -262,6 +277,7 @@ export class SalesController {
     description: 'Cancels order. Manager+ role required.',
   })
   @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResultResponse({ status: 200, description: 'Order cancelled' })
   @ApiResponse({ status: 200, description: 'Order cancelled' })
   @ApiNotFoundResponse({ description: 'Order not found' })
   async cancelOrder(
@@ -280,6 +296,7 @@ export class SalesController {
     description: 'Adds new item to existing order',
   })
   @ApiParam({ name: 'id', description: 'Order UUID' })
+  @ApiResultResponse({ status: 201, description: 'Item added' })
   @ApiResponse({
     status: 201,
     description: 'Item added',
@@ -310,6 +327,7 @@ export class SalesController {
   })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiParam({ name: 'itemId', description: 'Order Item UUID' })
+  @ApiResultResponse({ status: 200, description: 'Item updated' })
   @ApiResponse({ status: 200, description: 'Item updated' })
   @ApiNotFoundResponse({ description: 'Order or item not found' })
   async updateItem(
@@ -328,6 +346,7 @@ export class SalesController {
   })
   @ApiParam({ name: 'id', description: 'Order UUID' })
   @ApiParam({ name: 'itemId', description: 'Order Item UUID' })
+  @ApiResultResponse({ status: 200, description: 'Item removed' })
   @ApiResponse({ status: 200, description: 'Item removed' })
   @ApiNotFoundResponse({ description: 'Order or item not found' })
   async removeItem(@Param('id') id: string, @Param('itemId') itemId: string) {
@@ -344,6 +363,7 @@ export class SalesController {
       'Returns all orders for a cashier session. Manager+ role required.',
   })
   @ApiParam({ name: 'sessionId', description: 'Session UUID' })
+  @ApiResultResponse({ status: 200, description: 'Orders retrieved' })
   @ApiResponse({ status: 200, description: 'Orders retrieved' })
   async findBySession(@Param('sessionId') sessionId: string) {
     return this.service.findOrdersBySession(sessionId);

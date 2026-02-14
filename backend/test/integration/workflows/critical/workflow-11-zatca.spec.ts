@@ -13,7 +13,10 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../../../src/common/exceptions';
 import { ComplianceService } from '../../../../src/modules/compliance/compliance.service';
 import { ComplianceRepository } from '../../../../src/modules/compliance/compliance.repository';
 
@@ -166,11 +169,11 @@ describe('Workflow 11: ZATCA E-Invoicing', () => {
       );
     });
 
-    it('should throw NotFoundException for missing invoice', async () => {
+    it('should throw NotFoundAppException for missing invoice', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.submitInvoice('nonexistent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -211,7 +214,7 @@ describe('Workflow 11: ZATCA E-Invoicing', () => {
 
       await expect(
         service.generateInvoice('order-1', orderData),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
   });
 

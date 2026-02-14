@@ -6,7 +6,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestAppException } from '../../../../src/common/exceptions';
 import { SalesService } from '../../../../src/modules/sales/sales.service';
 import { SalesRepository } from '../../../../src/modules/sales/sales.repository';
 import { PrismaService } from '../../../../src/core/prisma/prisma.service';
@@ -141,7 +141,7 @@ describe('Workflow 13: Void Order After Kitchen Start', () => {
       repo.findWithItems.mockResolvedValue(completedOrder);
 
       await expect(service.cancelOrder('order-1', 'Test')).rejects.toThrow(
-        BadRequestException,
+        BadRequestAppException,
       );
     });
   });

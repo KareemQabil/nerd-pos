@@ -14,7 +14,7 @@ import { SalesRepository } from '../../../../src/modules/sales/sales.repository'
 import { PrismaService } from '../../../../src/core/prisma/prisma.service';
 import { OutboxService } from '../../../../src/core/outbox/outbox.service';
 import { IEventBus } from '../../../../src/core/event-bus/event-bus.interface';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestAppException } from '../../../../src/common/exceptions';
 import Decimal from 'decimal.js';
 import { SessionStatus } from '../../../../src/core/constants/enums';
 
@@ -174,7 +174,7 @@ describe('Workflow 6: Open Session', () => {
           { openingBalance: 500, terminalId: 'terminal-4' },
           'user-existing',
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
 
     it('should allow different users to open sessions', async () => {

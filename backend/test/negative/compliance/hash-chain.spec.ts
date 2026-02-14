@@ -5,7 +5,8 @@
  */
 
 import { Test } from '@nestjs/testing';
-import { InternalServerErrorException } from '@nestjs/common';
+import { InternalServerErrorAppException } from '../../../src/common/exceptions';
+import { ErrorMessages } from '../../../src/common/constants';
 import { ComplianceService } from '../../../src/modules/compliance/compliance.service';
 import { ComplianceRepository } from '../../../src/modules/compliance/compliance.repository';
 import * as crypto from 'crypto';
@@ -125,11 +126,13 @@ describe('COMP-01: ZATCA Hash Chain Verification', () => {
         submissionStatus: 'PENDING',
     });
 
-    await expect(
-      service.generateInvoice(generateTestId('order'), {
-        orderNumber: 'ORD-COMP-01',
-        grandTotal: 100,
-      }),
-    ).rejects.toThrow(InternalServerErrorException);
+    const result = service.generateInvoice(generateTestId('order'), {
+      orderNumber: 'ORD-COMP-01',
+      grandTotal: 100,
+    });
+    await expect(result).rejects.toThrow(InternalServerErrorAppException);
+    await expect(result).rejects.toMatchObject({
+      response: { messageKey: ErrorMessages.HashChainValidationFailed.key },
+    });
   });
 });

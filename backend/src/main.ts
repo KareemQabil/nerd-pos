@@ -2,7 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { createValidationPipe } from './common/pipes/validation.pipe';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
@@ -33,8 +32,6 @@ async function bootstrap() {
   // AUDIT FIX: Register global error filter for standardized JSON responses
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // MVP FIX: Register global transform interceptor for standard success response envelope
-  app.useGlobalInterceptors(new TransformInterceptor());
 
   // API Prefix - MUST be set BEFORE Swagger for correct path documentation
   // Exclude health (for K8s probes) and swagger paths
@@ -61,19 +58,13 @@ Point of Sale & ERP System for MENA Region (Saudi Arabia & Egypt)
 - 🌐 Arabic-first design (RTL support)
 
 ## Response Format
-All successful responses follow this structure:
+All responses follow this structure:
 \`\`\`json
 {
-  "success": true,
-  "message": "Request successful",
-  "data": { ... },
-  "timestamp": "2026-01-23T10:00:00.000Z",
-  "path": "/api/v1/...",
-  "requestId": "uuid"
+  "result": { ... } || null,
+  "error": { ... } || null
 }
 \`\`\`
-
-All errors follow RFC 9457 Problem Details format.
 
 ## Authentication
 Most endpoints require a Bearer token obtained from \`POST /auth/login\`

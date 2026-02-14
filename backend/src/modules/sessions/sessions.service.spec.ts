@@ -10,7 +10,10 @@
  * - Verified DTOs from dto/index.ts
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
 import { SessionsService } from './sessions.service';
 import { SessionsRepository } from './sessions.repository';
 import { SalesRepository } from '../sales/sales.repository';
@@ -168,7 +171,7 @@ describe('SessionsService', () => {
           openingBalance: 500.0,
           terminalId: 'terminal-1',
         }, 'user-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
   });
 
@@ -234,10 +237,10 @@ describe('SessionsService', () => {
           sessionId: 'session-1',
           denominations: [],
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
 
-    it('should throw NotFoundException for non-existent session', async () => {
+    it('should throw NotFoundAppException for non-existent session', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(
@@ -245,7 +248,7 @@ describe('SessionsService', () => {
           sessionId: 'non-existent',
           denominations: [],
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
 
     it('should publish variance alert for large variance', async () => {
@@ -322,11 +325,11 @@ describe('SessionsService', () => {
       expect(result.id).toBe('session-1');
     });
 
-    it('should throw NotFoundException', async () => {
+    it('should throw NotFoundAppException', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
