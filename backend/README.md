@@ -1,98 +1,188 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NerdPOS Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Pragmatic enterprise-grade POS backend built on NestJS and Prisma. This codebase focuses on transaction safety, idempotent event handling, and financial correctness (ZATCA-compliant rounding) while keeping deployment simple.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Highlights
 
-## Description
+- ACID order workflow with atomic inventory deduction inside the sales transaction
+- Outbox pattern with SKIP LOCKED claiming, retry/backoff, stale lock requeue, and dead-letter handling
+- Inbox pattern for handler idempotency (database-enforced)
+- ZATCA HALF_UP rounding via centralized ZATCAMath utilities
+- Standardized application exceptions and response envelope
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tech stack
 
-## Project setup
+- Node.js + TypeScript
+- NestJS
+- Prisma + PostgreSQL
+- Decimal.js
+
+## Repository layout
+
+- `src/` - application source
+  - `core/` - infrastructure (prisma, outbox, inbox, event bus)
+  - `modules/` - domain modules (sales, inventory, payments, sessions, compliance, etc.)
+  - `common/` - shared utilities, errors, response envelope
+- `prisma/` - schema and migrations
+- `test/` - unit, integration, and negative tests
+- `docs/` - architectural notes and tech debt baselines
+
+## Prerequisites
+
+- Node.js (LTS recommended)
+- npm
+- PostgreSQL
+
+## Environment
+
+Copy `.env.example` to `.env` and fill in required values.
 
 ```bash
-$ npm install
+cp .env.example .env
 ```
 
-## Compile and run the project
+Minimum required:
+
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `JWT_EXPIRY`
+
+Optional:
+
+- ZATCA credentials if using live integration
+
+## Install
+
+```bash
+npm install
+```
+
+## Database
+
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
+
+## Run
 
 ```bash
 # development
-$ npm run start
+npm run start:dev
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# production
+npm run start:prod
 ```
 
-## Run tests
+## Tests
 
 ```bash
-# unit tests
-$ npm run test
+# typecheck
+npx tsc --noEmit
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# full test suite
+npx jest --runInBand
 ```
 
-## Deployment
+## Architecture notes
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### 1) ACID sales and inventory
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Inventory is deducted inside the sales transaction using an atomic update:
+
+- `inventoryItem.updateMany` with `quantityOnHand >= needed`
+- If the update count is not 1, the transaction fails with `OutOfStock`
+
+This prevents overselling under concurrency without relying on event handlers.
+
+### 2) Outbox worker
+
+Events are recorded in `outbox_events` inside the same transaction as the business operation. A background worker claims events using SKIP LOCKED, marks them `PROCESSING`, and publishes them outside the transaction.
+
+Key behavior:
+
+- `status` transitions: `PENDING` -> `PROCESSING` -> `PROCESSED` or `RETRY` or `DEAD`
+- `attempts` increment on claim
+- `nextRunAt` controls backoff scheduling
+- stale `PROCESSING` rows are requeued
+
+Location:
+
+- `src/core/outbox/outbox.worker.ts`
+
+### 3) Inbox idempotency
+
+Handlers use `InboxService.executeIdempotently(...)` to ensure each event is processed exactly once per consumer. The inbox table enforces a unique `(consumer, eventId)` constraint.
+
+Location:
+
+- `src/core/inbox/inbox.service.ts`
+- `prisma` model: `InboxEvent`
+
+### 4) ZATCA rounding
+
+All monetary rounding uses HALF_UP and is centralized in:
+
+- `src/common/utils/zatca-math.utils.ts`
+
+Rule of thumb:
+
+- Round line totals and VAT to 2 decimals (HALF_UP)
+- Sum rounded line items to get invoice totals
+
+### 5) Errors and response envelope
+
+Services throw app-level exceptions using standardized `ErrorMessages`. The API response is normalized by the global filter and interceptor.
+
+Locations:
+
+- `src/common/constants/error-messages.ts`
+- `src/common/exceptions/*`
+- `src/common/errors/throw.ts`
+
+## Operational notes
+
+### Outbox monitoring
+
+Basic queries you can run in PostgreSQL:
+
+```sql
+-- Pending or retry events
+SELECT count(*) FROM outbox_events WHERE status IN ('PENDING','RETRY');
+
+-- Stuck processing events (older than 1 minute)
+SELECT id, event_name, locked_at, locked_by
+FROM outbox_events
+WHERE status = 'PROCESSING' AND locked_at < now() - interval '1 minute';
+
+-- Dead events
+SELECT count(*) FROM outbox_events WHERE status = 'DEAD';
+```
+
+### Inbox retention
+
+The inbox table will grow. If you need retention, add a scheduled cleanup job based on your SLA.
+
+## Common commands
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# prisma studio
+npx prisma studio
+
+# format
+npm run format
+
+# lint
+npm run lint
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Contributing
 
-## Resources
+- Keep transactions explicit in services
+- Do not reintroduce `tx as any`
+- Avoid throwing raw NestJS HTTP exceptions from service layer
+- Keep event side effects out of core transactional logic
 
-Check out a few resources that may come in handy when working with NestJS:
+## Status
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This backend is designed to be safe under concurrency, resilient to handler retries, and compliant with financial rounding requirements.
