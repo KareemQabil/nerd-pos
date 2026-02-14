@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './core/prisma/prisma.module';
@@ -58,6 +59,7 @@ import { LookupModule } from './modules/lookup/lookup.module';
         limit: 100, // 100 requests per minute
       },
     ]),
+    ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(), // Enable @OnEvent handlers
     PrismaModule,
     EventBusModule,

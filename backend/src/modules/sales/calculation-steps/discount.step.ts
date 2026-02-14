@@ -9,6 +9,7 @@ import {
   CalculationContext,
 } from '../../../core/calculation/calculation-step.interface';
 import Decimal from 'decimal.js';
+import { ZATCAMath } from '../../../common/utils';
 
 @Injectable()
 export class DiscountStep implements ICalculationStep {
@@ -21,10 +22,9 @@ export class DiscountStep implements ICalculationStep {
       const discountBase = ctx.subtotalBeforeTax;
 
       if (ctx.discount.type === 'PERCENTAGE') {
-        ctx.discountAmount = discountBase
-          .times(ctx.discount.value)
-          .dividedBy(100)
-          .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN); // Banker's rounding
+        ctx.discountAmount = ZATCAMath.roundSAR(
+          discountBase.times(ctx.discount.value).dividedBy(100),
+        );
       } else {
         // FIXED discount
         ctx.discountAmount = new Decimal(ctx.discount.value);

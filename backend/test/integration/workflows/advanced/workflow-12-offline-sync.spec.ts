@@ -54,7 +54,13 @@ describe('Workflow 12: Offline Sync', () => {
     eventBus = createMockEventBus();
     outbox = { enqueue: jest.fn().mockResolvedValue(undefined), flushPending: jest.fn() };
     const prismaMock = {
-      $transaction: jest.fn((fn: any) => fn({})),
+      $transaction: jest.fn((fn: any) =>
+        fn({
+          inventoryItem: {
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          },
+        }),
+      ),
       $executeRaw: jest.fn().mockResolvedValue(undefined),
       $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
     };

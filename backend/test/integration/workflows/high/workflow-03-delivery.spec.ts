@@ -12,7 +12,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestAppException } from '../../../../src/common/exceptions';
 import { DeliveryService } from '../../../../src/modules/delivery/delivery.service';
 import { DeliveryRepository } from '../../../../src/modules/delivery/delivery.repository';
 
@@ -94,7 +94,7 @@ describe('Workflow 3: Takeout/Delivery Order', () => {
       repo.findZoneByDistrict.mockResolvedValue(null);
 
       await expect(service.calculateFee('Unknown', 100)).rejects.toThrow(
-        BadRequestException,
+        BadRequestAppException,
       );
     });
   });
@@ -155,7 +155,7 @@ describe('Workflow 3: Takeout/Delivery Order', () => {
       repo.findDriverById.mockResolvedValue({ id: 'driver-1', status: 'BUSY' });
 
       await expect(service.assignDriver('del-1', 'driver-1')).rejects.toThrow(
-        BadRequestException,
+        BadRequestAppException,
       );
     });
   });

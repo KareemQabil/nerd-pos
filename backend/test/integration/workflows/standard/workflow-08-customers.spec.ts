@@ -6,7 +6,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../../../src/common/exceptions';
 import { CustomersService } from '../../../../src/modules/customers/customers.service';
 import { CustomersRepository } from '../../../../src/modules/customers/customers.repository';
 
@@ -110,7 +110,7 @@ describe('Workflow 8: Customer & Loyalty', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findById('nonexistent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
 

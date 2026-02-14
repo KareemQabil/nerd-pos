@@ -2,12 +2,7 @@
 // Source: FINAL/BACKEND/12-MODULE-TABLES.md
 // Handles: Floor management, table assignment, status, transfers, reservations
 
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { TablesRepository } from './tables.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
@@ -32,6 +27,11 @@ import {
   Table,
   TableReservation,
 } from './entities/tables.entity';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @Injectable()
 export class TablesService {
@@ -49,7 +49,7 @@ export class TablesService {
   async getFloorWithTables(floorId: string): Promise<FloorWithTables> {
     const floor = await this.repo.findFloorWithTables(floorId);
     if (!floor) {
-      throw new NotFoundException(`Floor ${floorId} not found`);
+      throw new NotFoundAppException(ErrorMessages.FloorNotFound, { floorId });
     }
     return floor;
   }
@@ -97,13 +97,14 @@ export class TablesService {
   async assignOrderToTable(tableId: string, orderId: string): Promise<Table> {
     const table = await this.repo.findById(tableId);
     if (!table) {
-      throw new NotFoundException(`Table ${tableId} not found`);
+      throw new NotFoundAppException(ErrorMessages.TableNotFound, { tableId });
     }
 
     if (table.status !== 'AVAILABLE') {
-      throw new BadRequestException(
-        `Table ${table.number} is not available (status: ${table.status})`,
-      );
+      throw new BadRequestAppException(ErrorMessages.TableNotAvailable, {
+        tableId,
+        status: table.status,
+      });
     }
 
     const updatedTable = await this.repo.update(tableId, {
@@ -122,7 +123,7 @@ export class TablesService {
   async releaseTable(tableId: string): Promise<Table> {
     const table = await this.repo.findById(tableId);
     if (!table) {
-      throw new NotFoundException(`Table ${tableId} not found`);
+      throw new NotFoundAppException(ErrorMessages.TableNotFound, { tableId });
     }
 
     const updatedTable = await this.repo.update(tableId, {
@@ -149,13 +150,14 @@ export class TablesService {
     const toTable = await this.repo.findById(dto.toTableId);
 
     if (!fromTable || !toTable) {
-      throw new NotFoundException('Table not found');
+      throw new NotFoundAppException(ErrorMessages.TableNotFound);
     }
 
     if (toTable.status !== 'AVAILABLE') {
-      throw new BadRequestException(
-        `Target table ${toTable.number} is not available`,
-      );
+      throw new BadRequestAppException(ErrorMessages.TableNotAvailable, {
+        tableId: dto.toTableId,
+        status: toTable.status,
+      });
     }
 
     const updatedOrders = await this.repo.transferActiveOrderTable(
@@ -164,7 +166,13 @@ export class TablesService {
       dto.toTableId,
     );
     if (updatedOrders === 0) {
-      throw new BadRequestException('No active order found for table transfer');
+      throw new BadRequestAppException(
+        ErrorMessages.TableTransferNoActiveOrder,
+        {
+          tableId: dto.fromTableId,
+          orderId: dto.orderId,
+        },
+      );
     }
 
     // Release source table
@@ -202,7 +210,9 @@ export class TablesService {
     );
 
     if (conflicts.length > 0) {
-      throw new BadRequestException('Table already reserved for this time');
+      throw new BadRequestAppException(ErrorMessages.ReservationConflict, {
+        tableId: dto.tableId,
+      });
     }
 
     const reservation = await this.repo.createReservation({

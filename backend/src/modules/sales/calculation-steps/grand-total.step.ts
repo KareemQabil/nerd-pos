@@ -9,6 +9,7 @@ import {
   CalculationContext,
 } from '../../../core/calculation/calculation-step.interface';
 import Decimal from 'decimal.js';
+import { ZATCAMath } from '../../../common/utils';
 
 @Injectable()
 export class GrandTotalStep implements ICalculationStep {
@@ -19,9 +20,7 @@ export class GrandTotalStep implements ICalculationStep {
     // (discount already subtracted from subtotalBeforeTax)
     const base = ctx.discountedSubtotal || ctx.subtotalBeforeTax;
 
-    ctx.grandTotal = base
-      .plus(ctx.taxAmount)
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+    ctx.grandTotal = ZATCAMath.roundSAR(base.plus(ctx.taxAmount));
 
     // Ensure non-negative
     if (ctx.grandTotal.lessThan(0)) {

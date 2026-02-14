@@ -7,8 +7,10 @@ import { KitchenService } from './kitchen.service';
 import { KitchenRepository } from './kitchen.repository';
 import { KitchenGateway } from './kitchen.gateway';
 import { KitchenEventHandlers } from './kitchen.handlers';
+import { InboxModule } from '../../core/inbox/inbox.module';
 
 @Module({
+  imports: [InboxModule],
   controllers: [KitchenController],
   providers: [
     KitchenService,

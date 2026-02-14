@@ -20,6 +20,7 @@ import {
 } from './entities/compliance.entity';
 import * as crypto from 'crypto';
 import Decimal from 'decimal.js';
+import { ZATCAMath } from '../../common/utils';
 
 @Injectable()
 export class ComplianceService {
@@ -125,10 +126,7 @@ export class ComplianceService {
     const taxAmount = orderData?.taxAmount != null
       ? new Decimal(orderData.taxAmount)
       : computedTax;
-    const taxAmountRounded = taxAmount.toDecimalPlaces(
-      2,
-      Decimal.ROUND_HALF_EVEN,
-    );
+    const taxAmountRounded = ZATCAMath.roundSAR(taxAmount);
 
     const taxExclusive = taxBase.plus(serviceCharge).plus(deliveryCharge);
     const taxInclusive = taxExclusive.plus(taxAmountRounded);
@@ -136,10 +134,8 @@ export class ComplianceService {
       ? new Decimal(orderData.grandTotal)
       : taxInclusive;
 
-    const money = (val: Decimal) =>
-      val.toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN).toFixed(2);
-    const rate = (val: Decimal) =>
-      val.toDecimalPlaces(4, Decimal.ROUND_HALF_EVEN).toFixed(4);
+    const money = (val: Decimal) => ZATCAMath.roundSAR(val).toFixed(2);
+    const rate = (val: Decimal) => ZATCAMath.round(val, 4).toFixed(4);
 
     const sellerName =
       orderData?.sellerName ||
@@ -244,21 +240,20 @@ export class ComplianceService {
       orderData?.createdAt ||
       new Date().toISOString();
 
-    const total = new Decimal(orderData?.grandTotal || orderData?.total || 0)
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)
-      .toFixed(2);
+    const total = ZATCAMath.roundSAR(
+      new Decimal(orderData?.grandTotal || orderData?.total || 0),
+    ).toFixed(2);
     const vatTotal = new Decimal(
       orderData?.taxAmount || orderData?.vatAmount || 0,
-    )
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)
-      .toFixed(2);
+    );
+    const vatTotalRounded = ZATCAMath.roundSAR(vatTotal).toFixed(2);
 
     const tags: Array<{ tag: number; value: string }> = [
       { tag: 1, value: String(sellerName) },
       { tag: 2, value: String(vatNumber) },
       { tag: 3, value: String(timestamp) },
       { tag: 4, value: String(total) },
-      { tag: 5, value: String(vatTotal) },
+      { tag: 5, value: String(vatTotalRounded) },
     ];
 
     if (hash) {

@@ -7,7 +7,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../../../src/common/exceptions';
 import { KitchenService } from '../../../../src/modules/kitchen/kitchen.service';
 import { KitchenRepository } from '../../../../src/modules/kitchen/kitchen.repository';
 import { KitchenGateway } from '../../../../src/modules/kitchen/kitchen.gateway';
@@ -105,7 +105,7 @@ describe('Workflow 10: Kitchen Display System', () => {
       repo.findWithItems.mockResolvedValue(null);
 
       await expect(service.getTicketWithItems('nonexistent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

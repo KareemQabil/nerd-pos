@@ -6,6 +6,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PaymentsRepository } from './payments.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { Tx } from '../../core/prisma/tx';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
   CreatePaymentDto,
@@ -49,7 +50,7 @@ export class PaymentsService {
   }
 
   private async lockOrderAndGetTotals(
-    tx: Prisma.TransactionClient,
+    tx: Tx,
     orderId: string,
   ): Promise<{
     order: { id: string; grandTotal: Decimal; status: string; sessionId: string };
@@ -69,10 +70,8 @@ export class PaymentsService {
       throw new NotFoundAppException(ErrorMessages.OrderNotFound, { orderId });
     }
 
-    await (tx as any)
-      .$queryRaw`SELECT id FROM sales_orders WHERE id = ${orderId} FOR UPDATE`;
-    await (tx as any)
-      .$queryRaw`SELECT id FROM payments WHERE order_id = ${orderId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM sales_orders WHERE id = ${orderId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM payments WHERE order_id = ${orderId} FOR UPDATE`;
 
     const totals = await tx.payment.aggregate({
       where: { orderId },
@@ -86,7 +85,7 @@ export class PaymentsService {
   }
 
   private async ensureActivePaymentMethod(
-    tx: Prisma.TransactionClient,
+    tx: Tx,
     method: string,
     transactionId?: string,
   ): Promise<void> {
@@ -327,7 +326,7 @@ export class PaymentsService {
    * @param tx - Prisma transaction client for atomic operations
    */
   private async createPaymentWithTx(
-    tx: Prisma.TransactionClient,
+    tx: Tx,
     dto: CreatePaymentDto,
     isSplit: boolean = false,
   ): Promise<Payment> {
@@ -366,7 +365,7 @@ export class PaymentsService {
 
     await this.ensureActivePaymentMethod(tx, dto.method, dto.transactionId);
 
-      const payment = await (tx as any).payment.create({
+      const payment = await tx.payment.create({
         data: {
           orderId: dto.orderId,
           paymentMethod: dto.method,
@@ -403,12 +402,10 @@ export class PaymentsService {
     const { refund, refundAmount } = await this.prisma.$transaction(
       async (tx) => {
         // Lock payment + refunds to prevent race conditions
-        await (tx as any)
-          .$queryRaw`SELECT id FROM payments WHERE id = ${dto.paymentId} FOR UPDATE`;
-        await (tx as any)
-          .$queryRaw`SELECT id FROM refunds WHERE payment_id = ${dto.paymentId} FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM payments WHERE id = ${dto.paymentId} FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM refunds WHERE payment_id = ${dto.paymentId} FOR UPDATE`;
 
-        const payment = await (tx as any).payment.findUnique({
+        const payment = await tx.payment.findUnique({
           where: { id: dto.paymentId },
         });
         if (!payment) {
@@ -424,7 +421,7 @@ export class PaymentsService {
           });
         }
 
-        const totals = await (tx as any).refund.aggregate({
+        const totals = await tx.refund.aggregate({
           where: {
             paymentId: dto.paymentId,
             status: { in: ['PENDING', 'APPROVED'] },
@@ -441,7 +438,7 @@ export class PaymentsService {
           });
         }
 
-        const created = await (tx as any).refund.create({
+        const created = await tx.refund.create({
           data: {
             paymentId: dto.paymentId,
             amount: amount.toNumber(),
@@ -476,9 +473,8 @@ export class PaymentsService {
     const updatedRefund = await this.prisma.$transaction(
       async (tx) => {
         // Lock refund + payment rows
-        await (tx as any)
-          .$queryRaw`SELECT id FROM refunds WHERE id = ${refundId} FOR UPDATE`;
-        const refund = await (tx as any).refund.findUnique({
+        await tx.$queryRaw`SELECT id FROM refunds WHERE id = ${refundId} FOR UPDATE`;
+        const refund = await tx.refund.findUnique({
           where: { id: refundId },
         });
         if (!refund) {
@@ -490,9 +486,8 @@ export class PaymentsService {
           throw new BadRequestAppException(ErrorMessages.InvalidRefundStatus);
         }
 
-        await (tx as any)
-          .$queryRaw`SELECT id FROM payments WHERE id = ${refund.paymentId} FOR UPDATE`;
-        const payment = await (tx as any).payment.findUnique({
+        await tx.$queryRaw`SELECT id FROM payments WHERE id = ${refund.paymentId} FOR UPDATE`;
+        const payment = await tx.payment.findUnique({
           where: { id: refund.paymentId },
         });
         if (!payment) {
@@ -501,7 +496,7 @@ export class PaymentsService {
           });
         }
 
-        const approvedTotals = await (tx as any).refund.aggregate({
+        const approvedTotals = await tx.refund.aggregate({
           where: { paymentId: refund.paymentId, status: 'APPROVED' },
           _sum: { amount: true },
         });
@@ -516,7 +511,7 @@ export class PaymentsService {
           throw new BadRequestAppException(ErrorMessages.RefundExceedsPayment);
         }
 
-        const approved = await (tx as any).refund.update({
+        const approved = await tx.refund.update({
           where: { id: refundId },
           data: {
             status: 'APPROVED',
@@ -525,7 +520,7 @@ export class PaymentsService {
           },
         });
 
-        await (tx as any).payment.update({
+        await tx.payment.update({
           where: { id: refund.paymentId },
           data: {
             refundedAmount: newRefundedAmount,

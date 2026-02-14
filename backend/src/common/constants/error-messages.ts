@@ -180,6 +180,11 @@ export const ErrorMessages = {
     messageEn: 'Insufficient stock.',
     messageAr: 'المخزون غير كاف.',
   },
+  OutOfStock: {
+    key: 'OUT_OF_STOCK',
+    messageEn: 'Out of stock.',
+    messageAr: 'نفد المخزون.',
+  },
   RecipeNotFound: {
     key: 'RECIPE_NOT_FOUND',
     messageEn: 'Recipe not found.',
@@ -279,6 +284,11 @@ export const ErrorMessages = {
     key: 'RESERVATION_CONFLICT',
     messageEn: 'Table already reserved for this time.',
     messageAr: 'الطاولة محجوزة بالفعل في هذا الوقت.',
+  },
+  TableTransferNoActiveOrder: {
+    key: 'TABLE_TRANSFER_NO_ACTIVE_ORDER',
+    messageEn: 'No active order found for table transfer.',
+    messageAr: 'لا يوجد طلب نشط لنقل الطاولة.',
   },
   StoreSettingsNotFound: {
     key: 'STORE_SETTINGS_NOT_FOUND',

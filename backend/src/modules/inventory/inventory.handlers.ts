@@ -8,6 +8,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InventoryService } from './inventory.service';
+import { InboxService } from '../../core/inbox/inbox.service';
 
 interface OrderItem {
   productId: string;
@@ -17,18 +18,23 @@ interface OrderItem {
 interface OrderCreatedPayload {
   orderId: string;
   items: OrderItem[];
+  _eventId?: string;
 }
 
 interface OrderCancelledPayload {
   orderId: string;
   items: OrderItem[];
+  _eventId?: string;
 }
 
 @Injectable()
 export class InventoryEventHandlers {
   private readonly logger = new Logger(InventoryEventHandlers.name);
 
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(
+    private readonly inventoryService: InventoryService,
+    private readonly inboxService: InboxService,
+  ) {}
 
   /**
    * When an order is created, reserve stock for the items
@@ -58,22 +64,33 @@ export class InventoryEventHandlers {
         return;
       }
 
-      const warehouse = await this.inventoryService.getDefaultWarehouse();
-      const warehouseId = warehouse.id;
+      const eventId = payload._eventId ?? `OrderCancelled:${payload.orderId}`;
+      await this.inboxService.executeIdempotently(
+        'InventoryEventHandlers.handleOrderCancelled',
+        eventId,
+        'OrderCancelled',
+        payload,
+        async () => {
+          const warehouse = await this.inventoryService.getDefaultWarehouse();
+          const warehouseId = warehouse.id;
 
-      for (const item of payload.items) {
-        // Restore stock for each item
-        await this.inventoryService.adjustStock(
-          {
-            productId: item.productId,
-            warehouseId,
-            quantity: item.quantity, // Positive to add back
-            reason: `Cancelled: Order ${payload.orderId}`,
-          },
-          'system',
-        );
-      }
-      this.logger.log(`Stock released for cancelled order ${payload.orderId}`);
+          for (const item of payload.items) {
+            // Restore stock for each item
+            await this.inventoryService.adjustStock(
+              {
+                productId: item.productId,
+                warehouseId,
+                quantity: item.quantity, // Positive to add back
+                reason: `Cancelled: Order ${payload.orderId}`,
+              },
+              'system',
+            );
+          }
+          this.logger.log(
+            `Stock released for cancelled order ${payload.orderId}`,
+          );
+        },
+      );
     } catch (error) {
       this.logger.error(
         `Failed to release stock for order ${payload.orderId}`,

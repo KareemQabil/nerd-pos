@@ -4,7 +4,7 @@
  * Phase 2 - Unit Testing
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { ProductsService } from './products.service';
 import { ProductsRepository } from './products.repository';
 import Decimal from 'decimal.js';
@@ -252,12 +252,12 @@ describe('ProductsService', () => {
       );
     });
 
-    it('should throw NotFoundException for non-existent product', async () => {
+    it('should throw NotFoundAppException for non-existent product', async () => {
       (repo as any).findWithRelations.mockResolvedValue(null);
 
       await expect(
         service.updateProduct('non-existent', { price: 50 }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
   });
 
@@ -272,11 +272,11 @@ describe('ProductsService', () => {
       expect((repo as any).findWithRelations).toHaveBeenCalledWith('prod-1');
     });
 
-    it('should throw NotFoundException if product not found', async () => {
+    it('should throw NotFoundAppException if product not found', async () => {
       (repo as any).findWithRelations.mockResolvedValue(null);
 
       await expect(service.findProductById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -291,11 +291,11 @@ describe('ProductsService', () => {
       expect(result.sku).toBe('SHWRM-001');
     });
 
-    it('should throw NotFoundException if SKU not found', async () => {
+    it('should throw NotFoundAppException if SKU not found', async () => {
       (repo as any).findBySku.mockResolvedValue(null);
 
       await expect(service.findProductBySku('INVALID-SKU')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -363,11 +363,11 @@ describe('ProductsService', () => {
       expect(result).toEqual(mockCategory);
     });
 
-    it('should throw NotFoundException if category not found', async () => {
+    it('should throw NotFoundAppException if category not found', async () => {
       (repo as any).findCategoryById.mockResolvedValue(null);
 
       await expect(service.findCategoryById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -389,12 +389,12 @@ describe('ProductsService', () => {
       expect(result.nameEn).toBe('Toppings');
     });
 
-    it('should throw NotFoundException if modifier group not found', async () => {
+    it('should throw NotFoundAppException if modifier group not found', async () => {
       (repo as any).findModifierGroupById.mockResolvedValue(null);
 
       await expect(
         service.findModifierGroupById('non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
   });
 

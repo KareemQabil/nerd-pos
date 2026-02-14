@@ -23,7 +23,12 @@ import { SessionsService } from '../../../src/modules/sessions/sessions.service'
 
 describe('FIN-10: Takeaway Service Charge', () => {
   let salesService: SalesService;
-  let prisma: { $transaction: jest.Mock; $executeRaw: jest.Mock; $queryRaw: jest.Mock };
+  let prisma: {
+    $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
+    $queryRaw: jest.Mock;
+    inventoryItem: { updateMany: jest.Mock };
+  };
   let outboxService: { enqueue: jest.Mock; flushPending: jest.Mock };
   let sessionId: string;
   let productId: string;
@@ -42,6 +47,9 @@ describe('FIN-10: Takeaway Service Charge', () => {
       $transaction: jest.fn(),
       $executeRaw: jest.fn(),
       $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+      inventoryItem: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
     };
     prisma.$transaction = jest.fn(async (fn: any) => fn(prisma));
     outboxService = {

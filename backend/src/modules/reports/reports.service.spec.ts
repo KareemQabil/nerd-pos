@@ -6,7 +6,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { ReportsService } from './reports.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
 
@@ -153,7 +153,7 @@ describe('ReportsService', () => {
       prisma.registerSession.findUnique.mockResolvedValue(null);
 
       await expect(service.generateZReport('nonexistent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

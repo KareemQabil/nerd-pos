@@ -81,6 +81,7 @@ describe('Workflow 1: Quick Sale', () => {
     $transaction: jest.Mock;
     $executeRaw: jest.Mock;
     $queryRaw: jest.Mock;
+    inventoryItem: { updateMany: jest.Mock };
   };
   let inventoryService: { getDefaultWarehouse: jest.Mock; deductStockWithTx: jest.Mock };
   let sessionsService: { getCurrentSession: jest.Mock };
@@ -93,6 +94,9 @@ describe('Workflow 1: Quick Sale', () => {
       $transaction: jest.fn(),
       $executeRaw: jest.fn(),
       $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+      inventoryItem: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
     };
     prisma.$transaction = jest.fn(async (fn: any) => fn(prisma));
     inventoryService = {

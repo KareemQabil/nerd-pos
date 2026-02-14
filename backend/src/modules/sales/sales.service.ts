@@ -11,6 +11,7 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
   BadRequestAppException,
+  ConflictAppException,
   NotFoundAppException,
 } from '../../common/exceptions';
 import { ErrorMessages } from '../../common/constants';
@@ -45,6 +46,7 @@ import {
   getAllowedTransitions,
 } from './constants/order-state-machine';
 import { OutboxService } from '../../core/outbox/outbox.service';
+import { ZATCAMath } from '../../common/utils';
 
 // Import calculation steps
 import {
@@ -136,10 +138,9 @@ export class SalesService {
       );
       const unitPriceDecimal = new Decimal(item.price ?? 0);
       const quantityDecimal = new Decimal(item.quantity ?? 1);
-      const lineTotalDecimal = unitPriceDecimal
-        .plus(modifierTotalDecimal)
-        .times(quantityDecimal)
-        .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN);
+      const lineTotalDecimal = ZATCAMath.roundSAR(
+        unitPriceDecimal.plus(modifierTotalDecimal).times(quantityDecimal),
+      );
 
       return {
         productId: item.productId, // Required scalar field
@@ -191,37 +192,53 @@ export class SalesService {
     };
 
     // 6. Database Write - ATOMIC TRANSACTION + Inventory Deduction
-      const eventItems = dto.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity ?? 1,
-      }));
+    const eventItems = dto.items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity ?? 1,
+    }));
+    const requiredByProduct = new Map<string, number>();
+    for (const item of dto.items) {
+      const needed = item.quantity ?? 1;
+      requiredByProduct.set(
+        item.productId,
+        (requiredByProduct.get(item.productId) ?? 0) + needed,
+      );
+    }
 
       const orderTotal = safeToNumber(calculated.grandTotal, 0);
 
-      const order = await this.prisma.$transaction(
-        async (tx) => {
-          const created = await this.repo.createWithItems(
-            orderData,
-            itemsWithSubtotals,
-            tx,
-          );
-
-          for (const item of dto.items) {
-            await this.inventoryService.deductStockWithTx(
-              item.productId,
+    const order = await this.prisma.$transaction(
+      async (tx) => {
+        for (const [productId, needed] of requiredByProduct.entries()) {
+          const result = await tx.inventoryItem.updateMany({
+            where: {
+              productId,
               warehouseId,
-              item.quantity ?? 1,
-              'ORDER',
-              created.id,
-              createdBy,
-              tx,
-            );
-          }
+              quantityOnHand: { gte: needed },
+            },
+            data: {
+              quantityOnHand: { decrement: needed },
+            },
+          });
 
-          await this.outboxService.enqueue(tx, 'OrderCreated', {
-            orderId: created.id,
-            orderNumber: created.orderNumber,
-            type: created.orderType,
+          if (result.count !== 1) {
+            throw new ConflictAppException(ErrorMessages.OutOfStock, {
+              productId,
+              needed,
+            });
+          }
+        }
+
+        const created = await this.repo.createWithItems(
+          orderData,
+          itemsWithSubtotals,
+          tx,
+        );
+
+        await this.outboxService.enqueue(tx, 'OrderCreated', {
+          orderId: created.id,
+          orderNumber: created.orderNumber,
+          type: created.orderType,
             grandTotal: orderTotal,
             items: eventItems,
           });
@@ -407,11 +424,9 @@ export class SalesService {
       (sum, mod) => sum.plus(new Decimal(mod.price)),
       new Decimal(0),
     );
-    const subtotal = new Decimal(dto.price)
-      .plus(modifierTotal)
-      .times(dto.quantity)
-      .toDecimalPlaces(2, Decimal.ROUND_HALF_EVEN)
-      .toNumber();
+    const subtotal = ZATCAMath.roundSAR(
+      new Decimal(dto.price).plus(modifierTotal).times(dto.quantity),
+    ).toNumber();
 
     const item = await this.repo.addItem(orderId, {
       orderId: orderId, // Required by OrderItemUncheckedCreateInput type

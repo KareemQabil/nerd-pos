@@ -49,10 +49,9 @@ export class SessionsService {
     const { session, openingBalance } = await this.prisma.$transaction(
       async (tx) => {
         // Lock per-user to prevent concurrent opens
-        await (tx as any)
-          .$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
 
-        const existingSession = await (tx as any).registerSession.findFirst({
+        const existingSession = await tx.registerSession.findFirst({
           where: { userId, status: SessionStatus.OPEN },
         });
         if (existingSession) {
@@ -62,7 +61,7 @@ export class SessionsService {
         }
 
         const balance = new Decimal(dto.openingBalance);
-        const created = await (tx as any).registerSession.create({
+        const created = await tx.registerSession.create({
           data: {
             terminalId: dto.terminalId,
             userId: userId,
@@ -131,8 +130,7 @@ export class SessionsService {
     const { closedSession, declaredBalance } = await this.prisma.$transaction(
       async (tx) => {
         // Lock the session row to prevent concurrent close/update
-        await (tx as any)
-          .$queryRaw`SELECT id FROM register_sessions WHERE id = ${session.id} FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM register_sessions WHERE id = ${session.id} FOR UPDATE`;
 
         // 1. Process denomination count (blind close)
         let total = new Decimal(0);
@@ -141,7 +139,7 @@ export class SessionsService {
           const count = denom.count;
           const denominationTotal = value.times(count);
 
-          await (tx as any).denominationCount.create({
+          await tx.denominationCount.create({
             data: {
               sessionId: session.id,
               denomination: value.toNumber(),
@@ -157,7 +155,7 @@ export class SessionsService {
         const variance = total.minus(expectedBalance);
 
         // 3. Update session atomically
-        const updated = await (tx as any).registerSession.update({
+        const updated = await tx.registerSession.update({
           where: { id: session.id },
           data: {
             status: SessionStatus.CLOSED,
@@ -167,7 +165,7 @@ export class SessionsService {
           },
         });
 
-        await this.outboxService.enqueue(tx as any, 'SessionClosed', {
+        await this.outboxService.enqueue(tx, 'SessionClosed', {
           sessionId: session.id,
           variance: variance.toNumber(),
           declaredBalance: total.toNumber(),

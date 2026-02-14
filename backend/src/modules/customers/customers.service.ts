@@ -2,12 +2,7 @@
 // Source: FINAL/BACKEND/09-MODULE-CUSTOMERS.md
 // Handles: Customer CRUD, Loyalty points, Tier upgrades, Addresses
 
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { CustomersRepository } from './customers.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
@@ -31,6 +26,11 @@ import {
   LoyaltyTier,
 } from './entities/customers.entity';
 import Decimal from 'decimal.js';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @Injectable()
 export class CustomersService {
@@ -48,9 +48,9 @@ export class CustomersService {
     // Check if phone already exists
     const existing = await this.repo.findByPhone(dto.phone);
     if (existing) {
-      throw new BadRequestException(
-        `Customer with phone ${dto.phone} already exists`,
-      );
+      throw new BadRequestAppException(ErrorMessages.CustomerPhoneExists, {
+        phone: dto.phone,
+      });
     }
 
     const code = await this.generateCustomerCode();
@@ -80,7 +80,9 @@ export class CustomersService {
   async findById(id: string): Promise<Customer> {
     const customer = await this.repo.findById(id);
     if (!customer) {
-      throw new NotFoundException(`Customer ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.CustomerNotFound, {
+        customerId: id,
+      });
     }
     return customer;
   }
@@ -92,7 +94,9 @@ export class CustomersService {
   async findWithTier(id: string): Promise<CustomerWithTier> {
     const customer = await this.repo.findWithTier(id);
     if (!customer) {
-      throw new NotFoundException(`Customer ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.CustomerNotFound, {
+        customerId: id,
+      });
     }
     return customer;
   }
@@ -167,14 +171,16 @@ export class CustomersService {
   ): Promise<number> {
     const customer = await this.repo.findById(customerId);
     if (!customer) {
-      throw new NotFoundException(`Customer ${customerId} not found`);
+      throw new NotFoundAppException(ErrorMessages.CustomerNotFound, {
+        customerId,
+      });
     }
 
     const currentPoints = new Decimal(customer.loyaltyPoints);
     const points = new Decimal(pointsToRedeem);
 
     if (currentPoints.lessThan(points)) {
-      throw new BadRequestException('Insufficient loyalty points');
+      throw new BadRequestAppException(ErrorMessages.InsufficientLoyaltyPoints);
     }
 
     // Points to SAR (100 points = 1 SAR)

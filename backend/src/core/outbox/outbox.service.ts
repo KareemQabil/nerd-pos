@@ -40,7 +40,17 @@ export class OutboxService {
 
     for (const event of events) {
       try {
-        await this.eventBus.publish(event.eventName, event.payload);
+        const basePayload =
+          event.payload &&
+          typeof event.payload === 'object' &&
+          !Array.isArray(event.payload)
+            ? (event.payload as Record<string, unknown>)
+            : { value: event.payload };
+        await this.eventBus.publish(event.eventName, {
+          ...basePayload,
+          _eventId: event.id,
+          _eventType: event.eventName,
+        });
         await this.prisma.outboxEvent.update({
           where: { id: event.id },
           data: { status: 'PROCESSED', processedAt: new Date() },

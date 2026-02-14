@@ -43,10 +43,13 @@ describe('FIN-07: Tax Calculation Rounding', () => {
       }),
     };
     const prismaMock: any = {
-      $transaction: jest.fn((fn: any) => fn({})),
       $executeRaw: jest.fn(),
       $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+      inventoryItem: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
     };
+    prismaMock.$transaction = jest.fn((fn: any) => fn(prismaMock));
     const module = await Test.createTestingModule({
       providers: [
         SalesService,

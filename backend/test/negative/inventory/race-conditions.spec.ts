@@ -28,11 +28,18 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
   let productId: string;
   let warehouseId: string;
   let sessionId: string;
-  let prisma: { $transaction: jest.Mock; $executeRaw: jest.Mock; $queryRaw: jest.Mock };
+  let prisma: {
+    $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
+    $queryRaw: jest.Mock;
+    inventoryItem: { updateMany: jest.Mock };
+  };
   let outboxService: { enqueue: jest.Mock; flushPending: jest.Mock };
   let orderNumberSpy: jest.SpyInstance;
   let orderNumberCounter = 0;
   const stockByKey = new Map<string, number>();
+  const getKey = (product: string, warehouse: string) =>
+    `${product}:${warehouse}`;
 
   beforeAll(async () => {
     const repo = {
@@ -50,6 +57,21 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
       $transaction: jest.fn(),
       $executeRaw: jest.fn(),
       $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+      inventoryItem: {
+        updateMany: jest.fn(async (args: any) => {
+          const key = getKey(args?.where?.productId, args?.where?.warehouseId);
+          const needed =
+            (args?.data?.quantityOnHand?.decrement as number | undefined) ?? 0;
+          const current = stockByKey.get(key) ?? 0;
+
+          if (current >= needed && needed > 0) {
+            stockByKey.set(key, current - needed);
+            return { count: 1 };
+          }
+
+          return { count: 0 };
+        }),
+      },
     };
     prisma.$transaction = jest.fn(async (fn: any) => fn(prisma));
 
@@ -58,8 +80,6 @@ describe('INV-01: Overselling Last Item (Race Condition)', () => {
       flushPending: jest.fn().mockResolvedValue(undefined),
     };
 
-    const getKey = (product: string, warehouse: string) =>
-      `${product}:${warehouse}`;
     const inventoryMock = {
       getDefaultWarehouse: jest.fn(async () => ({ id: warehouseId })),
       deductStockWithTx: jest.fn(

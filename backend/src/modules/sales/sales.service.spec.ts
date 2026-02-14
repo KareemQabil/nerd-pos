@@ -87,6 +87,9 @@ function createMockPrismaService() {
   const mockPrisma: Record<string, unknown> = {
     $executeRaw: jest.fn(),
     $queryRaw: jest.fn(),
+    inventoryItem: {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
   };
   mockPrisma.$transaction = jest.fn(
     (callback: (tx: unknown) => Promise<unknown>) => callback(mockPrisma),

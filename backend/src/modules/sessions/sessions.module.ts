@@ -9,9 +9,10 @@ import { SessionsPaymentsHandler } from './sessions.handlers';
 
 import { SalesDataModule } from '../sales/sales.data.module';
 import { OutboxModule } from '../../core/outbox/outbox.module';
+import { InboxModule } from '../../core/inbox/inbox.module';
 
 @Module({
-  imports: [SalesDataModule, OutboxModule],
+  imports: [SalesDataModule, OutboxModule, InboxModule],
   controllers: [SessionsController],
   providers: [SessionsService, SessionsRepository, SessionsPaymentsHandler],
   exports: [SessionsService],

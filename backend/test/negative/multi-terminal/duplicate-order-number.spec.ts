@@ -52,6 +52,9 @@ describe('MT-01: Same Order Number Concurrent', () => {
     const prismaMock: any = {
       $executeRaw: jest.fn(),
       $queryRaw: jest.fn(),
+      inventoryItem: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       salesOrder: {
         create: jest.fn(async ({ data }: { data: any }) => {
           assertUniqueOrderNumber(data.orderNumber);

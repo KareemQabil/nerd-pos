@@ -7,7 +7,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestAppException, NotFoundAppException } from '../../common/exceptions';
 import { TablesService } from './tables.service';
 import { TablesRepository } from './tables.repository';
 import { TableStatus, ReservationStatus } from '../../core/constants/enums';
@@ -103,7 +103,7 @@ describe('TablesService', () => {
     it('should throw NotFoundException if floor not found', async () => {
       repo.findFloorWithTables.mockResolvedValue(null);
       await expect(service.getFloorWithTables('invalid')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -178,7 +178,7 @@ describe('TablesService', () => {
       repo.findById.mockResolvedValue(null);
       await expect(
         service.assignOrderToTable('invalid', 'order-1'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
 
     it('should throw BadRequestException if table not available', async () => {
@@ -188,7 +188,7 @@ describe('TablesService', () => {
       });
       await expect(
         service.assignOrderToTable('table-1', 'order-1'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
   });
 
@@ -268,7 +268,7 @@ describe('TablesService', () => {
           toTableId: 'to',
           orderId: 'order-1',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
   });
 
@@ -310,7 +310,7 @@ describe('TablesService', () => {
           partySize: 4,
           userId: 'user-1',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
   });
 

@@ -63,7 +63,13 @@ function createMockEventBus() {
 
 function createMockPrisma() {
   return {
-    $transaction: jest.fn(async (fn: (tx: Record<string, unknown>) => unknown) => fn({})),
+    $transaction: jest.fn(async (fn: (tx: Record<string, unknown>) => unknown) =>
+      fn({
+        inventoryItem: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      }),
+    ),
     $executeRaw: jest.fn(),
     $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
   };

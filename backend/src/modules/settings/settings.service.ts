@@ -2,7 +2,7 @@
 // Source: FINAL/BACKEND/11-MODULE-SETTINGS.md
 // Refactored to use Repository pattern (like all other modules)
 
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { SettingsRepository } from './settings.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import { Prisma } from '@prisma/client';
@@ -25,6 +25,8 @@ import {
   ModuleSetting,
 } from './entities/settings.entity';
 import Decimal from 'decimal.js';
+import { NotFoundAppException } from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @Injectable()
 export class SettingsService {
@@ -37,7 +39,8 @@ export class SettingsService {
 
   async getStoreSettings(): Promise<StoreSetting> {
     const settings = await this.repo.getStoreSetting();
-    if (!settings) throw new NotFoundException('Store settings not found');
+    if (!settings)
+      throw new NotFoundAppException(ErrorMessages.StoreSettingsNotFound);
     return settings;
   }
 
@@ -45,7 +48,8 @@ export class SettingsService {
     dto: UpdateStoreSettingsDto,
   ): Promise<StoreSetting> {
     const current = await this.repo.getStoreSetting();
-    if (!current) throw new NotFoundException('Store settings not found');
+    if (!current)
+      throw new NotFoundAppException(ErrorMessages.StoreSettingsNotFound);
 
     const updated = await this.repo.updateStoreSetting(current.id, dto);
 
@@ -65,7 +69,8 @@ export class SettingsService {
 
   async getDefaultTax(): Promise<TaxSetting> {
     const tax = await this.repo.findDefaultTax();
-    if (!tax) throw new NotFoundException('Default tax not configured');
+    if (!tax)
+      throw new NotFoundAppException(ErrorMessages.DefaultTaxNotConfigured);
     return tax;
   }
 
@@ -127,7 +132,7 @@ export class SettingsService {
   async getTerminalByCode(code: string): Promise<POSTerminal> {
     const terminal = await this.repo.findTerminalByCode(code);
     if (!terminal) {
-      throw new NotFoundException(`Terminal ${code} not found`);
+      throw new NotFoundAppException(ErrorMessages.TerminalNotFound, { code });
     }
     return terminal;
   }

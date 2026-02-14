@@ -1,9 +1,11 @@
 // Reports Service
 // BLOCK 3 FIX: Replaced magic strings with OrderStatus enum
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { OrderStatus } from '../../core/constants/enums';
 import Decimal from 'decimal.js';
+import { NotFoundAppException } from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @Injectable()
 export class ReportsService {
@@ -47,7 +49,7 @@ export class ReportsService {
       where: { id: sessionId },
     });
     if (!session) {
-      throw new NotFoundException('Session not found');
+      throw new NotFoundAppException(ErrorMessages.SessionNotFound);
     }
 
     const cashSales = new Decimal(session.totalCashSales || 0);

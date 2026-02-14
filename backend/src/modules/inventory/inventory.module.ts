@@ -6,8 +6,10 @@ import { InventoryService } from './inventory.service';
 import { InventoryRepository } from './inventory.repository';
 import { FIFOStrategy } from './strategies/fifo.strategy';
 import { InventoryEventHandlers } from './inventory.handlers';
+import { InboxModule } from '../../core/inbox/inbox.module';
 
 @Module({
+  imports: [InboxModule],
   controllers: [InventoryController],
   providers: [
     InventoryService,

@@ -10,7 +10,7 @@
  * - BRD Coverage: BR-004 (Loyalty points, tier multipliers)
  */
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundAppException, BadRequestAppException } from '../../common/exceptions';
 import { CustomersService } from './customers.service';
 import { CustomersRepository } from './customers.repository';
 import Decimal from 'decimal.js';
@@ -130,11 +130,11 @@ describe('CustomersService', () => {
       expect(result.id).toBe('cust-1');
     });
 
-    it('should throw NotFoundException', async () => {
+    it('should throw NotFoundAppException', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findById('non-existent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });
@@ -284,15 +284,15 @@ describe('CustomersService', () => {
       repo.findById.mockResolvedValue(customer);
 
       await expect(service.redeemPoints('cust-1', 500)).rejects.toThrow(
-        BadRequestException,
+        BadRequestAppException,
       );
     });
 
-    it('should throw NotFoundException for non-existent customer', async () => {
+    it('should throw NotFoundAppException for non-existent customer', async () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.redeemPoints('non-existent', 100)).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

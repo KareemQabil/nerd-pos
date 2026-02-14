@@ -45,9 +45,22 @@ describe('INV-02: Selling Zero-Stock Item', () => {
     };
 
     const prismaMock: any = {
-      $transaction: jest.fn((fn: any) => fn({})),
       $executeRaw: jest.fn().mockResolvedValue(undefined),
       $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+      inventoryItem: {
+        updateMany: jest.fn(async (args: any) => {
+          const productIdArg = args?.where?.productId as string | undefined;
+          const needed = (args?.data?.quantityOnHand?.decrement as number | undefined) ?? 0;
+          const available = productIdArg ? stockByProduct.get(productIdArg) ?? 0 : 0;
+
+          if (available >= needed && needed > 0) {
+            stockByProduct.set(productIdArg as string, available - needed);
+            return { count: 1 };
+          }
+
+          return { count: 0 };
+        }),
+      },
       inventoryMovement: {
         findMany: jest.fn(async ({ where }: { where: any }) => {
           return movements.filter(
@@ -56,6 +69,7 @@ describe('INV-02: Selling Zero-Stock Item', () => {
         }),
       },
     };
+    prismaMock.$transaction = jest.fn((fn: any) => fn(prismaMock));
 
     const inventoryServiceMock = {
       getDefaultWarehouse: jest.fn().mockResolvedValue({ id: 'wh-1' }),

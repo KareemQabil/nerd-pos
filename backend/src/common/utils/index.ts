@@ -4,3 +4,4 @@ export * from './date.utils';
 export * from './hash.utils';
 export * from './error-message.utils';
 export * from './response-validator.utils';
+export * from './zatca-math.utils';

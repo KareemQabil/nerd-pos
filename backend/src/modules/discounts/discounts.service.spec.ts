@@ -6,7 +6,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundAppException } from '../../common/exceptions';
 import { DiscountsService } from './discounts.service';
 import { DiscountsRepository } from './discounts.repository';
 import Decimal from 'decimal.js';
@@ -129,7 +129,7 @@ describe('DiscountsService', () => {
       repo.findById.mockResolvedValue(null);
 
       await expect(service.findById('nonexistent')).rejects.toThrow(
-        NotFoundException,
+        NotFoundAppException,
       );
     });
   });

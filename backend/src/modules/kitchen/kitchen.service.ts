@@ -2,7 +2,7 @@
 // Source: FINAL/BACKEND/08-MODULE-KITCHEN.md
 // Handles: Ticket routing, preparation tracking, bump bar, station management
 
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { KitchenRepository } from './kitchen.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
@@ -20,6 +20,7 @@ import {
   KitchenTicketWithItems,
   KitchenStation,
 } from './entities/kitchen.entity';
+import { Throw } from '../../common/errors/throw';
 
 @Injectable()
 export class KitchenService {
@@ -57,7 +58,7 @@ export class KitchenService {
         const priority = this.calculatePriority(orderType);
 
         // Create ticket using transaction client
-        const ticket = await (tx as any).kitchenTicket.create({
+        const ticket = await tx.kitchenTicket.create({
           data: {
             ticketNumber,
             orderId,
@@ -70,7 +71,7 @@ export class KitchenService {
 
         // Add items to ticket atomically
         for (const item of stationItems) {
-          await (tx as any).kitchenTicketItem.create({
+          await tx.kitchenTicketItem.create({
             data: {
               ticketId: ticket.id,
               productId: item.productId,
@@ -153,8 +154,9 @@ export class KitchenService {
   async startPreparation(ticketId: string): Promise<KitchenTicket> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
+      Throw.notFound('KitchenTicket', { ticketId });
     }
+    const currentTicket = ticket!;
 
     const updatedTicket = await this.repo.update(ticketId, {
       status: 'PREPARING',
@@ -163,14 +165,14 @@ export class KitchenService {
 
     // Emit to KDS screens via WebSocket
     this.websocketGateway.emitToStation(
-      ticket.stationId,
+      currentTicket.stationId,
       'ticketStarted',
       updatedTicket,
     );
 
     await this.eventBus.publish(
       'TicketStarted',
-      new TicketStartedEvent(ticketId, ticket.orderId),
+      new TicketStartedEvent(ticketId, currentTicket.orderId),
     );
 
     return updatedTicket;
@@ -179,7 +181,7 @@ export class KitchenService {
   async markTicketReady(ticketId: string): Promise<KitchenTicket> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
+      Throw.notFound('KitchenTicket', { ticketId });
     }
 
     return this.repo.update(ticketId, {
@@ -190,8 +192,9 @@ export class KitchenService {
   async completeTicket(ticketId: string): Promise<KitchenTicket> {
     const ticket = await this.repo.findById(ticketId);
     if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
+      Throw.notFound('KitchenTicket', { ticketId });
     }
+    const currentTicket = ticket!;
 
     const updatedTicket = await this.repo.update(ticketId, {
       status: 'COMPLETED',
@@ -200,18 +203,18 @@ export class KitchenService {
 
     // Emit to KDS screens via WebSocket
     this.websocketGateway.emitToStation(
-      ticket.stationId,
+      currentTicket.stationId,
       'ticketCompleted',
       updatedTicket,
     );
 
     await this.eventBus.publish(
       'TicketCompleted',
-      new TicketCompletedEvent(ticketId, ticket.orderId),
+      new TicketCompletedEvent(ticketId, currentTicket.orderId),
     );
 
     // Check if all tickets for order are complete
-    await this.checkOrderCompletion(ticket.orderId);
+    await this.checkOrderCompletion(currentTicket.orderId);
 
     return updatedTicket;
   }
@@ -263,9 +266,9 @@ export class KitchenService {
   async getTicketWithItems(ticketId: string): Promise<KitchenTicketWithItems> {
     const ticket = await this.repo.findWithItems(ticketId);
     if (!ticket) {
-      throw new NotFoundException(`Ticket ${ticketId} not found`);
+      Throw.notFound('KitchenTicket', { ticketId });
     }
-    return ticket;
+    return ticket!;
   }
 
   // ==================== STATIONS ====================

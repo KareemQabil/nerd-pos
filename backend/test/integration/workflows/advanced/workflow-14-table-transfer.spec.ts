@@ -6,7 +6,7 @@
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestAppException, NotFoundAppException } from '../../../../src/common/exceptions';
 import { TablesService } from '../../../../src/modules/tables/tables.service';
 import { TablesRepository } from '../../../../src/modules/tables/tables.repository';
 
@@ -136,7 +136,7 @@ describe('Workflow 14: Table Transfer', () => {
           toTableId: 'table-8',
           orderId: 'order-1',
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(BadRequestAppException);
     });
 
     it('should throw if table not found', async () => {
@@ -148,7 +148,7 @@ describe('Workflow 14: Table Transfer', () => {
           toTableId: 'table-8',
           orderId: 'order-1',
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(NotFoundAppException);
     });
   });
 

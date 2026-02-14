@@ -2,15 +2,12 @@
 // Source: FINAL/BACKEND/13-MODULE-DISCOUNTS.md
 // Handles: Discount CRUD, validation, time-based rules, application
 
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { DiscountsRepository } from './discounts.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import { CreateDiscountDto, UpdateDiscountDto, ApplyDiscountDto } from './dto';
+import { NotFoundAppException } from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 import {
   DiscountCreatedEvent,
   DiscountAppliedEvent,
@@ -53,7 +50,9 @@ export class DiscountsService {
   async findById(id: string): Promise<Discount> {
     const discount = await this.repo.findById(id);
     if (!discount) {
-      throw new NotFoundException(`Discount ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.DiscountNotFound, {
+        discountId: id,
+      });
     }
     return discount;
   }

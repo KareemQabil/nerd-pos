@@ -7,6 +7,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { InventoryRepository } from './inventory.repository';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { Tx } from '../../core/prisma/tx';
 import { FIFOStrategy } from './strategies/fifo.strategy';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
@@ -198,8 +199,7 @@ export class InventoryService {
         }
 
         // Lock inventory item row to prevent concurrent updates
-        await (tx as any)
-          .$queryRaw`SELECT id FROM inventory_items WHERE id = ${item.id} FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM inventory_items WHERE id = ${item.id} FOR UPDATE`;
 
         const newQuantity = new Decimal(item.quantityOnHand).plus(quantity);
         if (newQuantity.lessThan(0)) {
@@ -312,7 +312,7 @@ export class InventoryService {
     referenceType: string,
     referenceId: string,
     userId: string,
-    tx: Prisma.TransactionClient,
+    tx: Tx,
   ): Promise<DeductionResult[]> {
     // Get batches using tx client for FIFO
     const item = await this.repo.findByProductAndWarehouse(
@@ -328,11 +328,9 @@ export class InventoryService {
     }
 
     // Lock inventory item row to prevent concurrent deductions
-    await (tx as any)
-      .$queryRaw`SELECT id FROM inventory_items WHERE product_id = ${productId} AND warehouse_id = ${warehouseId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM inventory_items WHERE product_id = ${productId} AND warehouse_id = ${warehouseId} FOR UPDATE`;
     // Lock related batches for FIFO consistency
-    await (tx as any)
-      .$queryRaw`SELECT id FROM inventory_batches WHERE inventory_item_id = ${item.id} AND quantity_remaining > 0 FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM inventory_batches WHERE inventory_item_id = ${item.id} AND quantity_remaining > 0 FOR UPDATE`;
 
     const batches = await this.repo.findBatchesFIFO(item.id, tx);
     let remainingQty = new Decimal(quantity);
@@ -387,8 +385,7 @@ export class InventoryService {
     }
 
     // Update inventory item quantity using tx client
-    const client = tx || this.prisma;
-    await (client as any).inventoryItem.update({
+    await tx.inventoryItem.update({
       where: { id: item.id },
       data: {
         quantityOnHand: { decrement: quantity },
@@ -407,7 +404,7 @@ export class InventoryService {
   private async receiveStockWithTx(
     dto: ReceiveStockDto,
     userId: string,
-    tx: Prisma.TransactionClient,
+    tx: Tx,
     referenceType: 'PURCHASE' | 'TRANSFER',
   ): Promise<{ item: InventoryItem; batchId: string }> {
     const {
@@ -431,8 +428,7 @@ export class InventoryService {
     }
 
     // Lock inventory item row to prevent concurrent updates
-    await (tx as any)
-      .$queryRaw`SELECT id FROM inventory_items WHERE id = ${item.id} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM inventory_items WHERE id = ${item!.id} FOR UPDATE`;
 
     // Create batch with tx
     const batch = await this.repo.createBatch(

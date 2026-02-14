@@ -30,7 +30,12 @@ function createMockStep() {
 
 describe('SES-02: Order Without Session', () => {
   let salesService: SalesService;
-  let prisma: { $transaction: jest.Mock; $executeRaw: jest.Mock; $queryRaw: jest.Mock };
+  let prisma: {
+    $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
+    $queryRaw: jest.Mock;
+    inventoryItem: { updateMany: jest.Mock };
+  };
 
   beforeAll(async () => {
     const repo = {
@@ -44,6 +49,9 @@ describe('SES-02: Order Without Session', () => {
       $transaction: jest.fn(),
       $executeRaw: jest.fn(),
       $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
+      inventoryItem: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
     };
     prisma.$transaction = jest.fn(async (fn: any) => fn(prisma));
 

@@ -2,12 +2,7 @@
 // Source: FINAL/BACKEND/03-MODULE-PRODUCTS.md
 // Aligned with: prisma/schema.prisma
 
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { ProductsRepository } from './products.repository';
 import { IEventBus } from '../../core/event-bus/event-bus.interface';
 import {
@@ -37,6 +32,11 @@ import {
   ModifierGroupWithOptions,
 } from './entities/product.entity';
 import Decimal from 'decimal.js';
+import {
+  BadRequestAppException,
+  NotFoundAppException,
+} from '../../common/exceptions';
+import { ErrorMessages } from '../../common/constants';
 
 @Injectable()
 export class ProductsService {
@@ -49,10 +49,10 @@ export class ProductsService {
 
   async createProduct(dto: CreateProductDto): Promise<Product> {
     if (!Number.isFinite(dto.price)) {
-      throw new BadRequestException('Price must be a valid number');
+      throw new BadRequestAppException(ErrorMessages.InvalidPrice);
     }
     if (dto.price < 0) {
-      throw new BadRequestException('Price must be non-negative');
+      throw new BadRequestAppException(ErrorMessages.NegativePrice);
     }
 
     const data = {
@@ -84,10 +84,10 @@ export class ProductsService {
     const data: any = { ...dto };
     if (dto.price !== undefined) {
       if (!Number.isFinite(dto.price)) {
-        throw new BadRequestException('Price must be a valid number');
+        throw new BadRequestAppException(ErrorMessages.InvalidPrice);
       }
       if (dto.price < 0) {
-        throw new BadRequestException('Price must be non-negative');
+        throw new BadRequestAppException(ErrorMessages.NegativePrice);
       }
       data.price = new Decimal(dto.price).toNumber();
     }
@@ -108,7 +108,9 @@ export class ProductsService {
   async findProductById(id: string): Promise<ProductWithRelations> {
     const product = await this.repo.findWithRelations(id);
     if (!product) {
-      throw new NotFoundException(`Product ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.ProductNotFound, {
+        productId: id,
+      });
     }
     return product;
   }
@@ -116,7 +118,7 @@ export class ProductsService {
   async findProductBySku(sku: string): Promise<ProductWithRelations> {
     const product = await this.repo.findBySku(sku);
     if (!product) {
-      throw new NotFoundException(`Product with SKU ${sku} not found`);
+      throw new NotFoundAppException(ErrorMessages.ProductSkuNotFound, { sku });
     }
     return product;
   }
@@ -206,7 +208,9 @@ export class ProductsService {
   async findCategoryById(id: string): Promise<Category> {
     const category = await this.repo.findCategoryById(id);
     if (!category) {
-      throw new NotFoundException(`Category ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.CategoryNotFound, {
+        categoryId: id,
+      });
     }
     return category;
   }
@@ -255,7 +259,9 @@ export class ProductsService {
   async findModifierGroupById(id: string): Promise<ModifierGroupWithOptions> {
     const group = await this.repo.findModifierGroupById(id);
     if (!group) {
-      throw new NotFoundException(`Modifier group ${id} not found`);
+      throw new NotFoundAppException(ErrorMessages.ModifierGroupNotFound, {
+        groupId: id,
+      });
     }
     return group;
   }
