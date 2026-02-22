@@ -20,6 +20,8 @@
 # production
 /build
 /dist
+/.tanstack
+/node_modules
 
 # misc
 .DS_Store
