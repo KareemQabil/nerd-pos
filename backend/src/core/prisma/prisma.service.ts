@@ -11,13 +11,33 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  private readonly pool?: Pool;
+
   constructor() {
+    const accelerateUrl = process.env.PRISMA_DATABASE_URL;
+    if (
+      process.env.PRISMA_USE_ACCELERATE === 'true' &&
+      accelerateUrl &&
+      accelerateUrl.startsWith('prisma+postgres://')
+    ) {
+      super({ accelerateUrl });
+      return;
+    }
+
+    const connectionString = process.env.DATABASE_URL;
+    const requiresSsl =
+      !!connectionString &&
+      (connectionString.includes('sslmode=require') ||
+        connectionString.includes('db.prisma.io'));
+
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
+      ssl: requiresSsl ? { rejectUnauthorized: false } : undefined,
     });
     const adapter = new PrismaPg(pool);
 
     super({ adapter });
+    this.pool = pool;
   }
 
   async onModuleInit() {
@@ -26,5 +46,8 @@ export class PrismaService
 
   async onModuleDestroy() {
     await this.$disconnect();
+    if (this.pool) {
+      await this.pool.end();
+    }
   }
 }

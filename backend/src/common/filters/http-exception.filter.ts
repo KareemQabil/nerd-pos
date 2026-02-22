@@ -111,11 +111,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
       errorDetails = { message: exception.message };
     }
 
-    // Log error
-    this.logger.error(
-      `[${status}] ${request.method} ${request.url} - ${detail}`,
-      exception instanceof Error ? exception.stack : undefined,
-    );
+    const isTest = process.env.NODE_ENV === 'test';
+    const logMessage = `[${status}] ${request.method} ${request.url} - ${detail}`;
+
+    // Log errors (suppress noisy 4xx in tests)
+    if (isTest && status < HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.debug(logMessage);
+    } else {
+      this.logger.error(
+        logMessage,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+    }
 
     const apiError = resolveErrorMessage(errorPayload, status, errorDetails);
 

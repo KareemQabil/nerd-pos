@@ -352,6 +352,14 @@ export class UsersService {
     return permissions.some((p) => p.code === permissionCode);
   }
 
+  async hasPermissionForRole(
+    roleId: string,
+    permissionCode: string,
+  ): Promise<boolean> {
+    const permissions = await this.repo.getPermissions(roleId);
+    return permissions.some((p) => p.code === permissionCode);
+  }
+
   // ==================== ROLES ====================
 
   async getAllRoles(): Promise<Role[]> {
